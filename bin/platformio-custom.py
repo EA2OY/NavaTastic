@@ -2,6 +2,7 @@
 # trunk-ignore-all(ruff/F821)
 # trunk-ignore-all(flake8/F821): For SConstruct imports
 import sys
+import os
 from os.path import join
 import subprocess
 import json
@@ -215,6 +216,11 @@ except subprocess.CalledProcessError:
     repo_owner = "unknown"
 
 jsonLoc = env["PROJECT_DIR"] + "/userPrefs.jsonc"
+# NAVARICO: cada env puede apuntar a su perfil de claves/canales (custom_meshtastic_prefs en navarrico.ini).
+# Si no se define, se usa el userPrefs.jsonc de la raiz (comportamiento original de Meshtastic).
+custom_prefs = env.GetProjectOption("custom_meshtastic_prefs", "")
+if custom_prefs:
+    jsonLoc = custom_prefs if os.path.isabs(custom_prefs) else join(env["PROJECT_DIR"], custom_prefs)
 with open(jsonLoc) as f:
     jsonStr = re.sub("//.*","", f.read(), flags=re.MULTILINE)
     userPrefs = json.loads(jsonStr)
@@ -236,13 +242,24 @@ for pref in userPrefs:
 
 # General options that are passed to the C and C++ compilers
 # Calculate unix epoch for current day (midnight)
-current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-build_epoch = int(current_date.timestamp())
+# NAVARICO: BUILD_EPOCH por defecto = medianoche de hoy (comportamiento original de Meshtastic).
+# Para reproducciones byte-idénticas de un build anterior, definir la variable de entorno
+# NAVARICO_BUILD_EPOCH con el epoch Unix del día original (lo hace verificar_paridad.ps1).
+navarico_epoch = os.environ.get("NAVARICO_BUILD_EPOCH")
+if navarico_epoch:
+    build_epoch = int(navarico_epoch)
+else:
+    current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    build_epoch = int(current_date.timestamp())
+
+# NAVARICO: los envs navarrico_* reportan el APP_ENV canónico de la placa (custom_meshtastic_app_env)
+# para que el binario sea idéntico al build original (p. ej. Faketec reporta nrf52_promicro_diy_tcxo).
+app_env = env.GetProjectOption("custom_meshtastic_app_env", "") or env.get("PIOENV")
 
 flags = [
         "-DAPP_VERSION=" + verObj["long"],
         "-DAPP_VERSION_SHORT=" + verObj["short"],
-        "-DAPP_ENV=" + env.get("PIOENV"),
+        "-DAPP_ENV=" + app_env,
         "-DAPP_REPO=" + repo_owner,
         "-DBUILD_EPOCH=" + str(build_epoch),
     ] + pref_flags

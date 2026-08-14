@@ -59,6 +59,9 @@ void NavaCLIModule::loadResiliencePrefs() {
                 // Ficheros de versiones previas sin el campo auto_fav -> default ON
                 if (fileSize < sizeof(prefs)) {
                     prefs.auto_fav = 1;
+#ifdef NAVARICO_RAMA_1
+                    prefs.role = 0xFF; // NAVARICO Rama 1: sin rol fijado (fichero de version previa)
+#endif
                 }
                 navaAutoFavoriteEnabled = (prefs.auto_fav != 0);
                 // Aplicar parámetros cargados a RAM
@@ -76,6 +79,15 @@ void NavaCLIModule::loadResiliencePrefs() {
                     config.bluetooth.enabled = true;
                     setBleForceDisabled(false);
                 }
+#ifdef NAVARICO_RAMA_1
+                // NAVARICO Rama 1: rol semi-permanente (sobrevive a factory reset). 0xFF = sin fijar.
+                // Valores validos: 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER. Con CLIENT/CLIENT_MUTE
+                // installRoleDefaults no cambia nada (solo aplica defaults a roles de infraestructura).
+                if (prefs.role <= meshtastic_Config_DeviceConfig_Role_ROUTER) {
+                    config.device.role = (meshtastic_Config_DeviceConfig_Role)prefs.role;
+                    nodeDB->installRoleDefaults(config.device.role);
+                }
+#endif
                 return;
             }
         }
@@ -95,6 +107,9 @@ void NavaCLIModule::loadResiliencePrefs() {
     prefs.tx_disabled = 0;
     prefs.ble_disabled = 0;
     prefs.auto_fav = 1;
+#ifdef NAVARICO_RAMA_1
+    prefs.role = 0xFF; // NAVARICO Rama 1: sin rol fijado
+#endif
     navaAutoFavoriteEnabled = true;
     setBleForceDisabled(false);
     saveResiliencePrefs();
@@ -705,6 +720,11 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             owner.is_unmessagable = false;
             owner.has_is_unmessagable = true;
             nodeDB->saveToDisk(SEGMENT_CONFIG | SEGMENT_NODEDATABASE);
+#ifdef NAVARICO_RAMA_1
+            // NAVARICO Rama 1: rol semi-permanente en /resilience.bin (sobrevive a factory reset)
+            prefs.role = (uint8_t)config.device.role;
+            saveResiliencePrefs();
+#endif
             enqueueResponse(replyDest, replyChannel, "OK: ROL CAMBIADO", true);
         } else {
             enqueueResponse(replyDest, replyChannel, usageAndState("set_role"), true);
@@ -756,14 +776,23 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         if (cmd.length() > 12) {
             std::string pwrStr = cmd.substr(12);
             uint32_t pwr = strtoul(pwrStr.c_str(), NULL, 10);
+            // NAVARICO: rango de potencia por radio (E22P 0-12 / SX1262 0-22) - lo decide el env
+#ifdef NAVARICO_RADIO_E22P
             if (pwr >= 0 && pwr <= 12) {
+#else
+            if (pwr >= 0 && pwr <= 22) {
+#endif
                 config.lora.tx_power = pwr;
                 nodeDB->saveToDisk(SEGMENT_CONFIG);
                 char buf[32];
                 snprintf(buf, sizeof(buf), "OK: POTENCIA TX ESTABLECIDA A %d", pwr);
                 enqueueResponse(replyDest, replyChannel, buf, true);
             } else {
+#ifdef NAVARICO_RADIO_E22P
                 enqueueResponse(replyDest, replyChannel, "ERR: LA POTENCIA DEBE SER 0-12", true);
+#else
+                enqueueResponse(replyDest, replyChannel, "ERR: LA POTENCIA DEBE SER 0-22", true);
+#endif
             }
         } else {
             enqueueResponse(replyDest, replyChannel, usageAndState("set_txpower"), true);
@@ -1225,7 +1254,12 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
     else if (topic == "set_hops")
         return "set_hops: Limite de saltos LoRa. Uso: /nava set_hops [1-7]";
     else if (topic == "set_txpower")
+        // NAVARICO: ayuda de set_txpower por radio (E22P 0-12 / SX1262 0-22)
+#ifdef NAVARICO_RADIO_E22P
         return "set_txpower: Potencia de transmision LoRa. Uso: /nava set_txpower [0-12]";
+#else
+        return "set_txpower: Potencia de transmision LoRa. Uso: /nava set_txpower [0-22]";
+#endif
     else if (topic == "db_purge")
         return "db_purge: Expulsa de RAM los nodos que no son favoritos ni admin. Uso: /nava db_purge";
     else if (topic == "db_clear")
@@ -1265,7 +1299,12 @@ std::string NavaCLIModule::usageAndState(const std::string &topic)
         return buf;
     }
     if (topic == "set_txpower") {
+        // NAVARICO: consulta de set_txpower por radio (E22P 0-12 / SX1262 0-22)
+#ifdef NAVARICO_RADIO_E22P
         snprintf(buf, sizeof(buf), "TXPWR ACT: %ddBm (0-12). USO: set_txpower [0-12]", config.lora.tx_power);
+#else
+        snprintf(buf, sizeof(buf), "TXPWR ACT: %ddBm (0-22). USO: set_txpower [0-22]", config.lora.tx_power);
+#endif
         return buf;
     }
     if (topic == "set_hops") {

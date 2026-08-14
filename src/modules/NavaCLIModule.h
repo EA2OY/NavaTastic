@@ -31,6 +31,9 @@ struct ResiliencePrefs {
     uint8_t tx_disabled;    // 0=ON, 1=OFF
     uint8_t ble_disabled;   // 0=ON, 1=OFF
     uint8_t auto_fav;       // 1=auto-favoriteo ON (default), 0=OFF (/nava fav auto)
+#ifdef NAVARICO_RAMA_1
+    uint8_t role;           // NAVARICO Rama 1: rol semi-permanente. 0xFF=sin fijar; 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER. Sobrevive a factory reset
+#endif
 };
 
 class NavaCLIModule : public SinglePortModule, public concurrency::OSThread

@@ -102,7 +102,13 @@ void Channels::initDefaultLoraConfig()
     loraConfig.coding_rate = 5;
     loraConfig.channel_num = 4;
     loraConfig.override_frequency = 869.618f;
+    // NAVARICO: potencia TX por radio. E22P -> 8 dBm conservador (subible con /nava set_txpower);
+    // SX1262 (HT-RA62, Xiao Kit, Seed, T114) -> 22 dBm. Lo decide el env navarrico_*_e22p_* o *_sx1262_*.
+#ifdef NAVARICO_RADIO_E22P
     loraConfig.tx_power = 8; // Default safety limit for E22P / DIY Pro Micro TCXO
+#else
+    loraConfig.tx_power = 22; // Default for SX1262 (HT-RA62 / Xiao Kit / Seed / T114)
+#endif
 #endif
 }
 
