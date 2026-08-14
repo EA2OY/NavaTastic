@@ -145,12 +145,38 @@ Para claves/canales/rol → perfil jsonc. Para añadir una rama (Propia) → per
 
 ---
 
-## 7. Morralla y archivo
+## 7. Reglas operativas (normas de agente)
+
+- **Comunicación**: directa y técnica, mínimas palabras, sin introducciones ni relleno. No
+  devolver salidas crudas de terminal, diffs completos ni logs masivos — solo líneas de error
+  relevantes y fragmentos de código modificados (dieta de tokens).
+- **Flujo en dos fases**: ante cualquier tarea, FASE 1 = diagnóstico + plan técnico conciso +
+  método de verificación (p. ej. `pio run -e <env>`), SIN editar archivos; esperar confirmación
+  explícita → FASE 2 = ejecución.
+- **Código mínimo**: solución con menos líneas y cero dependencias nuevas; verificar primero
+  si la funcionalidad ya existe en el proyecto.
+- **Autorización de proyectos**: solo se escribe en `C:\NavaTastic Codigo completo`.
+  `C:\Firmware Navarrico 4.3` y `C:\Users\Jesus\Desktop\firmware` son SOLO LECTURA (archivo
+  histórico y prístino). Otros proyectos requieren orden explícita y puntual.
+- **Preservar el trabajo existente**: al actualizar docs/cerebro, AÑADIR (errores + soluciones)
+  en vez de reescribir; no destruir contexto útil.
+- **Backup/rollback por marca de tiempo (NO por "sesión")**: antes de tocar archivos no
+  recuperables (`variant.h`, `userPrefs.jsonc`, `NodeDB.cpp`, `platformio.ini`, fuentes/contexto
+  críticos) crear copia `nombre.bak-AAAAMMDD-HHMM` (una por archivo y día) y/o snapshot
+  `snap-AAAAMMDD-HHMMSS.zip` (fuentes clave + config + cerebro, sin binarios). En un rollback:
+  LISTAR las copias disponibles de ese día/hora y restaurar la más cercana, diciendo
+  exactamente qué se restauró. Los backups COMPLEMENTAN a git (no commitear sin orden expresa).
+- **Actualización continua del cerebro**: anotar en `docs\cerebro\cerebro.md` (log de estado,
+  errores→soluciones, tareas, handover) todo lo que se haga, sobre la marcha. Al cerrar sesión:
+  actualizar `PLAN_DE_TRABAJO.md` y `BITACORA_TECNICA.md`; commits locales por hito.
+- Detalle completo (original): `docs\cerebro\PROMPT_INICIALIZACION.md` y `PROMPT_DESPLIEGUE.md`.
+
+## 8. Morralla y archivo
 
 `_archivo/` contiene material histórico (backups `.bak-*`, builds viejos, notas obsoletas).
 Está gitignored y no forma parte del código.
 
-## 8. Documentación
+## 9. Documentación
 
 - `Manual_NavaTastic.md` (docs/, si se migra) — manual de comandos `/nava`.
 - `profiles/README.md` — perfiles.
