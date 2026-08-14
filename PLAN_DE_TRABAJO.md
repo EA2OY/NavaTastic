@@ -41,18 +41,16 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 - [ ] GitHub (otra sesión): repo público solo General, docs saneadas de claves Propia
 - [ ] Propia (R2IP/R1IP): perfiles + envs sin tocar código
 - [ ] Opcional: progname por env para OTA zip byte-idéntico
-- [ ] **⭐ JOYA DE LA CORONA (EN CURSO, sesión 14/08)**: crear `PORTING_NUEVO_FORK.md`
-      (o nombre similar) — guía maestra de portabilidad: (1) mapa COMPLETO de añadidos Navarrico
-      vs Meshtastic prístino (Desktop\firmware como referencia), fichero por fichero, con anclas
-      de búsqueda (nombres de funciones/macros/comentarios NAVARICO:) para localizarlos en un
-      fork NUEVO donde las líneas difieran; (2) catálogo de las mejoras por bloque (Rama 1
-      energía/resiliencia, Rama 2 Flash/infraestructura, NavaCLI /nava, canal Navadmin, H3,
-      fav auto, ayuda/consultas, rol semi-permanente R1, paridad byte-a-byte) con su
-      comportamiento y dependencias; (3) procedimiento paso a paso de portado: analizar fork
-      nuevo -> aplicar bloques -> recompilar -> verificar paridad/regresión; (4) checklist de
-      "qué debe saber el agente antes de tocar" (líneas mágicas __LINE__, PIO backslashes,
-      projenv vs lib builders, UF2 mixto, marcas temporales). Material base: Guia_para_agente_sobre_NavaTastic.md
-      §4 (mapa de ficheros), BITACORA_TECNICA.md (receta y fixes F1-F12), docs/ y el prístino.
+- [x] **⭐ JOYA DE LA CORONA (14/08, 4ª parte)**: creado `PORTING_NUEVO_FORK.md` (raíz del
+      repo) — guía maestra de portabilidad: (1) inventario COMPLETO fichero a fichero
+      (69 ficheros, +6036/-114 vs prístino) con anclas de búsqueda (NAVARICO:,
+      USERPREFS_*, FIX_NATIVE_CORE_RESET, funciones) y qué hace cada bloque;
+      (2) catálogo de mejoras por bloque (E1 energía, E2 Flash, S seguridad, N NavaCLI,
+      P paridad) con comportamiento, ficheros y dependencias (H1+H3 juntos, canal
+      Navadmin+fix H3, LPCOMP por placa, externs de NavaCLI...);
+      (3) procedimiento paso a paso (FASE 0 preparación → FASE 1 análisis → FASE 2
+      pases → FASE 3 compilar → FASE 4 verificar); (4) checklist de trampas (F1-F12 +
+      MAX_PATH + .pio heredado + no paralelizar).
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

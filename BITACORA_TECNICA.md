@@ -190,9 +190,11 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   - Adendas "REPO UNIFICADO" en `transfer_context.md`, `guia_integracion_navarrico.md`,
     `Manual_NavaTastic.md`, `Manual_uso_NavaTastic_4.2.md`, `GUIA_AGENTE_NAVTASTIC.md`.
   - Regla aplicada: `C:\Firmware Navarrico 4.3` = SOLO LECTURA (archivo histórico).
-- **4ª parte — JOYA DE LA CORONA (EN CURSO)**: se creará `PORTING_NUEVO_FORK.md` (raíz del
-  repo) — la guía maestra de portabilidad a forks nuevos (inventario con anclas, catálogo de
-  bloques con dependencias, procedimiento paso a paso, checklist de trampas F1-F12).
-  Material base: diffs reales vs prístino (git diff 54e0d8d0a..HEAD, 69 ficheros),
-  anclas localizadas por grep (NAVARICO:, USERPREFS_*, FIX_NATIVE_CORE_RESET, funciones),
-  BITACORA F1-F12 y docs/.
+- **4ª parte — JOYA DE LA CORONA (COMPLETADA)**: creado `PORTING_NUEVO_FORK.md` (raíz del
+  repo) — la guía maestra de portabilidad a forks nuevos: (1) inventario fichero a fichero
+  con anclas de búsqueda; (2) catálogo de bloques (E1 energía, E2 Flash, S seguridad,
+  N NavaCLI, P paridad) con comportamiento y dependencias; (3) procedimiento paso a paso
+  (0 preparación → 1 análisis → 2 pases → 3 compilar → 4 verificar); (4) checklist de
+  trampas (F1-F12 + MAX_PATH + .pio heredado + no paralelizar). Material base: diffs reales
+  vs prístino (git diff 54e0d8d0a..HEAD, 69 ficheros), anclas localizadas por grep
+  (NAVARICO:, USERPREFS_*, FIX_NATIVE_CORE_RESET, funciones), BITACORA F1-F12 y docs/.
