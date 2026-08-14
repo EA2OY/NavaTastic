@@ -1,4 +1,11 @@
-# PROMPT DE DESPLIEGUE — Firmware Navarrico 4.3 (nueva sesión / retoma)
+# PROMPT DE DESPLIEGUE — NavaTastic (nueva sesión / retoma)
+
+> **ESTADO 14/08/2026 — REPO UNIFICADO**: bloque histórico 4.3 (rutas y estructura de
+> 24 carpetas **OBSOLETAS**). Retomar el repo único = leer `Guia_para_agente_sobre_
+> NavaTastic.md` + `docs\cerebro\cerebro.md` (sección 5) + `BITACORA_TECNICA.md` +
+> `PLAN_DE_TRABAJO.md` + `PORTING_NUEVO_FORK.md`. Compilar desde la raíz con
+> `pio run -e navarrico_<placa>_<radio>_<rama>`; distribuir con `distribuir.ps1`.
+> `C:\Firmware Navarrico 4.3` es SOLO LECTURA (archivo histórico).
 
 Copia y pega este bloque en una nueva conversación de agente para retomar el trabajo sin perder contexto. Generado 2026-08-11 (noche), tras la sesión de fixes de auditoría y verificación en hardware.
 

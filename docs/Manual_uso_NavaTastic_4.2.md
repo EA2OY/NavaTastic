@@ -10,6 +10,11 @@ toc-title: "Índice"
 
 # Manual de Uso — Firmware NavaTastic 4.2
 
+> **ADENDA 14/08/2026 — REPO UNIFICADO**: manual de usuario **VIGENTE** (comportamiento
+> del firmware; la versión actual es NavaTastic 4.3 = repo unificado, 12 builds
+> `navarrico_*`). Los binarios se distribuyen desde `distribucion\` del repo (32
+> ficheros, nombres históricos). El PDF de este manual no se regenera en el repo.
+
 Este firmware ha sido diseñado específicamente para nodos de la red **Meshtastic** que operan de forma aislada y autónoma. Su objetivo es garantizar la supervivencia del hardware ante caídas críticas de energía o corrupciones de memoria, permitiendo la recuperación y gestión de forma **100% remota** sin necesidad de intervenciones físicas en el emplazamiento.
 
 ---

@@ -1,4 +1,16 @@
-# Navarrico Firmware Project: Context Transfer & Technical Memory (v4.3)
+# NavaTastic: Context Transfer & Technical Memory (v4.3 → repo unificado)
+
+> **ADENDA 14/08/2026 — REPO UNIFICADO**: este es el documento histórico 4.3 (estructura
+> de 24 carpetas **OBSOLETA**); su contenido técnico sigue siendo válido como memoria
+> canónica de comportamiento. La estructura física actual es **`C:\NavaTastic Codigo
+> completo`**: 12 envs `navarrico_<placa>_<radio>_<rama>` en `variants/nrf52840/
+> navarrico.ini`, perfiles en `profiles/`, scripts `build.ps1`/`distribuir.ps1`/
+> `verificar_paridad.ps1`, salida a `distribucion\`, paridad 12/12 byte-idéntica
+> (Eclipse Edition R2IG + R1IG). Mapa de equivalencias: `Rama 2 Infraestructura\
+> Infraestructura General\<carpeta>` → env `navarrico_<placa>_<radio>_r2ig` + perfil
+> `R2IG_<Placa>.jsonc`; `Rama 1 Clientes...R1IG` → `..._r1ig` + `R1IG_*.jsonc`.
+> Guías vivas: `Guia_para_agente_sobre_NavaTastic.md`, `BITACORA_TECNICA.md`,
+> `PLAN_DE_TRABAJO.md`, `PORTING_NUEVO_FORK.md`. `C:\Firmware Navarrico 4.3` SOLO LECTURA.
 
 Este documento es la **memoria técnica canónica** del proyecto **Firmware Navarrico 4.3**, un fork de Meshtastic (v2.7.26 Beta) optimizado para repetidores solares de infraestructura en la malla SFNarrow (Madrid). Alimenta a cualquier agente de IA para retomar el trabajo sin perder contexto. Es el documento **1 de 3** del proyecto:
 

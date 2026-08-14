@@ -1,4 +1,12 @@
-# GUÍA DE INICIALIZACIÓN DE AGENTE — Firmware Navarrico 4.3
+# GUÍA DE INICIALIZACIÓN DE AGENTE — NavaTastic (repo unificado)
+
+> **ADENDA 14/08/2026 — REPO UNIFICADO**: esta guía es la versión histórica 4.3
+> (rutas y estructura de 24 carpetas **OBSOLETAS**). El punto de entrada ÚNICO actual es
+> **`C:\NavaTastic Codigo completo\Guia_para_agente_sobre_NavaTastic.md`** (+ `AGENTS.md`
+> bloque NAVARICO, `BITACORA_TECNICA.md`, `PLAN_DE_TRABAJO.md`, `PORTING_NUEVO_FORK.md`).
+> Compilar: `pio run -e navarrico_<placa>_<radio>_<rama>` desde la raíz. `C:\Firmware
+> Navarrico 4.3` es SOLO LECTURA (archivo histórico). El resto de esta guía (orden de
+> lectura, reglas esenciales) sigue siendo válido como referencia conceptual.
 
 Punto de entrada único para cualquier agente (IA) que retome trabajo en este proyecto. Léela completa **antes de tocar cualquier fichero**.
 

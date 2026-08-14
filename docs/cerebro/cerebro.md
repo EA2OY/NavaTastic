@@ -1,4 +1,14 @@
-# CEREBRO — Firmware Navarrico 4.3 (Índice Global y Registro de Estado)
+# CEREBRO — NavaTastic (Índice Global y Registro de Estado)
+
+> **ESTADO 14/08/2026 — REPO UNIFICADO (LEER PRIMERO)**: este cerebro es ahora el del
+> fork unificado `C:\NavaTastic Codigo completo` (un solo código → **12 firmwares** por
+> env/perfil). **Todo el contenido histórico de 4.3 (secciones 1-4 y subnotas 01-12) se
+> conserva íntegro como conocimiento técnico**, y lo nuevo (log de la sesión 14/08,
+> errores F1-F12, VIGENTE vs OBSOLETO, handover) está en la **sección 5**. El original
+> `C:\Firmware Navarrico 4.3` es ARCHIVO HISTÓRICO SOLO LECTURA. Guías vivas del repo:
+> `Guia_para_agente_sobre_NavaTastic.md` (cómo funciona), `BITACORA_TECNICA.md` (receta
+> de paridad y fixes F1-F12), `PLAN_DE_TRABAJO.md` (estado), `PORTING_NUEVO_FORK.md`
+> (guía maestra para portar a un fork nuevo).
 
 Capa de conocimiento portable del proyecto. Inicializa contexto en cualquier agente sin reenviar documentación original.
 
@@ -165,3 +175,116 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 - **Estado actual (12/08, 17:15)**: **13/13 COMPILADAS Y DISTRIBUIDAS** (6 Propia + 6 General + Felix Xiao Kit i2c) con TODO lo pendiente: canal Navadmin (jsonc ×12) + fix H3 + fav auto + fragmentación por palabra + ayuda/consultas + hook universal. UF2/OTA de ambas ramas actualizados (MD5 vs .pio OK) + `felix puerto venecia\` (Felix). Binarios previos archivados: `snap-binarios-previos-20260812-1706.zip`. LAB **DESCARTADO (no usar)**. Backups/rollbacks del día: 1503/1536/1537/1614/1633/1639/1703/1706/1719 (detalle en log). Docs y PDFs de manuales al día. Rama 1: plan en subnota `11` (no ejecutado).
 - **Estado actual (12/08, ~19:00, añadido)**: **RAMA 1 CLIENTES CREADA** (`Rama 1 Clientes en Infraestructura\`, R1IG/R1IP, 12 carpetas): rol CLIENT + rol semi-permanente en `/resilience.bin`, 12/12 compiladas desde cero SUCCESS y distribuidas a UF2/OTA R1 (MD5 OK). Fix MAX_PATH en 4 carpetas (error #13). **Distribución Desktop**: creado `HerramientasPropiasIA\distribuir_desktop.ps1` → `Desktop\NavaTastic 4.3 120826\` con `Rama 1 Clientes\` y `Rama 2 Routers\` × `LIPO/NIMH` × `UF2/OTA` (NIMH = solo Faketec + XiaoKitI2c, norma del operador; 32 ficheros por rama, verificado).
 - **Siguiente paso**: **(1) TEST EN BANCO** (variantes reales, LAB descartado): P0/P1 (lifepo4 rechazado, rate-limit 30s canal, ping), H3 (§7 plan_h3), fav auto (off sin estrella/bypass, on recupera, persistencia), ayuda/consultas (no-arg, `?`, AVISO nrf erase), fragmentación sin cortes, **Rama 1** (rol CLIENT visible, conversión semi-permanente `set_role`, NIMH Faketec/XiaoKitI2c, compat `resilience.bin` viejo); (2) **DESPLIEGUE**: flashear + **factory reset** en nodos ya configurados (materializar canal 1) → NodeInfo del mando → verificar canal Navadmin + DM (los 3 silenciosos: Faketec ×2 y Xiao Kit i2c); (3) verificación campo: Estella (Promicro) y General (mando de rescate); Xiao ~3.8V ya verificado; (4) **RAMA 1** (subnota 11): decisiones restantes (position on/off, TX power, alcance variantes móviles); (5) P3-doc opcional: PDFs de transfer_context/guia NO regenerar (decisión 11/08).
+
+---
+
+## 5. REPO UNIFICADO (14/08/2026) — ESTADO VIGENTE
+
+> Esta sección es la que manda. Las secciones 1-4 y subnotas 01-12 documentan el
+> proyecto histórico 4.3 (24 repos, 12/08); su contenido técnico sigue siendo la
+> verdad de comportamiento, pero la **estructura física es la del repo único**.
+
+### 5.1 Qué es el repo unificado
+
+- **Ubicación**: `C:\NavaTastic Codigo completo` (fork Meshtastic 2.7.26, base `54e0d8d`).
+- **Un solo código → 12 firmwares** elegidos por env (`variants/nrf52840/navarrico.ini`):
+  `navarrico_<placa>_<radio>_<rama>` — 6 placas/radios × R2IG (Routers) / R1IG (Clientes).
+- **Perfiles** `profiles/<RAMA>_<Placa>.jsonc`: claves admin, canal Navadmin, rol, BT
+  (12 ficheros = copias 1:1 de los jsonc originales; el `userPrefs.jsonc` raíz es el
+  perfil por defecto R2IG Promicro).
+- **Macros ortogonales**: `NAVARICO_RADIO_E22P`/`NAVARICO_RADIO_SX1262` (potencia/pin/OCV/
+  set_txpower) y `NAVARICO_RAMA_1` (rol CLIENT + rol semi-permanente en `/resilience.bin`).
+- **Scripts**: `build.ps1`, `distribuir.ps1` (→ `distribucion\Rama 1 Clientes|Rama 2 Routers
+  × LIPO|NIMH × UF2|OTA`, 32 ficheros), `verificar_paridad.ps1` (modo paridad + MD5).
+- **⭐ PARIDAD 12/12 byte-idéntica (14/08)**: los 12 UF2 del repo = binarios originales
+  (Eclipse Edition R2IG + R1IG), con BUILD_EPOCH 12/08, APP_VERSION `2.7.26.54e0d8d`,
+  marcas temporales y rutas de libdeps fijadas por env (detalle en `BITACORA_TECNICA.md`).
+- **Solo General (R2IG/R1IG) migrada**. Propia (R2IP/R1IP) = perfiles + 12 envs futuros,
+  sin tocar código (perfiles gitignored). Felix fuera. GitHub pendiente (solo General).
+- Guías vivas: `Guia_para_agente_sobre_NavaTastic.md` (qué es cada cosa y dónde se toca),
+  `BITACORA_TECNICA.md` (fallos/fixes del proceso), `PLAN_DE_TRABAJO.md` (avance),
+  `PORTING_NUEVO_FORK.md` (guía maestra de portabilidad a forks nuevos).
+
+### 5.2 Registro de estado (log) — sesión 14/08 (portabilidad)
+
+- **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
+  layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
+  4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner
+  ESTADO 14/08, sección 5 (log + F1-F12 + VIGENTE vs OBSOLETO + handover). Subnotas 01-12
+  y docs de contexto reciben banner/adenda de mapeo 4.3 → repo. El 4.3 queda SOLO LECTURA.
+- **2026-08-14 (4ª parte) — JOYA DE LA CORONA**: creado `PORTING_NUEVO_FORK.md` (raíz del
+  repo) — guía maestra para integrar TODAS las mejoras Navarrico en un fork NUEVO de
+  Meshtastic: inventario fichero a fichero con anclas, catálogo de bloques con
+  dependencias, procedimiento paso a paso y checklist de trampas (F1-F12).
+- **2026-08-14 (anterior)**: unificación completa (12 envs, perfiles, scripts) + paridad
+  12/12 + distribución a `distribucion\` + copia inicial de docs (ver `BITACORA_TECNICA.md`
+  y `PLAN_DE_TRABAJO.md`).
+
+### 5.3 Errores conocidos nuevos — proceso de unificación/paridad (F1-F12)
+
+> Detalle completo, cronología y fixes: `BITACORA_TECNICA.md`. Resumen (todos resueltos):
+
+| # | Error encontrado | Solución aplicada |
+|---|---|---|
+| F1 | APP_VERSION embebía el SHA del repo nuevo (`bfe547a` ≠ `54e0d8d`) | Override `NAVARICO_APP_VERSION` en `platformio-custom.py` (inerte si no existe) |
+| F2 | BUILD_EPOCH = día de compilación (≠ 12/08) | Override `NAVARICO_BUILD_EPOCH` (variable de entorno, inerte) |
+| F3 | APP_ENV = nombre del env (`navarrico_*` ≠ canónico) | `custom_meshtastic_app_env` por env |
+| F4 | Libs embeben ruta `.pio\libdeps\<env>\...` (arduino-fsm usa `__FILE__`) | `-ffile-prefix-map` inyectado desde Python a **los LIB BUILDERS** (`lb.env`), no a projenv (Fix 4 tras 3 fallidos) |
+| F5 | Mapa de libdeps de Promicro R2IG apuntaba a ruta ABSOLUTA (sonda confundida con R1IG) | R2IG embebe ruta RELATIVA `.pio\libdeps\<env>`; mapa corregido. Lección: verificar sonda contra el binario correcto |
+| F6 | Override `__TIME__/__DATE__` con CPPDEFINES rompía (CommandLineToArgvW borra comillas simples) | Flags crudos `-D__TIME__=\"...\" -D__DATE__=\"...\"` como CCFLAGS |
+| F7 | Cualquier línea añadida en NodeDB.cpp rompía paridad (1 byte: `saveToDisk` embebe `__LINE__`) | Cambios a 0 líneas netas; rol CLIENT vía perfil, comentarios NAVARICO inline |
+| F8 | "El orden de libs difería" — falso positivo (orden alfabético del script vs `piolib.py:1106`) | Verificar con el BINARIO (diff byte a byte), no con heurísticas de carpetas |
+| F9 | Build limpio del repo original NO reproducía Eclipse… salvo 6 bytes | Era la marca temporal (`05:24:42Aug 14 2026` vs `07:35:34Aug 12 2026`); Eclipse ES reproducible en limpio |
+| F10 | Morrilla y scripts con errores de PowerShell (Join-Path 3 args, Select-String -Encoding Byte, CRLF en here-strings, ExecutionPolicy) | Aprendizajes de entorno; ver BITACORA |
+| F11 | Cada repo original divergió en main-nrf52.cpp (bloques por placa solo en sus carpetas) | Unificado con TODOS los bloques en `#ifdef/#elif`; asserts (embeben `__LINE__`) fijados con `#line` por radio (451/454 SX1262 vs 456/459 E22P) |
+| F12 | Los "UF2" de PIO para nRF52 llevan solo ~312 bloques UF2 + el resto crudo | La marca temporal puede quedar en zona cruda: buscar en el fichero crudo, no reconstruyendo la imagen |
+
+### 5.4 VIGENTE vs OBSOLETO (qué queda del 4.3 y qué no)
+
+**VIGENTE (conocimiento técnico que sigue aplicando al repo único):**
+
+- Todas las normas de comportamiento: resiliencia energética (brownout de ascenso solar,
+  pre-check, LPCOMP por divisor real, `delay(3000)`, storm, POFCON), protección Flash
+  (RAM-only, filtros de guardado, eviction, auto-fav, TransmitHistory bypass, límite 10
+  huérfanos), seguridad `/nava` (canal Navadmin slot 1, DM PKI, whitelist, rate-limit 30 s),
+  fix H3 (a)+(a2), fix `updateUser`, auto-recuperación de claves (`local_sum==0`), fix
+  #10873 (disableBluetooth después del reset), P0 lifepo4 rechazado, C8, C4 revertido,
+  fav auto, ayuda/consultas, fragmentación por palabra, rol semi-permanente (R1).
+- Valores por variante (subnota 01 y 10): potencia 12/22 dBm, cortes 3500/3400 mV,
+  LPCOMP `9_16`/`3_8`/`2_8`, divisores ADC (0.5 / 1M-510k / 3.3 / 4.916), `RADIO_POWER_ENABLE_PIN`.
+- Mapa de hardcodeos (subnota 10): el mapa como tal; los valores viven ahora en
+  `profiles/*.jsonc` + `variant.h` por placa + envs `navarrico_*`.
+- Claves: K0/K1 Promicro (Propia, pendiente de migrar a perfiles) y K0 = Master Node
+  (General, implementada en los 12 perfiles). Regla: SOLO en perfiles/`userPrefs.jsonc`,
+  nunca literales en código.
+- Manuales de comandos `/nava` y de uso (docs/), subnotas 03/05/07/12, diagnósticos.
+
+**OBSOLETO (sustituido por el repo único — no usar como fuente activa):**
+
+- **Las 24 carpetas/repos viejos de 4.3** (`Rama 1 Clientes en Infraestructura\`,
+  `Rama 2 Infraestructura\Infraestructura General|Propia\`, `felix puerto venecia\`,
+  etc.): sustituidas por el repo único. Solo referencia histórica.
+- **LAB** (`08_diagnostico_lab.md`): instrumento descartado (12/08), NO migrado al repo.
+- **Build Felix "Puerto Venecia"**: build puntual fuera del repo; no participa en el
+  unificado (su jsonc con claves propias NO se sube a GitHub).
+- **Distribución al Desktop** (`Desktop\NavaTastic 4.3 120826\` + `distribuir_desktop.ps1`):
+  sustituida por `distribucion\` dentro del repo. El Desktop queda solo como referencia
+  de paridad MD5 para `verificar_paridad.ps1`.
+- **`HerramientasPropiasIA\`** (4.3): `distribuir_binarios.ps1`/`generar_pdf.ps1`/
+  plantilla LaTeX — obsoletas; el repo tiene `build.ps1`/`distribuir.ps1`. Los PDFs de
+  los manuales NO se regeneran en el repo.
+- **Rutas `C:\Firmware Navarrico 4.3\...`** citadas en secciones 1-4 y subnotas: leerlas
+  como referencia; la verdad viva es el repo único.
+- **`default_envs = tbeam`** (fallaba por toolchain ESP32): ya no existe — `default_envs`
+  = los 12 envs `navarrico_*`.
+
+### 5.5 Handover (estado actual y siguiente paso)
+
+- **Estado**: repo unificado autónomo y documentado (cerebro VIVO + guías + bitácora +
+  plan + PORTING_NUEVO_FORK.md). Paridad 12/12 conseguida. `distribucion\` poblada
+  (32 ficheros). Propia y GitHub pendientes (solo General; claves Propia no subir).
+- **Siguiente paso** (espera orden): (1) test en banco (P0/P1, H3, fav auto, ayuda,
+  fragmentación, Rama 1: rol CLIENT, `set_role` semi-permanente, NIMH, compat
+  `resilience.bin`); (2) Propia: 12 perfiles + 12 envs; (3) GitHub: repo público solo
+  General; (4) opcional: `progname` por env para OTA zip byte-idéntico; (5) regresión
+  vs Eclipse Edition en campo.

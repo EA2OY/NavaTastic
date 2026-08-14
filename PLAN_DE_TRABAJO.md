@@ -5,7 +5,6 @@ Estado de avance y decisiones. Cualquier sesión nueva debe leer este fichero + 
 ## Objetivo
 Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilaciones
 (6 placas x R2IG/R1IG) sin romper ninguna. GitHub y rama Propia se harán después.
-
 ## Decisiones del operador (14/08)
 - Solo General (R2IG/R1IG). Propia se generará después con el mismo código (perfiles).
 - Felix FUERA (build puntual, no participa).
@@ -31,10 +30,18 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 - [x] **PARIDAD 12/12 BYTE-IDENTICA** (verificar_paridad.ps1 vs Desktop\NavaTastic 4.3 120826)
 - [x] Distribución a distribucion/ (32 ficheros, nombres históricos, UF2 byte-idénticos)
 - [x] Docs de contexto copiados a docs/ + BITACORA_TECNICA.md (receta completa para rehacer)
+- [x] **CEREBRO VIVO MIGRADO AL REPO (14/08, 3ª parte)**: docs\ reestructurado a layout
+      canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs; copias 1:1 de
+      4.3, MD5 15/15 verificados; subnotas 01-11 que faltaban, traídas desde 4.3).
+      cerebro.md VIVO: banner ESTADO 14/08 + sección 5 (repo unificado, log sesión,
+      tabla F1-F12, VIGENTE vs OBSOLETO, handover). Banners ESTADO 14/08 en subnotas
+      01-12 y PROMPTs. Adendas "REPO UNIFICADO" en los 5 docs de contexto
+      (transfer_context, guia_integracion, 2 manuales, GUIA_AGENTE_NAVTASTIC).
+      El 4.3 queda SOLO LECTURA (archivo histórico).
 - [ ] GitHub (otra sesión): repo público solo General, docs saneadas de claves Propia
 - [ ] Propia (R2IP/R1IP): perfiles + envs sin tocar código
 - [ ] Opcional: progname por env para OTA zip byte-idéntico
-- [ ] **⭐ JOYA DE LA CORONA (nueva sesión, prioridad alta)**: crear `PORTING_NUEVO_FORK.md`
+- [ ] **⭐ JOYA DE LA CORONA (EN CURSO, sesión 14/08)**: crear `PORTING_NUEVO_FORK.md`
       (o nombre similar) — guía maestra de portabilidad: (1) mapa COMPLETO de añadidos Navarrico
       vs Meshtastic prístino (Desktop\firmware como referencia), fichero por fichero, con anclas
       de búsqueda (nombres de funciones/macros/comentarios NAVARICO:) para localizarlos en un

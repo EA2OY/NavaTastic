@@ -172,3 +172,27 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 3. **`custom_meshtastic_libdeps_map`** define la ruta canónica embebida; el `-ffile-prefix-map`
    se inyecta por Python porque el parser de build_flags de PIO destruye los backslashes.
 4. **Todo override es inerte por defecto** (solo actúa con variables de entorno u opciones explícitas).
+
+---
+
+## SESIÓN 14/08 (3ª-4ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya)
+
+- **3ª parte — CEREBRO VIVO MIGRADO AL REPO ÚNICO**:
+  - `docs\` reestructurado a layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12
+    + PROMPT_INICIALIZACION/PROMPT_DESPLIEGUE). Las subnotas 01-11 que faltaban por el
+    fallo de la copia inicial (comodines con -LiteralPath) se trajeron desde 4.3.
+    **Verificado MD5 1:1 = 15/15 vs 4.3** (el 4.3 no se tocó).
+  - `cerebro.md` VIVO: banner ESTADO 14/08 + sección 5 nueva (repo unificado, log de la
+    sesión, **tabla F1-F12**, sección VIGENTE vs OBSOLETO, handover). Log histórico y
+    subnotas conservados íntegros (AÑADIR, no reescribir).
+  - Banners ESTADO 14/08 en subnotas 01-12 + 2 PROMPTs (qué sigue vigente, qué quedó
+    obsoleto: 24 carpetas, LAB, Felix, distribución al Desktop, HerramientasPropiasIA\).
+  - Adendas "REPO UNIFICADO" en `transfer_context.md`, `guia_integracion_navarrico.md`,
+    `Manual_NavaTastic.md`, `Manual_uso_NavaTastic_4.2.md`, `GUIA_AGENTE_NAVTASTIC.md`.
+  - Regla aplicada: `C:\Firmware Navarrico 4.3` = SOLO LECTURA (archivo histórico).
+- **4ª parte — JOYA DE LA CORONA (EN CURSO)**: se creará `PORTING_NUEVO_FORK.md` (raíz del
+  repo) — la guía maestra de portabilidad a forks nuevos (inventario con anclas, catálogo de
+  bloques con dependencias, procedimiento paso a paso, checklist de trampas F1-F12).
+  Material base: diffs reales vs prístino (git diff 54e0d8d0a..HEAD, 69 ficheros),
+  anclas localizadas por grep (NAVARICO:, USERPREFS_*, FIX_NATIVE_CORE_RESET, funciones),
+  BITACORA F1-F12 y docs/.

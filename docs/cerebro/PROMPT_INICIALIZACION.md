@@ -1,4 +1,11 @@
-# PROMPT DE INICIALIZACIÓN — Firmware Navarrico 4.3 (Nueva Sesión)
+# PROMPT DE INICIALIZACIÓN — NavaTastic (Nueva Sesión)
+
+> **ESTADO 14/08/2026 — REPO UNIFICADO**: este prompt es la versión histórica 4.3
+> (rutas y estructura de 24 carpetas **OBSOLETAS**). El prompt actual de retoma del
+> repo único es `C:\NavaTastic Codigo completo\Guia_para_agente_sobre_NavaTastic.md`
+> + `AGENTS.md` (bloque NAVARICO) + `BITACORA_TECNICA.md` + `PLAN_DE_TRABAJO.md` +
+> `PORTING_NUEVO_FORK.md`. Compilar: `pio run -e navarrico_<placa>_<radio>_<rama>`
+> desde la raíz (12 envs). Autorización de proyectos: SOLO `C:\NavaTastic Codigo completo`.
 
 Actúa como agente de desarrollo e investigación sobre el proyecto **Firmware Navarrico 4.3** (fork de Meshtastic v2.7.26 para repetidores solares de infraestructura, con ramas: **Rama 1 Clientes** `R1IG/R1IP` en `Rama 1 Clientes en Infraestructura\` — rol CLIENT, creada 12/08, normas en subnota 11 — y **Rama 2** `Infraestructura General\` R2IG / `Infraestructura Propia\` R2IP).
 

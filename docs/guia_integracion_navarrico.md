@@ -1,5 +1,13 @@
 # Guía de Portabilidad e Integración — Firmware Navarrico v4.2.1 Fused
 
+> **ADENDA 14/08/2026 — REPO UNIFICADO**: el código canónico ya no vive en las 24
+> carpetas de 4.3 (**obsoletas**): vive en **`C:\NavaTastic Codigo completo\src\`** y
+> `variants\` (un solo repo, 12 envs). Esta guía sigue siendo la referencia técnica de
+> los bloques; para PORTAR a un fork nuevo usar la guía maestra
+> **`PORTING_NUEVO_FORK.md`** (raíz del repo: inventario con anclas, catálogo de
+> bloques con dependencias, procedimiento y checklist de trampas). `C:\Firmware
+> Navarrico 4.3` es SOLO LECTURA (archivo histórico).
+
 Documento **2 de 3** del proyecto Navarrico. Esta guía detalla el **paso a paso técnico** para tomar un repositorio original de Meshtastic (v2.7.26 o similar) sin modificar e implementarle todas las mejoras de **Rama 1 (Resiliencia Física y Energía)**, **Rama 2 (Protección de Flash e Infraestructura)** y la **Secuencia de Comandos Remota 2**, actualizadas a la ronda de auditoría **v4.2.1**.
 
 > El código canónico vive en los repos de `Rama 2 Infraestructura\Infraestructura Propia\` (Promicro fix y Faketec PROPIA). Este documento mantiene bloques de código actualizados para auditar o portar sin necesidad de poseer todo el repositorio.

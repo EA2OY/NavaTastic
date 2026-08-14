@@ -1,5 +1,10 @@
 # Manual de Administración Remota NavaTastic (v4.2.1)
 
+> **ADENDA 14/08/2026 — REPO UNIFICADO**: manual **VIGENTE** (los comandos `/nava` no
+> cambiaron). El código de referencia vive en `src/modules/NavaCLIModule.h/.cpp` del
+> repo único (antes 12 copias). Ronda 14/08: los 12 envs del repo único compilan este
+> mismo módulo (diferencia solo `set_txpower` 0-12/0-22 por `NAVARICO_RADIO_*`).
+
 Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comandos `/nava` (módulo `NavaCLIModule`) y código fuente de referencia para auditoría con otro agente.
 
 > El manual de usuario final del firmware (resiliencia, montaje, protocolo de rescate) está en el historial: ver `OLD_CONTEXT/Manual_Navarrico_4.2.md`.

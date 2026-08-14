@@ -1,5 +1,10 @@
 # 12 — AUDITORÍA NAVATASTIC (operativa + estado, sesión 14/08/2026)
 
+> **ESTADO 14/08/2026 — REPO UNIFICADO**: documento de operativa de banco **VIGENTE**
+> (la fuente de detalle `Faketec Auditoria\auditoria\` sigue en 4.3, SOLO LECTURA; si se
+> quiere migrar la carpeta de auditoría al repo, hacerlo con orden expresa). El firmware
+> de banco (Eclipse Edition) corresponde al build R2IG del repo unificado (paridad 12/12).
+
 > Neurona nueva creada en sesión de auditoría (14/08). Fuente de verdad de detalle: `Rama 2 Infraestructura\Infraestructura Propia\Faketec Auditoria\auditoria\` (FIX_LOG.md, OPERATIVA.md, evidencias). La operación se llama **Auditoría NavaTastic** (independiente del hardware de banco: hoy dos Faketec).
 
 ## Topología de banco (auditoría NavaTastic)
