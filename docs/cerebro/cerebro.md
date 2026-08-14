@@ -225,6 +225,13 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   inerte; `docs\*.md` siguen siendo la fuente única de los manuales. El 14/08 se añadió la
   **norma §0.11**: backup `*.md.bak-AAAAMMDD-HHMM` del manual antes de tocarlo (rollback si
   se detecta error) + regenerar PDF tras cada cambio.
+- **2026-08-14 (6ª parte) — SNAPSHOT BASELINE "NavaTastic 4.3 Eclipse Edition - Unificado"**:
+  creado `_archivo\NavaTastic 4.3 Eclipse Edition - Unificado.zip` (5,3 MB, 1872 entradas,
+  HEAD `644d09e68`): fuentes + config + perfiles + scripts + docs/cerebro completos, SIN
+  `.pio`/`.git`/binarios (los binarios buenos = Desktop\NavaTastic 4.3 120826 + `distribucion\`).
+  **Baseline conocido-funciona**: con él, cualquier cambio futuro (comandos NavaCLI, energía,
+  etc.) es reversible: descomprimir sobre la raíz o `git checkout 644d09e68`. La paridad MD5
+  12/12 vs Desktop es la prueba de que el snapshot reproduce exactamente los binarios de Eclipse.
 - **2026-08-14 (anterior)**: unificación completa (12 envs, perfiles, scripts) + paridad
   12/12 + distribución a `distribucion\` + copia inicial de docs (ver `BITACORA_TECNICA.md`
   y `PLAN_DE_TRABAJO.md`).

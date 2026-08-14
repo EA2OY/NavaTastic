@@ -55,6 +55,10 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       (generar_pdf.ps1 + plantilla_navatastic.tex, copia 1:1) → salida `docs\pdf\`
       gitignored; `$Excluir` = 4 docs de contexto (norma 11/08: solo manuales);
       verificado: 2 PDFs generados OK (Pandoc + MiKTeX).
+- [x] **SNAPSHOT BASELINE (14/08, 6ª parte)**: `_archivo\NavaTastic 4.3 Eclipse Edition -
+      Unificado.zip` (HEAD 644d09e68, 5,3 MB, sin binarios). Rollback de cualquier cambio
+      futuro: descomprimir sobre la raíz o `git checkout 644d09e68`; binarios buenos en
+      Desktop 120826 + `distribucion\`.
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)
