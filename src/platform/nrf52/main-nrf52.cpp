@@ -453,9 +453,24 @@ void nrf52Setup()
     nrfx_err_t r = nrfx_wdt_init(&nrfx_wdt, &wdt0_config,
                                  nullptr // Watchdog event handler, not used, we just reset.
     );
+    // NAVARICO: assert() embebe __LINE__. El main-nrf52.cpp de los repos SX1262 originales no lleva
+    // los bloques RADIO_POWER_ENABLE_PIN, asi que sus asserts viven en 451/454; los E22P en 456/459.
+    // #line (expande macros) fija la linea reportada por radio -> paridad byte-a-byte en ambos.
+#ifdef NAVARICO_RADIO_E22P
+#define NAVARICO_LINE_ASSERT1 456
+#else
+#define NAVARICO_LINE_ASSERT1 451
+#endif
+#line NAVARICO_LINE_ASSERT1
     assert(r == NRFX_SUCCESS);
 
     r = nrfx_wdt_channel_alloc(&nrfx_wdt, &nrfx_wdt_channel_id_nrf52_main);
+#ifdef NAVARICO_RADIO_E22P
+#define NAVARICO_LINE_ASSERT2 459
+#else
+#define NAVARICO_LINE_ASSERT2 454
+#endif
+#line NAVARICO_LINE_ASSERT2
     assert(r == NRFX_SUCCESS);
 }
 
