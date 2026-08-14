@@ -276,7 +276,27 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   canal 1 desde runOnce; (3) revisar si el primer runOnce (Vivo/Listo) ocurre antes de que la
   radio esté lista para TX; (4) `allocDataPacket`/`sendToMesh` con `channel=1` + `to=0`; (5) los
   LOGs de serial del nodo son la fuente de verdad. Distribución -Todo -V2 SIGUE PENDIENTE del
-  fix. Binarios V2 pre-fix archivados en `_archivo\V2-testeados-antes-fix-timing-20260814.zip`.
+  fix.     Binarios V2 pre-fix archivados en `_archivo\V2-testeados-antes-fix-timing-20260814.zip`.
+- **2026-08-14 (11ª parte) — F15: CAUSA RAÍZ ENCONTRADA (bug parseo sleepmsg + compat /resilience.bin)**:
+  el operador descubrió que `/nava sleepmsg` respondía OFF persistente (ni factory reset ni flasheo
+  lo cambiaban) y que el R2IG aparecía como CLIENT pese al perfil ROUTER. Diagnóstico: (1) **bug de
+  parseo**: `sleepmsg on|off` usaba `substr(8)` (8 letras + espacio → arg=" on") → nunca se pudo
+  activar por comando → fix `substr(9)` (V2.3b, MD5 8D0B32…); (2) **compat de fichero**: el
+  `/resilience.bin` de la era Eclipse (80 bytes, sin campos V2) hacía que `sleepMsgs` leyera el
+  padding (OFF) y `role` leyera 0 (CLIENT) — la migración por tamaño no se disparaba (el struct V2
+  también ocupa 80) → fix con campo `version` (84 bytes) → migración a sleepMsgs=1, role=0xFF,
+  wasInSleep=0 (V2.3c, MD5 98A97F88). También corregidos `navaResiliencePeek` (lee fileSize) y la
+  migración de `navaSetWasInSleep` (role=0xFF+version). Instrumentación temporal marcada
+  `NAVARICO: TEMP F15` (pre-check main.cpp, contador Power.cpp a LOG_INFO, logs de [Sueño]/escritura
+  en NavaCLIModule). **Pendiente (sesión nueva)**: reflashear V2.3c y verificar role=ROUTER +
+  sleepmsg=ON por API/radio; verificar persistencia de escritura (si `sleepmsg on` no sobrevive al
+  reboot → FS de escritura → `nrf erase`); explicar el **CDC mudo** (la API USB funciona:
+  `meshtastic --port COM15 --info` → myNodeNum 551169628, NRF52_PROMICRO_DIY, firmware c7af16b,
+  pero el serial no emite texto); retirar la instrumentación TEMP F15; distribución `-Todo -V2`
+  pendiente del re-test. Anotado (no tocado, posible F16): `fav rm` con substr(8) se come el primer
+  carácter del id; jitter quick muerto (cosmético); whitelist canal 1 sin sleepmsg (decisión del
+  operador: consulta por DM). Backups: código `.bak-20260814-1819`, docs `.bak-20260814-1947`,
+  binario V2.2 en `_archivo\Promicro R2IG V2.2 20CDA06A - antes de instrumentacion F15.uf2`.
 - **2026-08-14 (anterior)**: unificación completa (12 envs, perfiles, scripts) + paridad
   12/12 + distribución a `distribucion\` + copia inicial de docs (ver `BITACORA_TECNICA.md`
   y `PLAN_DE_TRABAJO.md`).

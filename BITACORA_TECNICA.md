@@ -190,6 +190,43 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Ojo**: los overrides de `getBattVoltage` de otros sensores (MAX17048/CW2015/BQ/meshSolar/serial)
   recibieron el param `force` con `(void)force;` (comportamiento idéntico).
 
+### F15 (V2.3, 14/08). Los mensajes [Sueño]/[Vivo]/[Listo] no llegaban — CAUSA RAÍZ en /resilience.bin
+- **Síntoma del banco**: el nodo (Promicro R2IG) reporta **role CLIENT** pese al perfil ROUTER, y
+  `/nava sleepmsg` responde **OFF** persistente (ni factory reset ni flasheo lo cambian). La app no
+  puede cambiar el rol (el fichero pisa /prefs en cada boot). F15: no llegaba ningún aviso.
+- **Causa 1 (bug de parseo)**: `sleepmsg on|off` usaba `substr(8)` pero "sleepmsg" son 8 letras +
+  espacio separador → `arg = " on"` ≠ `"on"` → caía siempre en la rama de estado (SLEEPMSGS: OFF).
+  El gate NUNCA se pudo cambiar por comando. **Fix**: `substr(9)` (V2.3b).
+- **Causa 2 (compat de fichero — la raíz real)**: `/resilience.bin` escrito por Eclipse R2IG (12/08)
+  tiene **80 bytes SIN los campos V2** (`sleepMsgs`/`wasInSleep`): el byte 11 era padding (0) y los
+  bytes 77-79 padding (0). El struct V2 R2IG también ocupa 80 bytes (el byte 11 lo ocupa `role`) →
+  la migración por tamaño (`fileSize < sizeof(prefs)`) NO se dispara → `sleepMsgs` lee padding = OFF
+  y `role` lee 0 = CLIENT. Como resilience.bin sobrevive a flasheo Y factory reset (por diseño),
+  el nodo queda CLIENT+OFF "para siempre". **Fix (V2.3c)**: campo `uint32_t version` al final del
+  struct (84 bytes) → todo fichero ≤80 migra con `sleepMsgs=1`, `role=0xFF` (sin fijar → perfil),
+  `wasInSleep=0`. También: `navaResiliencePeek` lee `fileSize` (no `sizeof`) y la migración de
+  `navaSetWasInSleep` rellena `role=0xFF`+`version` (el byte 11 del fichero viejo era padding=0 →
+  sin esto, role=0=CLIENT).
+- **Pendiente de verificar (sesión nueva)**: (1) que el V2.3c migre el fichero del nodo y la API
+  reporte ROUTER (a última vista seguía CLIENT — ¿no corrió el build o no se mantuvo el flasheo?);
+  (2) la persistencia de escritura de resilience.bin (el `sleepmsg on` con V2.3b daba OK pero OFF
+  tras reboot — sospecha de FS de escritura; el log TEMP `F15: resilience.bin escrito 84/84` debía
+  discriminarlo pero **el CDC del nodo NO emite serial**); (3) explicar el **CDC mudo** (sin texto a
+  115200/57600/921600 pese a que la API USB funciona: `meshtastic --port COM15 --info` responde,
+  myNodeNum 551169628, NRF52_PROMICRO_DIY, firmware c7af16b). Si la escritura falla → `nrf erase`.
+- **Instrumentación TEMP F15 (marcada `NAVARICO: TEMP F15`, retirar al confirmar)**: logs en
+  pre-check main.cpp (`F15 precheck: wasInSleep/gate/lecturas/rama`), `Low voltage counter` a
+  LOG_INFO en Power.cpp, `F15: [Sueño] encolado` y `F15: resilience.bin escrito %u/%u bytes` en
+  NavaCLIModule.cpp.
+- **Anotado (NO tocado, posible F16)**: `fav rm` usa `substr(8)` con "fav rm" de 6 letras → se
+  come el primer carácter del id. `fav add`/`fav auto` OK. Jitter quick muerto (setIntervalFromNow
+  pisado por OSThread::run→setInterval; cosmético). Whitelist canal 1: sleepmsg fuera (solo lectura)
+  — decisión del operador: dejarlo, la consulta va por DM PKI.
+- **Builds**: V2.3b MD5 `8D0B32672BF01BBBD081A2427F4A6F47` (fix parseo) y V2.3c MD5
+  `98A97F888D32E2CF617D3681B93A7276` (+fix migración) en `Desktop\NavaTastic Eclipse Edition V2`
+  (Rama 2 Routers\LIPO\UF2). Backup binario V2.2 en `_archivo\Promicro R2IG V2.2 20CDA06A - antes
+  de instrumentacion F15.uf2`. Backups código: `.bak-20260814-1819` (main/Power/NavaCLIModule).
+
 ### LECCIONES DE SESIÓN 14/08 (para no repetir fallos)
 - **L1 — AÑADIR, no reescribir (cerebro §5.2)**: al añadir una entrada de log el agente pisó
   la 8ª parte (al insertar la 9ª) y la 9ª (al insertar la 10ª); ambas restauradas. Regla: el

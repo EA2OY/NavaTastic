@@ -37,6 +37,7 @@ struct ResiliencePrefs {
     uint8_t sleepMsgs;       // V2: 1=mensajes sueño/vivo/listo ON (default), 0=OFF (/nava sleepmsg)
     uint8_t wasInSleep;      // V2: 1=dormido por bateria (se setea antes de cpuDeepSleep, se lee al boot para Listo/Vivo)
     uint8_t reserved;        // V2: reservado
+    uint32_t version;        // V2.3: marcador de formato 0x4E415653 ("NAVS"); ficheros <=80B (Eclipse/V2.0) migran con defaults
 };
 
 class NavaCLIModule : public SinglePortModule, public concurrency::OSThread

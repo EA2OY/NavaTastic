@@ -74,6 +74,7 @@ void NavaCLIModule::loadResiliencePrefs() {
                     prefs.sleepMsgs = 1;
                     prefs.wasInSleep = 0;
                     prefs.reserved = 0;
+                    prefs.version = 0x4E415653; // NAVARICO: TEMP F15 - marcador de formato
                     saveResiliencePrefs();
                 }
                 navaAutoFavoriteEnabled = (prefs.auto_fav != 0);
@@ -125,6 +126,7 @@ void NavaCLIModule::loadResiliencePrefs() {
     prefs.sleepMsgs = 1;
     prefs.wasInSleep = 0;
     prefs.reserved = 0;
+    prefs.version = 0x4E415653; // NAVARICO: TEMP F15 - marcador de formato
     navaAutoFavoriteEnabled = true;
     setBleForceDisabled(false);
     saveResiliencePrefs();
@@ -140,6 +142,15 @@ static bool navaResiliencePeek(uint8_t &sleepMsgsOut, uint8_t &wasInSleepOut)
         if (f) {
             ResiliencePrefs tmp;
             memset(&tmp, 0, sizeof(tmp));
+            size_t fileSize = f.size();
+            if (fileSize < sizeof(tmp)) {
+                // NAVARICO: TEMP F15 - fichero de version previa (sin campos V2):
+                // defaults, igual que la migracion de loadResiliencePrefs
+                sleepMsgsOut = 1;
+                wasInSleepOut = 0;
+                f.close();
+                return true;
+            }
             f.read((uint8_t *)&tmp, sizeof(tmp));
             f.close();
             if (tmp.magic == 0x52455349) {
@@ -185,6 +196,9 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
                         memset(tmp.autoFavIds, 0, sizeof(tmp.autoFavIds));
                         tmp.sleepMsgs = 1;
                         tmp.reserved = 0;
+                        // NAVARICO: TEMP F15 - el byte 11 era padding en R2IG previo: rol sin fijar
+                        tmp.role = 0xFF;
+                        tmp.version = 0x4E415653;
                     }
                 }
             }
@@ -196,6 +210,7 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
         tmp.sleepMsgs = 1;
         tmp.auto_fav = 1;
         tmp.role = 0xFF;
+        tmp.version = 0x4E415653; // NAVARICO: TEMP F15 - marcador de formato
     }
     tmp.wasInSleep = on ? 1 : 0;
     File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
@@ -218,8 +233,13 @@ bool NavaCLIModule::navaGetVivoPending()
 void NavaCLIModule::saveResiliencePrefs() {
     File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
     if (f) {
-        f.write((uint8_t*)&prefs, sizeof(prefs));
+        size_t n = f.write((uint8_t*)&prefs, sizeof(prefs));
         f.close();
+        // NAVARICO: TEMP F15 - diagnostico de escritura (se retira al confirmar el fix)
+        LOG_INFO("F15: resilience.bin escrito %u/%u bytes (sleepMsgs=%u)", (unsigned)n, (unsigned)sizeof(prefs),
+                 prefs.sleepMsgs);
+    } else {
+        LOG_INFO("F15: !!! FALLO AL ABRIR resilience.bin PARA ESCRITURA !!!");
     }
 }
 
@@ -263,6 +283,8 @@ bool NavaCLIModule::handleLowBatteryEvent()
     snprintf(buf, sizeof(buf), "[Sueno] %s id%08x | %s | sueno profundo, despertara >= %u mV",
              owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str(),
              (unsigned int)navaGetLpcompWakeMv());
+    // NAVARICO: TEMP F15 - trazado del ciclo (se retira al confirmar el fix)
+    LOG_INFO("F15: [Sueño] encolado (canal 1), sleep en +5s estimado");
     enqueueResponse(0, 1, buf, true, true);
     sleepPending = true;
     sleepTime = millis() + 5000; // estimacion; se recalcula tras el envio real
@@ -630,7 +652,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         }
     }
     else if (cmd.rfind("sleepmsg", 0) == 0) {
-        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        // F15 fix: "sleepmsg" son 8 chars + espacio separador -> substr(9)
+        std::string arg = (cmd.length() > 9) ? cmd.substr(9) : "";
         while (!arg.empty() && (arg.back() == ' ' || arg.back() == '\r' || arg.back() == '\n')) arg.pop_back();
         if (arg == "on") {
             prefs.sleepMsgs = 1;

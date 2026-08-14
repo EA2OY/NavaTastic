@@ -78,6 +78,17 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       dormirse? ¿llegan ping/status por canal 1? ¿primer runOnce antes de radio lista? Serial =
       fuente de verdad. Factory reset YA hecho en el primer binario (materializar canal 1) — NO
       repetir salvo indicación.
+- [ ] **F15 — AVANCE 14/08 (V2.3b+V2.3c, PENDIENTE DE RE-TEST)**: causa raíz hallada en
+      `/resilience.bin` (ver BITACORA F15): (1) bug de parseo `sleepmsg on|off` (substr(8)→substr(9),
+      fix en V2.3b); (2) fichero de 80 bytes de la era Eclipse sin los campos V2 → `sleepMsgs`
+      leía padding (OFF) y `role` leía 0 (CLIENT), y la migración por tamaño no se disparaba →
+      fix con campo `version` (84 bytes) en V2.3c (MD5 98A97F88) — el nodo debe reportar ROUTER y
+      sleepmsg ON al primer boot. **Pendiente en sesión nueva**: (a) reflashear V2.3c y verificar
+      por `meshtastic --port COM15 --info` (role=ROUTER) y `/nava sleepmsg` (ON); (b) verificar
+      persistencia de escritura de resilience.bin (`sleepmsg on` → reboot → ON); si falla → `nrf
+      erase`; (c) explicar el **CDC mudo** del nodo (la API USB funciona pero el serial no emite);
+      (d) retirar la instrumentación `NAVARICO: TEMP F15` al confirmar; (e) distribución
+      `-Todo -V2` sigue pendiente hasta el OK del re-test.
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

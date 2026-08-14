@@ -1016,10 +1016,11 @@ void Power::readPowerStatus(bool force)
         if (batteryLevel->getBattVoltage() < OCV[NUM_OCV_POINTS - 1]) {
             low_voltage_counter++;
 #if defined(PROMICRO_DIY_TCXO) || defined(ARDUINO_NRF52_PROMICRO_DIY_TCXO)
-            LOG_DEBUG("Low voltage counter: %d/4", low_voltage_counter);
+            // NAVARICO: TEMP F15 - subido a LOG_INFO para el test (se retira al confirmar el fix)
+            LOG_INFO("Low voltage counter: %d/4", low_voltage_counter);
             if (low_voltage_counter > 4) {
 #else
-            LOG_DEBUG("Low voltage counter: %d/10", low_voltage_counter);
+            LOG_INFO("Low voltage counter: %d/10", low_voltage_counter); // NAVARICO: TEMP F15
             if (low_voltage_counter > 10) {
 #endif
                 LOG_INFO("Low voltage detected, trigger deep sleep");
