@@ -175,7 +175,23 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 
 ---
 
-## SESIÓN 14/08 (3ª-8ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya + PDF + V2)
+### F14 (V2.2). Los mensajes [Sueño]/[Vivo]/[Listo] no llegaban al canal Navadmin
+- **Síntoma**: probado en banco (operador): ningún aviso recibido.
+- **Causa**: (1) el jitter anticolisión del canal 1 (500-6500ms, `enqueueResponse`) retrasaba
+  el primer envío; (2) `sleepTime = millis()+5000` se fijaba al ENCOLAR y el re-sueño entraba
+  justo después de `sendToMesh` (ASÍNCRONO) → `cpuDeepSleep` apagaba la radio con el paquete
+  sin emitir o a mitad de la ráfaga (~1s airtime SFNarrow).
+- **Fix**: el sueño se programa DESDE el envío real del último fragmento (`sleepTime = millis()+3000`
+  tras `sendToMesh`); jitter corto 300-2300ms con el flag `quick` (solo los 3 mensajes de sueño).
+- **Bonus precisión (subagente + verificado)**: el pre-check de arranque hacía "5 lecturas 200ms"
+  pero el throttle de 5s de `AnalogBatteryLevel::getBattVoltage` devolvía cache → 1 sola medida
+  ADC real, cruda (sin LPF) y sin asentamiento post-reset. Fix: `Power::readPowerStatus(bool force)`
+  + `getBattVoltage(bool force)` (default false, inerte) + `force=true` en el pre-check + `delay(500)`
+  de asentamiento. LPCOMP NO se tocó (ya estable: EVENTS_READY + delay(10) + histéresis 50mV).
+- **Ojo**: los overrides de `getBattVoltage` de otros sensores (MAX17048/CW2015/BQ/meshSolar/serial)
+  recibieron el param `force` con `(void)force;` (comportamiento idéntico).
+
+## SESIÓN 14/08 (3ª-9ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya + PDF + V2)
 
 - **6ª-8ª parte — SNAPSHOT BASELINE + FASE 2 V2 (sueño/vivo/listo + fav real + fragmentación)**:
   - **Baseline**: `_archivo\NavaTastic 4.3 Eclipse Edition - Unificado.zip` (HEAD 644d09e68).

@@ -90,7 +90,7 @@ class Power : public concurrency::OSThread
     Power();
 
     void powerCommandsCheck();
-    void readPowerStatus();
+    void readPowerStatus(bool force = false);
     virtual bool setup();
     virtual int32_t runOnce() override;
     void setStatusHandler(meshtastic::PowerStatus *handler) { statusHandler = handler; }

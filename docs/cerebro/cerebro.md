@@ -249,7 +249,21 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   fix: siempre el más reciente por LastWriteTime. Distribuido a `distribucion\` + V2 Desktop
   (32+32 ficheros, MD5 nuevos; `distribucion\` ya NO es Eclipse, es V2). Manual actualizado
   (backup 0.11: `.bak-20260814-1651`) + PDFs regenerados. Pendiente banco: ciclo real
-  solar/LPCOMP + ATtiny + status tras reinicio.
+  solar/LPCOMP + ATtiny + status tras reinicio. V2.1 (14/08): rol semi-permanente EXTENDIDO a
+  Rama 2 (simetría set_role, campo `role` fuera del `#ifdef NAVARICO_RAMA_1`; R1 sin cambios).
+- **2026-08-14 (9ª parte) — V2.2: FIX F14 (mensajes sueño/vivo/listo NO llegaban) + precisión de lecturas**:
+  probado en banco por el operador: no llegaba ningún aviso al canal Navadmin. Causa (F14):
+  (1) jitter anticolisión del canal 1 de 0.5-6.5s aplicado ANTES del primer envío; (2) `sleepTime`
+  se fijaba al ENCOLAR (+5s) y el re-sueño entraba justo tras `sendToMesh` (asíncrono) → la radio
+  se apagaba con el paquete sin emitir o a mitad de ráfaga. Fix: `sleepTime` se recalcula DESPUÉS
+  del envío real (+3s margen airtime SFNarrow); jitter corto 300-2300ms para estos mensajes
+  (`enqueueResponse(..., quick=true)`). Precisión (subagente, verificado): el pre-check "5 lecturas
+  200ms" era 1 medida ADC real + cache (throttle 5s `Power.cpp:331`); 1ª lectura cruda sin LPF y
+  sin asentamiento post-reset. Fix: `readPowerStatus(force=true)` salta el throttle (5 medidas
+  reales) + `delay(500)` de asentamiento en `main.cpp`; LPCOMP NO se tocó (ya estable: EVENTS_READY
+  + delay(10) + histéresis + delay(3000) pre-sueño). Binarios V2 probados archivados en
+  `_archivo\V2-testeados-antes-fix-timing-20260814.zip`. Promicro R2IG V2.2 en Desktop V2
+  (MD5 20CDA06A...) para re-test del operador; distribución -Todo -V2 pendiente del resultado.
 - **2026-08-14 (anterior)**: unificación completa (12 envs, perfiles, scripts) + paridad
   12/12 + distribución a `distribucion\` + copia inicial de docs (ver `BITACORA_TECNICA.md`
   y `PLAN_DE_TRABAJO.md`).

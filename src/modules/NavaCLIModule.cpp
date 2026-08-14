@@ -68,9 +68,7 @@ void NavaCLIModule::loadResiliencePrefs() {
                 // Ficheros de versiones previas sin los campos V2 -> defaults
                 if (fileSize < sizeof(prefs)) {
                     prefs.auto_fav = 1;
-#ifdef NAVARICO_RAMA_1
-                    prefs.role = 0xFF; // NAVARICO Rama 1: sin rol fijado (fichero de version previa)
-#endif
+                    prefs.role = 0xFF; // sin rol fijado (fichero de version previa)
                     prefs.autoFavCount = 0;
                     memset(prefs.autoFavIds, 0, sizeof(prefs.autoFavIds));
                     prefs.sleepMsgs = 1;
@@ -94,15 +92,14 @@ void NavaCLIModule::loadResiliencePrefs() {
                     config.bluetooth.enabled = true;
                     setBleForceDisabled(false);
                 }
-#ifdef NAVARICO_RAMA_1
-                // NAVARICO Rama 1: rol semi-permanente (sobrevive a factory reset). 0xFF = sin fijar.
-                // Valores validos: 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER. Con CLIENT/CLIENT_MUTE
-                // installRoleDefaults no cambia nada (solo aplica defaults a roles de infraestructura).
+                // V2.1 Rama 1 y Rama 2: rol semi-permanente (sobrevive a factory reset).
+                // 0xFF = sin fijar. Valores validos: 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER.
+                // Con CLIENT/CLIENT_MUTE installRoleDefaults no cambia nada (solo aplica
+                // defaults a roles de infraestructura).
                 if (prefs.role <= meshtastic_Config_DeviceConfig_Role_ROUTER) {
                     config.device.role = (meshtastic_Config_DeviceConfig_Role)prefs.role;
                     nodeDB->installRoleDefaults(config.device.role);
                 }
-#endif
                 return;
             }
         }
@@ -122,9 +119,7 @@ void NavaCLIModule::loadResiliencePrefs() {
     prefs.tx_disabled = 0;
     prefs.ble_disabled = 0;
     prefs.auto_fav = 1;
-#ifdef NAVARICO_RAMA_1
-    prefs.role = 0xFF; // NAVARICO Rama 1: sin rol fijado
-#endif
+    prefs.role = 0xFF; // sin rol fijado (default: el del perfil del env)
     prefs.autoFavCount = 0;
     memset(prefs.autoFavIds, 0, sizeof(prefs.autoFavIds));
     prefs.sleepMsgs = 1;
@@ -200,9 +195,7 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
         tmp.magic = 0x52455349;
         tmp.sleepMsgs = 1;
         tmp.auto_fav = 1;
-#ifdef NAVARICO_RAMA_1
         tmp.role = 0xFF;
-#endif
     }
     tmp.wasInSleep = on ? 1 : 0;
     File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
@@ -270,9 +263,9 @@ bool NavaCLIModule::handleLowBatteryEvent()
     snprintf(buf, sizeof(buf), "[Sueno] %s id%08x | %s | sueno profundo, despertara >= %u mV",
              owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str(),
              (unsigned int)navaGetLpcompWakeMv());
-    enqueueResponse(0, 1, buf, true);
+    enqueueResponse(0, 1, buf, true, true);
     sleepPending = true;
-    sleepTime = millis() + 5000; // dar tiempo a drenar la cola
+    sleepTime = millis() + 5000; // estimacion; se recalcula tras el envio real
     return true;
 }
 
@@ -430,7 +423,7 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
     return ProcessMessage::STOP;
 }
 
-void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::string &msg, bool isFirstFragment)
+void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::string &msg, bool isFirstFragment, bool quick)
 {
     size_t pos = 0;
     while (pos < msg.length() && responseQueue.size() < 10) {
@@ -468,8 +461,11 @@ void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::
     }
 
     if (isFirstFragment && channel == 1) {
-        // Jitter dinámico anticolisión de 500ms a 6500ms para el Canal 1
-        uint32_t jitter = 500 + (nodeDB->getNodeNum() % 5) * 1200 + (rand() % 1000);
+        // Jitter dinámico anticolisión para el Canal 1. quick=true (mensajes de
+        // sueno/vivo/listo): ventana corta 300-2300ms para que el re-sueno no
+        // mate la transmision (la radio tarda ~1s en emitir SFNarrow).
+        uint32_t jitter = quick ? 300 + (nodeDB->getNodeNum() % 8) * 250 + (rand() % 300)
+                                : 500 + (nodeDB->getNodeNum() % 5) * 1200 + (rand() % 1000);
         setIntervalFromNow(jitter);
     } else {
         setIntervalFromNow(50);
@@ -944,11 +940,11 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             owner.is_unmessagable = false;
             owner.has_is_unmessagable = true;
             nodeDB->saveToDisk(SEGMENT_CONFIG | SEGMENT_NODEDATABASE);
-#ifdef NAVARICO_RAMA_1
-            // NAVARICO Rama 1: rol semi-permanente en /resilience.bin (sobrevive a factory reset)
+            // V2.1 Rama 1 y Rama 2: rol semi-permanente en /resilience.bin (sobrevive
+            // a factory reset de la app y de /nava; solo se pierde con nrf erase o
+            // corrupcion del fichero -> vuelve al rol del perfil del env)
             prefs.role = (uint8_t)config.device.role;
             saveResiliencePrefs();
-#endif
             enqueueResponse(replyDest, replyChannel, "OK: ROL CAMBIADO", true);
         } else {
             enqueueResponse(replyDest, replyChannel, usageAndState("set_role"), true);
@@ -1356,7 +1352,7 @@ int32_t NavaCLIModule::runOnce()
                 char buf[220];
                 snprintf(buf, sizeof(buf), "[Vivo] %s id%08x | %s | sigo vivo, esperando recuperar carga",
                          owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
-                enqueueResponse(0, 1, buf, true);
+                enqueueResponse(0, 1, buf, true, true);
                 sleepPending = true;
                 sleepTime = millis() + 5000;
             } else if (wokeFromSleep && prefs.sleepMsgs) {
@@ -1366,7 +1362,7 @@ int32_t NavaCLIModule::runOnce()
                 char buf[220];
                 snprintf(buf, sizeof(buf), "[Listo] %s id%08x | %s | despierto, cargando, listo para trabajar",
                          owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
-                enqueueResponse(0, 1, buf, true);
+                enqueueResponse(0, 1, buf, true, true);
             } else {
                 if (wokeFromSleep) {
                     prefs.wasInSleep = 0;
@@ -1388,6 +1384,13 @@ int32_t NavaCLIModule::runOnce()
             reply->channel = response.channel;
             reply->want_ack = false;
             service->sendToMesh(reply);
+        }
+
+        // V2.2: si hay re-sueno pendiente y la cola ya dreno, el sueno se programa
+        // DESDE el envio (+3s de margen de airtime), no desde el encolado: sendToMesh
+        // es asincrono y antes la radio podia apagarse con el paquete sin emitir.
+        if (sleepPending && responseQueue.empty()) {
+            sleepTime = millis() + 3000;
         }
 
         if (!responseQueue.empty()) {

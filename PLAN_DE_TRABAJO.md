@@ -67,6 +67,12 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       (16:20-16:50, 0 fallos). Distribuido 32+32 a `distribucion\` + `Desktop\NavaTastic
       Eclipse Edition V2` (F13 fix: distribuir cogía el artefacto viejo). Manual actualizado
       + PDFs. Pendiente: test en banco (ciclo solar/LPCOMP real, ATtiny, status tras reinicio).
+      V2.1: rol semi-permanente extendido a Rama 2 (simetría set_role).
+- [x] **V2.2 (14/08, 9ª parte)**: F14 — mensajes sueño/vivo/listo no llegaban (jitter 0.5-6.5s +
+      sueño programado al encolar → radio apagada antes de emitir). Fix: sleepTime tras envío real
+      +3s, jitter corto quick, force-read + delay(500) asentamiento. 12/12 compilados. Promicro
+      R2IG V2.2 en Desktop V2 (MD5 20CDA06A...) para re-test del operador. Distribución -Todo -V2
+      pendiente del resultado del test.
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

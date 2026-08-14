@@ -31,9 +31,7 @@ struct ResiliencePrefs {
     uint8_t tx_disabled;    // 0=ON, 1=OFF
     uint8_t ble_disabled;   // 0=ON, 1=OFF
     uint8_t auto_fav;       // 1=auto-favoriteo ON (default), 0=OFF (/nava fav auto)
-#ifdef NAVARICO_RAMA_1
-    uint8_t role;           // NAVARICO Rama 1: rol semi-permanente. 0xFF=sin fijar; 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER. Sobrevive a factory reset
-#endif
+    uint8_t role;           // V2.1 Rama 1 y Rama 2: rol semi-permanente. 0xFF=sin fijar; 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER. Sobrevive a factory reset
     uint32_t autoFavIds[16]; // V2: ids (NodeNum) de nodos favoritados por auto-fav. Persistente para que /nava status los distinga de manual tras reinicio
     uint8_t autoFavCount;    // V2: numero de ids validos en autoFavIds (0-16)
     uint8_t sleepMsgs;       // V2: 1=mensajes sueño/vivo/listo ON (default), 0=OFF (/nava sleepmsg)
@@ -116,7 +114,7 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     // Rate-limit suave del ping: ultimo ping respondido por nodo emisor (ms)
     std::map<NodeNum, uint32_t> lastPingTime;
     
-    void enqueueResponse(NodeNum toNode, uint8_t channel, const std::string &msg, bool isFirstFragment = false);
+    void enqueueResponse(NodeNum toNode, uint8_t channel, const std::string &msg, bool isFirstFragment = false, bool quick = false);
     void executeCommand(NodeNum fromNode, std::string cmd, uint8_t replyChannel, NodeNum replyDest, float rxSnr);
     std::string getRoleName(meshtastic_Config_DeviceConfig_Role role);
     std::string helpForCommand(const std::string &topic);

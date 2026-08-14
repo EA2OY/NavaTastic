@@ -168,7 +168,7 @@ class HasBatteryLevel
     /**
      * The raw voltage of the battery or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() { return 0; }
+    virtual uint16_t getBattVoltage(bool force = false) { (void)force; return 0; }
 
     /**
      * return true if there is a battery installed in this unit
@@ -298,7 +298,7 @@ class AnalogBatteryLevel : public HasBatteryLevel
     /**
      * The raw voltage of the batteryin millivolts or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override
+    virtual uint16_t getBattVoltage(bool force = false) override
     {
 
 #if HAS_TELEMETRY && defined(HAS_RAKPROT) && !defined(HAS_PMU) && !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
@@ -327,9 +327,9 @@ class AnalogBatteryLevel : public HasBatteryLevel
         // Override variant or default ADC_MULTIPLIER if we have the override pref
         float operativeAdcMultiplier =
             config.power.adc_multiplier_override > 0 ? config.power.adc_multiplier_override : ADC_MULTIPLIER;
-        // Do not call analogRead() often.
+        // Do not call analogRead() often (force=true salta el throttle: lecturas reales consecutivas)
         const uint32_t min_read_interval = 5000;
-        if (!initial_read_done || !Throttle::isWithinTimespanMs(last_read_time_ms, min_read_interval)) {
+        if (force || !initial_read_done || !Throttle::isWithinTimespanMs(last_read_time_ms, min_read_interval)) {
             last_read_time_ms = millis();
 
             uint32_t raw = 0;
@@ -441,11 +441,11 @@ class AnalogBatteryLevel : public HasBatteryLevel
     virtual bool isBatteryConnect() override
     {
         int lastReading = digitalRead(ADC_V);
-        // 判断值是否变化
+        // åˆ¤æ–­å€¼æ˜¯å¦å˜åŒ–
         for (int i = 2; i < 500; i++) {
             int reading = digitalRead(ADC_V);
             if (reading != lastReading) {
-                return false; // 有变化，USB供电, 没接电池
+                return false; // æœ‰å˜åŒ–ï¼ŒUSBä¾›ç”µ, æ²¡æŽ¥ç”µæ± 
             }
         }
 
@@ -745,7 +745,7 @@ bool Power::setup()
 {
 #ifdef HAS_SGM41562
     // Initialize the charger early so AnalogBatteryLevel can read charging
-    // state from it. The charger does not provide battery voltage / percent —
+    // state from it. The charger does not provide battery voltage / percent â€”
     // those still come from the platform ADC via analogInit() below.
     initSGM41562(SGM41562_WIRE);
 #endif
@@ -887,7 +887,7 @@ void Power::shutdown()
 /// Reads power status to powerStatus singleton.
 //
 // TODO(girts): move this and other axp stuff to power.h/power.cpp.
-void Power::readPowerStatus()
+void Power::readPowerStatus(bool force)
 {
     int32_t batteryVoltageMv = -1; // Assume unknown
     int8_t batteryChargePercent = -1;
@@ -903,7 +903,7 @@ void Power::readPowerStatus()
         isChargingNow = batteryLevel->isCharging() ? OptTrue : OptFalse;
 #endif
         if (hasBattery) {
-            batteryVoltageMv = batteryLevel->getBattVoltage();
+            batteryVoltageMv = batteryLevel->getBattVoltage(force);
             // If the AXP192 returns a valid battery percentage, use it
             if (batteryLevel->getBatteryPercent() >= 0) {
                 batteryChargePercent = batteryLevel->getBatteryPercent();
@@ -1516,7 +1516,7 @@ class MAX17048BatteryLevel : public HasBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override { return max17048->getBusVoltageMv(); }
+    virtual uint16_t getBattVoltage(bool force = false) override { (void)force; return max17048->getBusVoltageMv(); }
 
     /**
      * return true if there is a battery installed in this unit
@@ -1583,8 +1583,9 @@ class CW2015BatteryLevel : public AnalogBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override
+    virtual uint16_t getBattVoltage(bool force = false) override
     {
+        (void)force;
         uint16_t mv = 0;
         Wire.beginTransmission(CW2015_ADDR);
         Wire.write(0x02);
@@ -1728,7 +1729,7 @@ class LipoCharger : public HasBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override { return bq->getVoltage(); }
+    virtual uint16_t getBattVoltage(bool force = false) override { (void)force; return bq->getVoltage(); }
 
     /**
      * return true if there is a battery installed in this unit
@@ -1809,7 +1810,7 @@ class meshSolarBatteryLevel : public HasBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override { return meshSolarGetBattVoltage(); }
+    virtual uint16_t getBattVoltage(bool force = false) override { (void)force; return meshSolarGetBattVoltage(); }
 
     /**
      * return true if there is a battery installed in this unit
@@ -1881,7 +1882,7 @@ class SerialBatteryLevel : public HasBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override { return voltage * 1000; }
+    virtual uint16_t getBattVoltage(bool force = false) override { (void)force; return voltage * 1000; }
 
     /**
      * return true if there is a battery installed in this unit

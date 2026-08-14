@@ -559,10 +559,15 @@ void setup()
         }
 #endif
         auto isLowNow = [&]() -> bool {
-            power->readPowerStatus();
+            // V2.2: force=true -> lecturas ADC REALES consecutivas (sin el throttle
+            // de 5s de Power.cpp), para que la decision y el valor reportado en
+            // [Vivo]/[Listo] no usen cache de una unica medida.
+            power->readPowerStatus(true);
             int mv = powerStatus->getBatteryVoltageMv();
             return powerStatus->getHasBattery() && !powerStatus->getHasUSB() && mv > 0 && mv < lowGateMv;
         };
+        // V2.2: asentamiento tras el reset (inrush del MCU) antes de la primera medida
+        delay(500);
         uint8_t consecutiveLow = 0;
         int lastLowMv = 0;
         for (uint8_t i = 0; i < lowBattReadingsNeeded; i++) {
