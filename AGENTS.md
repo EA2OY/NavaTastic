@@ -3,6 +3,9 @@
 > **NAVARICO (fork unificado) — LEE ESTO PRIMERO.**
 > Este repositorio es el fork Navarrico unificado sobre Meshtastic 2.7.26 (base `54e0d8d`).
 > Antes de tocar nada, lee EN ESTE ORDEN:
+> 0. `Guia_para_agente_sobre_NavaTastic.md` §0 — REGLAS OPERATIVAS (normas principales:
+>    dieta de tokens, flujo en dos fases, backup/rollback por marca de tiempo, autorización
+>    de proyectos: solo este repo; 4.3 y Desktop\firmware SOLO LECTURA).
 > 1. `Guia_para_agente_sobre_NavaTastic.md` — QUÉ es cada cosa y DÓNDE se toca: los 12 envs
 >    (`navarrico_<placa>_<radio>_<rama>` en `variants/nrf52840/navarrico.ini`), los perfiles
 >    (`profiles/<RAMA>_<Placa>.jsonc`: claves admin, canal Navadmin, rol, BT), las macros
