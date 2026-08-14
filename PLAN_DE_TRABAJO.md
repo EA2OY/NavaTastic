@@ -73,6 +73,11 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       +3s, jitter corto quick, force-read + delay(500) asentamiento. 12/12 compilados. Promicro
       R2IG V2.2 en Desktop V2 (MD5 20CDA06A...) para re-test del operador. Distribución -Todo -V2
       pendiente del resultado del test.
+- [ ] **F15 (ABIERTA, prioridad)**: test V2.2 en banco FALLIDO — los mensajes sueño/vivo/listo
+      siguen sin llegar al canal Navadmin. Investigar (ver cerebro 10ª parte): ¿el nodo llega a
+      dormirse? ¿llegan ping/status por canal 1? ¿primer runOnce antes de radio lista? Serial =
+      fuente de verdad. Factory reset YA hecho en el primer binario (materializar canal 1) — NO
+      repetir salvo indicación.
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

@@ -264,6 +264,19 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   + delay(10) + histéresis + delay(3000) pre-sueño). Binarios V2 probados archivados en
   `_archivo\V2-testeados-antes-fix-timing-20260814.zip`. Promicro R2IG V2.2 en Desktop V2
   (MD5 20CDA06A...) para re-test del operador; distribución -Todo -V2 pendiente del resultado.
+- **2026-08-14 (10ª parte) — TEST V2.2 EN BANCO FALLIDO (F15 ABIERTA)**: el operador probó el
+  Promicro R2IG V2.2 (MD5 20CDA06A...) y los mensajes [Sueño]/[Vivo]/[Listo] SIGUEN SIN LLEGAR
+  al canal Navadmin (pese al fix F14). Detalle del test: se hizo factory reset al nodo con el
+  PRIMER binario (V2) para materializar el canal Navadmin — NO repetir salvo indicación.
+  **F15 (investigación pendiente)**: por qué no se envía el mensaje antes/después del ciclo
+  dormir/despertar. Pistas iniciales: (1) ¿el nodo llega a dormirse en el test? (el mensaje
+  [Sueño] solo sale si la batería baja del corte OCV — verificar por serial: "Low voltage
+  detected" / "Entering battery sleep"); (2) ¿llegan OTROS comandos por el canal 1 (ping/status)?
+  Si sí → el envío funciona y el fallo está en el disparo; si no → el problema es el envío a
+  canal 1 desde runOnce; (3) revisar si el primer runOnce (Vivo/Listo) ocurre antes de que la
+  radio esté lista para TX; (4) `allocDataPacket`/`sendToMesh` con `channel=1` + `to=0`; (5) los
+  LOGs de serial del nodo son la fuente de verdad. Distribución -Todo -V2 SIGUE PENDIENTE del
+  fix. Binarios V2 pre-fix archivados en `_archivo\V2-testeados-antes-fix-timing-20260814.zip`.
 - **2026-08-14 (anterior)**: unificación completa (12 envs, perfiles, scripts) + paridad
   12/12 + distribución a `distribucion\` + copia inicial de docs (ver `BITACORA_TECNICA.md`
   y `PLAN_DE_TRABAJO.md`).
