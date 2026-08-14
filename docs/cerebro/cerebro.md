@@ -222,7 +222,9 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   (transfer_context, guia_integracion, GUIA_AGENTE_NAVTASTIC, INSTRUCCION_AUDITORIA_CLAUDE)
   — norma 11/08: solo manuales de firmware y comandos. Verificado: 2 PDFs generados sin
   errores (Pandoc + MiKTeX presentes). **Decisión operador**: se mantiene como herramienta
-  inerte; `docs\*.md` siguen siendo la fuente única de los manuales.
+  inerte; `docs\*.md` siguen siendo la fuente única de los manuales. El 14/08 se añadió la
+  **norma §0.11**: backup `*.md.bak-AAAAMMDD-HHMM` del manual antes de tocarlo (rollback si
+  se detecta error) + regenerar PDF tras cada cambio.
 - **2026-08-14 (anterior)**: unificación completa (12 envs, perfiles, scripts) + paridad
   12/12 + distribución a `distribucion\` + copia inicial de docs (ver `BITACORA_TECNICA.md`
   y `PLAN_DE_TRABAJO.md`).

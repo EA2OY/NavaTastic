@@ -35,6 +35,11 @@ Heredadas del cerebro 4.3 (`PROMPT_INICIALIZACION.md`). Son obligatorias en toda
    exactamente qué se restauró. Los backups COMPLEMENTAN a git (no commitear sin orden expresa).
 10. **Cierre de sesión**: actualizar `PLAN_DE_TRABAJO.md` y `BITACORA_TECNICA.md`; commits
     locales por hito. Al tocar código común, recompilar las variantes/envs afectados y verificar.
+11. **Backup del manual antes de tocarlo (norma 14/08)**: antes de modificar cualquier manual
+    (`docs\Manual_NavaTastic.md`, `docs\Manual_uso_NavaTastic_4.2.md` u otro documento de
+    entrega), crear copia `nombre.md.bak-AAAAMMDD-HHMM` (misma convención de la norma 9) para
+    poder revertir si se detecta un error tras el cambio. Tras editar el manual, regenerar el
+    PDF con `.\HerramientasPropiasIA\generar_pdf.ps1` y verificar la salida.
 
 > Detalle completo (original histórico): `docs\cerebro\PROMPT_INICIALIZACION.md` y `PROMPT_DESPLIEGUE.md`.
 
