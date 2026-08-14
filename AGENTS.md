@@ -1,5 +1,19 @@
 # Agent instructions
 
+> **NAVARICO (fork unificado) — LEE ESTO PRIMERO.**
+> Este repositorio es el fork Navarrico unificado sobre Meshtastic 2.7.26 (base `54e0d8d`).
+> Antes de tocar nada, lee EN ESTE ORDEN:
+> 1. `Guia_para_agente_sobre_NavaTastic.md` — QUÉ es cada cosa y DÓNDE se toca: los 12 envs
+>    (`navarrico_<placa>_<radio>_<rama>` en `variants/nrf52840/navarrico.ini`), los perfiles
+>    (`profiles/<RAMA>_<Placa>.jsonc`: claves admin, canal Navadmin, rol, BT), las macros
+>    `NAVARICO_RADIO_*` / `NAVARICO_RAMA_1`, y los scripts (`build.ps1`, `distribuir.ps1`,
+>    `verificar_paridad.ps1`).
+> 2. `BITACORA_TECNICA.md` — fallos y fixes del proceso de unificación + la receta de la
+>    paridad byte-a-byte (qué metadatos controlar y qué líneas "mágicas" no desplazar).
+> 3. `PLAN_DE_TRABAJO.md` — estado y próximos pasos (Propia, GitHub).
+> Las normas de Meshtastic upstream de este archivo y de `.github/copilot-instructions.md`
+> siguen vigentes salvo que las guías Navarrico digan lo contrario.
+
 This repository is the [Meshtastic](https://meshtastic.org) firmware — a C++17 embedded codebase targeting ESP32 / nRF52 / RP2040 / STM32WL / Linux-Portduino LoRa mesh radios — plus a Python MCP server in `mcp-server/` that AI agents use to flash, configure, and test connected devices.
 
 ## Primary instruction file
