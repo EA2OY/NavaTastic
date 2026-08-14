@@ -175,8 +175,7 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 
 ---
 
-### F14 (V2.2). Los mensajes [Sueño]/[Vivo]/[Listo] no llegaban al canal Navadmin
-- **Síntoma**: probado en banco (operador): ningún aviso recibido.
+### F14 (V2.2). Los mensajes [Sueño]/[Vivo]/[Listo] no llegaban al canal Navadmin- **Síntoma**: probado en banco (operador): ningún aviso recibido.
 - **Causa**: (1) el jitter anticolisión del canal 1 (500-6500ms, `enqueueResponse`) retrasaba
   el primer envío; (2) `sleepTime = millis()+5000` se fijaba al ENCOLAR y el re-sueño entraba
   justo después de `sendToMesh` (ASÍNCRONO) → `cpuDeepSleep` apagaba la radio con el paquete
@@ -191,7 +190,24 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Ojo**: los overrides de `getBattVoltage` de otros sensores (MAX17048/CW2015/BQ/meshSolar/serial)
   recibieron el param `force` con `(void)force;` (comportamiento idéntico).
 
-## SESIÓN 14/08 (3ª-9ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya + PDF + V2)
+### LECCIONES DE SESIÓN 14/08 (para no repetir fallos)
+- **L1 — AÑADIR, no reescribir (cerebro §5.2)**: al añadir una entrada de log el agente pisó
+  la 8ª parte (al insertar la 9ª) y la 9ª (al insertar la 10ª); ambas restauradas. Regla: el
+  `oldString` debe ser la entrada anterior COMPLETA y la nueva se inserta DESPUÉS, sin borrar.
+- **L2 — Firmas**: al añadir un parámetro (p. ej. `enqueueResponse(..., bool quick)`), tocar
+  SIEMPRE declaración (.h) Y definición (.cpp) a la vez (el compilador: "no declaration matches").
+- **L3 — resilience.bin**: los helpers estáticos que reescriben el fichero deben preservar
+  TODOS los campos (leer struct completo → modificar 1 campo → escribir); un write con struct
+  parcial borra chemistry/vbat_cutoff/role/autoFavIds. Compat: ficheros viejos → migrar campos
+  nuevos con defaults en la misma escritura.
+- **L4 — NodeNum = uint32_t**: nunca guardar ids de nodo en arrays uint8_t (trunca a 8 bits).
+- **L5 — PowerShell 5.1**: `Start-Process -PassThru` devuelve `ExitCode` VACÍO tras WaitForExit
+  (falsos FALLOS); verificar el éxito con el log de pio (`1 succeeded`) o timestamps de los
+  artefactos, no con ExitCode.
+- **L6 — Artefactos acumulados**: `.pio/build/<env>` acumula UF2/zip de builds previos;
+  distribuir SIEMPRE el más reciente (LastWriteTime) — ver F13.
+
+## SESIÓN 14/08 (3ª-10ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya + PDF + V2)
 
 - **6ª-8ª parte — SNAPSHOT BASELINE + FASE 2 V2 (sueño/vivo/listo + fav real + fragmentación)**:
   - **Baseline**: `_archivo\NavaTastic 4.3 Eclipse Edition - Unificado.zip` (HEAD 644d09e68).
