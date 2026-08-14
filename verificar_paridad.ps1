@@ -41,19 +41,19 @@ $map = @{
 }
 
 # Extrae la marca temporal embebida ("HH:MM:SSMon DD YYYY") de un binario de referencia.
-# OJO: los UF2 trocean la imagen flash en bloques de 256 bytes con cabecera de 32 bytes,
-# asi que la marca puede cruzar el borde de bloque. Se busca dentro de cada bloque.
+# Busqueda DIRECTA en el fichero: los UF2 de PIO para nRF52 llevan solo los primeros bloques
+# codificados y el resto crudo, asi que reconstruir la imagen completa desalinea la busqueda.
 function Get-Stamp([string]$Uf2Path) {
     $data = [IO.File]::ReadAllBytes($Uf2Path)
     $pat = [Text.Encoding]::ASCII.GetBytes("Aug")
-    for ($off = 0; $off + 288 -le $data.Length; $off += 288) {
-        for ($i = $off + 32; $i -le $off + 288 - $pat.Length; $i++) {
-            $m = $true
-            for ($j = 0; $j -lt $pat.Length; $j++) { if ($data[$i + $j] -ne $pat[$j]) { $m = $false; break } }
-            if ($m) {
+    for ($i = 0; $i -le $data.Length - $pat.Length; $i++) {
+        $m = $true
+        for ($j = 0; $j -lt $pat.Length; $j++) { if ($data[$i + $j] -ne $pat[$j]) { $m = $false; break } }
+        if ($m) {
+            if ($i -ge 8) {
                 $time = -join ($data[($i - 8)..($i - 1)] | ForEach-Object { [char]$_ })
                 if ($time -match '^\d\d:\d\d:\d\d$') {
-                    # fecha: "Mon DD YYYY" (todos los builds de referencia son del 12/08/2026)
+                    # fecha: todos los builds de referencia son del 12/08/2026
                     return @{ Time = $time; Date = "Aug 12 2026" }
                 }
             }
@@ -67,7 +67,13 @@ foreach ($e in $map.Keys | Sort-Object) {
     $info = $map[$e]
     $refUf2 = Join-Path $RefDir ($info.Rama + "\LIPO\UF2\" + $info.Nombre + ".uf2")
     if (-not (Test-Path -LiteralPath $refUf2)) { Write-Host "FALTA referencia: $refUf2"; $fail += "$e (sin referencia)"; continue }
-    $stamp = Get-Stamp $refUf2
+    try {
+        $stamp = Get-Stamp $refUf2
+    } catch {
+        Write-Host "ERROR leyendo marca de $refUf2 : $($_.Exception.Message)"
+        $fail += "$e (marca no leida)"
+        continue
+    }
     Write-Host "`n== $e =="
     Write-Host "   Marca de referencia: $($stamp.Time) $($stamp.Date)"
     # 1) Compilar en modo paridad con la marca de la referencia

@@ -131,12 +131,17 @@ Para claves/canales/rol → perfil jsonc. Para añadir una rama (Propia) → per
 
 ## 6. Verificación y regresión
 
-- `verificar_paridad.ps1`: compila los 12 con el sello del 12/08/2026 y compara MD5 contra los
-  binarios originales (12/12 UF2). Es el criterio de aceptación de cualquier cambio estructural.
-- Referencia histórica "Eclipse Edition": build del 12/08 17:09-17:15 de Rama 2 (R2IG), distribuido
-  a colegas. R2 no ha cambiado desde entonces.
+- **PARIDAD 12/12 VERIFICADA (14/08/2026)**: `verificar_paridad.ps1` compila los 12 envs en
+  modo paridad (BUILD_EPOCH 12/08, APP_VERSION 2.7.26.54e0d8d, marca temporal y rutas de libdeps
+  de cada referencia) y compara MD5 contra `Desktop\NavaTastic 4.3 120826` → **12/12 byte-idénticos**.
+- Detalles de la receta, fallos y fixes: `BITACORA_TECNICA.md`.
+- Los `.zip` OTA pueden diferir en el nombre interno del env (manifest/entry): el firmware
+  (`.uf2`/`.bin`) es byte-idéntico. Comparar siempre el `.uf2`.
+- Referencia histórica "Eclipse Edition": build del 12/08 17:09-17:15 de Rama 2 (R2IG).
 - No paralelizar dos builds del MISMO env (corrompe la caché de PlatformIO).
-- Los `.zip` OTA pueden diferir en el nombre interno del env: comparar siempre el `.uf2`/`.bin`.
+- MAX_PATH (error #13 del pasado): resuelto de raíz (raíz corta); no usar rutas profundas.
+  Ojo: el workaround histórico (r1promic/r1xiaoki) dejó rutas embebidas distintas en R1 —
+  ya absorbido en `custom_meshtastic_libdeps_map`.
 
 ---
 

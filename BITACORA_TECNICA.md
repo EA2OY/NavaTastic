@@ -125,11 +125,43 @@ Regla de oro descubierta: **cualquier línea añadida en `NodeDB.cpp` cambia el 
 
 ## ESTADO
 
-- [x] Paridad Promicro R2IG 1/1 (MD5 idéntico a Eclipse).
-- [ ] Verificación 12/12 en curso (verificar_paridad.ps1, ~1h).
-- [ ] Distribución a `distribucion\` con nombres actuales.
-- [ ] Propia (R2IP/R1IP) a futuro: añadir 12 perfiles + 12 envs, sin tocar código.
-- [ ] GitHub: solo General (docs saneadas de claves Propia).
+- [x] **PARIDAD 12/12 CONSEGUIDA** (14/08): los 12 UF2 del repo unificado son **byte-idénticos**
+      (MD5) a los binarios originales (Eclipse Edition R2IG + R1IG). Verificar_paridad.ps1.
+- [x] Distribución a `distribucion\` (Rama 1 Clientes / Rama 2 Routers × LIPO/NIMH × UF2/OTA,
+      32 ficheros, nombres históricos). Los UF2 son los de paridad (byte-idénticos).
+- [x] Docs de contexto copiados a `docs\` (cerebro + subnotas + 3 docs + manuales + GUIA).
+- [ ] GitHub (otra sesión): solo General; saneado de claves Propia en las docs.
+- [ ] Propia (R2IP/R1IP): añadir 12 perfiles + 12 envs, sin tocar código.
+
+## RESULTADO FINAL (resumen de la receta completa)
+
+1. Envs `navarrico_<placa>_<radio>_<rama>` declarados en `variants/nrf52840/navarrico.ini`.
+2. Perfiles `profiles/<RAMA>_<Placa>.jsonc` = copias 1:1 de los jsonc originales.
+3. `custom_meshtastic_app_env` = APP_ENV canónico; `custom_meshtastic_prefs` = perfil;
+   `custom_meshtastic_libdeps_map` = ruta canónica embebida (por env, R2 relativas o absolutas,
+   R1 r1promic/r1xiaoki — ¡el workaround de MAX_PATH cambió las rutas embebidas de 4 boards!).
+4. `platformio-custom.py` inyecta (solo con variables de entorno, inerte por defecto):
+   APP_VERSION, BUILD_EPOCH, __TIME__/__DATE__ y el -ffile-prefix-map (PIO destruye los
+   backslash de build_flags → se inyecta desde Python a los LIB BUILDERS, no a projenv).
+5. Código: `#line` en los asserts de main-nrf52 (E22P 456/459 vs SX1262 451/454), NodeDB.cpp
+   a 0 líneas netas, bloques LPCOMP por placa en getActiveLpcompThreshold, RF95_RXEN por radio.
+
+### Descubrimientos F11/F12 (última milla)
+- **F11**: cada repo original divergió en main-nrf52.cpp (bloques SEEED/XIAO/T114 solo en sus
+  carpetas; bloques RADIO_POWER_ENABLE_PIN solo en E22P) → el unificado lleva TODOS los bloques
+  con #elif. Los asserts (que embeben __LINE__) se fijan con #line por radio.
+- **F12**: los "UF2" de PIO para nRF52 llevan solo los primeros ~312 bloques codificados y el
+  resto crudo → la marca temporal puede quedar en la zona cruda. Get-Stamp busca en el fichero
+  crudo (no reconstruye la imagen).
+
+### Cómo rehacerlo / verificarlo
+```powershell
+.\verificar_paridad.ps1                    # 12 builds en modo paridad + MD5 vs Desktop 120826
+.\build.ps1 -EnvName <env> -Distribuir     # build normal + copia a distribucion\
+.\distribuir.ps1 -Todo                     # repoblar distribucion\ desde los .pio/build
+```
+Nota OTA: los .zip difieren en el nombre interno del env (manifest/entry); el firmware (.uf2/.bin)
+es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por env (pendiente opcional).
 
 ## DECISIONES DE DISEÑO CLAVE
 

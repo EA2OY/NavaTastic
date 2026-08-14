@@ -610,6 +610,27 @@ void enterDfuMode()
 nrf_lpcomp_ref_t getActiveLpcompThreshold() {
     // Voltajes de despertar calculados con divisor fisico 0.5 (1M/1M) y VDD 3.3V.
     // El LPCOMP compara el pin (bateria x divisor) contra la fraccion de VDD.
+    // NAVARICO: bloques por placa incorporados de los repos originales (Seed, Xiao, T114).
+    // Cada placa con divisor != 0.5 usa el umbral de fabrica (los niveles 1-5 calibrados
+    // al Promicro serian inalcanzables). La macro de placa la define el env de PlatformIO.
+#ifdef SEEED_SOLAR_NODE
+    // Seed Solar Node P1: divisor de la placa NO es 0.5 (es ~0.303 segun ADC_MULTIPLIER 3.3).
+    // Los niveles 1-5 estan calibrados al divisor del Promicro y serian inalcanzables aqui.
+    // Se usa el umbral de la referencia funcional (port 24/07): BATTERY_LPCOMP_THRESHOLD = 3_8 (~3.67V real).
+    // Mantener la histeresis para evitar rebotes de despertar.
+    return BATTERY_LPCOMP_THRESHOLD; // NRF_LPCOMP_REF_SUPPLY_3_8
+#elif defined(SEEED_XIAO_NRF52840_KIT)
+    // Xiao Kit i2c / Xiao E22P: divisor de fabrica 1M/510k (~0.3377), NO 0.5.
+    // Los niveles 1-5 estan calibrados al divisor del Promicro y serian inalcanzables aqui.
+    // Se usa el umbral de fabrica Meshtastic: BATTERY_LPCOMP_THRESHOLD = 3_8 (~3.67V real).
+    return BATTERY_LPCOMP_THRESHOLD; // NRF_LPCOMP_REF_SUPPLY_3_8
+#elif defined(HELTEC_T114)
+    // Heltec T114: divisor de fabrica 100/490 (~0.204), NO 0.5. Los niveles 1-5 estan
+    // calibrados al divisor del Promicro y serian inalcanzables aqui (9_16 ~9.1V).
+    // Se usa el umbral de fabrica Meshtastic: BATTERY_LPCOMP_THRESHOLD = 2_8 (~4.04V).
+    // Ojo: Meshtastic lo desactiva por fuga de 2.9mA en System OFF (issue #8801); aqui se activa.
+    return BATTERY_LPCOMP_THRESHOLD; // NRF_LPCOMP_REF_SUPPLY_2_8
+#else
     switch (currentWakeLevel) {
         case 1: return NRF_LPCOMP_REF_SUPPLY_5_16; //  ~2.06V real
         case 2: return NRF_LPCOMP_REF_SUPPLY_3_8;  //  ~2.48V real
@@ -618,6 +639,7 @@ nrf_lpcomp_ref_t getActiveLpcompThreshold() {
         case 5: return NRF_LPCOMP_REF_SUPPLY_4_8;  //  ~3.30V real (ideal para LiFePO4)
         default: return (nrf_lpcomp_ref_t)BATTERY_LPCOMP_THRESHOLD;
     }
+#endif
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,135 @@
+# Manual de Administración Remota NavaTastic (v4.2.1)
+
+Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comandos `/nava` (módulo `NavaCLIModule`) y código fuente de referencia para auditoría con otro agente.
+
+> El manual de usuario final del firmware (resiliencia, montaje, protocolo de rescate) está en el historial: ver `OLD_CONTEXT/Manual_Navarrico_4.2.md`.
+
+---
+
+## 🛡️ Nivel de Seguridad de los Comandos
+
+- **Canal Abierto (Navadmin)**: Únicamente comandos de consulta y diagnóstico (solo lectura). Se ejecutan en lote sobre toda la flota con retraso de respuesta aleatorio (jitter) anticolisión. Los emisores NO acreditados como administrador no reciben respuesta alguna (silencio total). **Rate-limit: máximo 1 comando por nodo cada 30s** (el exceso se ignora en silencio) para evitar agotamiento de batería/airtime por abuso del canal público.
+- **Solo por DM Privado Cifrado**: Comandos críticos de configuración, reinicio, base de datos, bloqueos, favoritos y energía. Requieren firma criptográfica PKI obligatoria. Si un nodo conocido envía un DM sin estar acreditado, responde una sola vez: `NO AUTORIZADO COMO ADMINISTRADOR`.
+
+---
+
+## 📊 1. Diagnóstico y Telemetría (Permitidos en Canal Abierto y DM)
+
+- **`/nava ping`** — Respuesta de latencia con uptime y piso de ruido. Ej: `PONG: RN1 | SNR: 3.5 dB | Bat: 4120 mV | UP: 32d 4h | RUIDO: -120 dBm`. Rate-limit: 1 respuesta cada 10s por nodo.
+- **`/nava status`** — Salud de memoria: nodos RAM/80, favoritos manuales/auto, huérfanos, estado Auto-Fav y tiempo activo.
+- **`/nava env`** — Batería, heap, temperatura CPU nRF52 y sensor ambiental I2C.
+- **`/nava channel`** — Uso de espectro (airtime % y TX %).
+- **`/nava peers`** — Vecinos directos a 0 saltos (ID, rol, SNR, tiempo desde último contacto).
+- **`/nava rxlog`** — Metadatos de los últimos 5 paquetes recibidos (ID, PortNum, SNR, RSSI).
+- **`/nava afc`** — Deriva de frecuencia del TCXO en Hz del último paquete.
+- **`/nava reset_reason`** — Motivo del último reinicio (registro RESETREAS).
+- **`/nava noise`** — Piso de ruido instantáneo del chip LoRa en dBm.
+- **`/nava bat`** — Química activa, voltaje mV, % OCV y estado TX.
+- **`/nava route !ID`** — Saltos y SNR con que escucha al nodo. Si no está en la BD, lanza un TraceRoute automáticamente.
+- **`/nava trace !ID`** — Lanza un TraceRoute nativo hacia el nodo.
+- **`/nava help`** — Glosario corto de comandos.
+- **`/nava help <comando>`** tambén: **`/nava <comando> ?`** / **`/nava <comando> help`** interroga a CUALQUIER comando (excepto `msg`) — Ayuda breve de un comando concreto. Ej: `/nava help fav`, `/nava help storm`.
+
+## 🚫 2. Gestión de Bloqueos (SOLO DM PRIVADO CIFRADO)
+
+- **`/nava ign ls`** — Lista los nodos bloqueados.
+- **`/nava ign add !ID`** — Bloquea y silencia al nodo, purgando su clave pública.
+  - Salvaguardas: `ERR: NO SE PUEDE IGNORAR A UN ADMIN`, `ERR: NO PUEDES IGNORARTE A TI MISMO`, `ERR: NODO DESCONOCIDO, NO SE PUEDE VERIFICAR ADMIN`.
+- **`/nava ign rm !ID`** — Desbloquea al nodo (DM para evitar auto-desbloqueo del bloqueado).
+
+## ⭐️ 3. Gestión de Favoritos (SOLO DM PRIVADO CIFRADO)
+
+- **`/nava fav add !ID`** — Añade a favoritos con bypass de saltos; crea slot huérfano en RAM si no se ha oído (máx. 10).
+- **`/nava fav rm !ID`** — Elimina de favoritos.
+- **`/nava fav ls`** — Lista los favoritos.
+- **`/nava fav auto [on|off]`** — Activa/desactiva el auto-favoriteo de routers directos (0 saltos). Por defecto: ACTIVADO. Con OFF no se marcan nuevos auto-favoritos ni se registran routers para bypass de saltos; los favoritos ya existentes se conservan. `/nava fav auto` sin argumento muestra el estado. Persiste en `/resilience.bin` (sobrevive a factory reset).
+
+## ⚙️ 4. Configuración del Nodo en Caliente (SOLO DM PRIVADO CIFRADO)
+
+- **`/nava set_name "[Largo]" "[Corto]"`** — Cambia el nombre (soporta comillas).
+- **`/nava set_role [client/mute/router]`** — Cambia el rol de hardware. **En Rama 1 (Clientes) el rol es SEMI-PERMANENTE**: se guarda en `/resilience.bin` y sobrevive al factory reset (un cliente convertido en router sigue siéndolo tras un rescate; se revierte con `set_role client`). En Rama 2 solo persiste en `/prefs` (el factory reset lo restaura).
+- **`/nava set_mqtt [on/off]`** — Activa/desactiva MQTT.
+- **`/nava set_tz [tz_POSIX]`** — Zona horaria POSIX.
+- **`/nava set_hops [1-7]`** — Límite de saltos LoRa.
+- **`/nava set_txpower [0-12]`** — Potencia TX (Promicro/E22P). En la **Faketec HT-RA62 es [0-22]**.
+
+## 🧹 5. Mantenimiento y Reinicio (SOLO DM PRIVADO CIFRADO)
+
+- **`/nava db_purge`** — Expulsa nodos temporales conservando favoritos y admins.
+- **`/nava db_clear`** — Vacía la base de nodos (nuclear). **Importante**: `db_clear` borra también tu propia entrada del repetidor; el DM PKI solo se descifra con tu entrada en su base de datos. Para re-acreditar: **fuerza desde tu mando el reenvío de tu propio NodeInfo (broadcast, NO DM)** antes de enviar cualquier `/nava`. Sin ese paso, el repetidor no responderá hasta el próximo NodeInfo periódico de tu mando (hasta 72 h).
+- **`/nava reboot`** — Reinicio diferido a 3s (el ACK sale antes).
+- **`/nava factory_reset`** — Reset de fábrica de emergencia restaurando canales de rescate (el ACK sale antes de ejecutarse).
+
+## 🔋 6. Energía y Resiliencia (SOLO DM PRIVADO CIFRADO)
+
+- **`/nava set_chem [lipo/nimh/sodium/lifepo4]`** — Cambia química de batería y ajusta corte/OCV/LPCOMP. Persiste en `/resilience.bin`. Cortes: lipo 3500, nimh 3400, sodium 2600, **lifepo4 2800**. **Sin argumento** responde la química actual + tabla de cortes/despertar (+ qué químicas no aplican en esa placa). **AVISO**: si algo falla, rollback SOLO con `nrf erase`.
+  - ⚠️ **En Seed Solar P1, Xiao Kit i2c, Xiao E22P y Heltec T114** la química **`lifepo4` está rechazada** (responde `ERR: LIFEPO4 NO COMPATIBLE, UMBRAL LPCOMP FIJO`): su LPCOMP es fijo por hardware y el umbral (~3.67V–4.04V) supera el voltaje máximo físico de una celda LiFePO4 (~3.65V); si se aceptara, un nodo apagado por batería baja jamás despertaría por solar. Solo `lipo`, `nimh` y `sodium` en esas variantes. En Promicro y Faketec (LPCOMP dinámico) las 4 químicas siguen disponibles.
+- **`/nava set_vbat [2400-3600]`** — Corte de apagado por batería en mV. **Sin argumento**: muestra el corte actual. **AVISO**: rollback SOLO con `nrf erase`.
+- **`/nava set_vwake [1-5]`** — Nivel LPCOMP de reencendido solar. Voltajes reales (Promicro/Faketec, divisor 0.5): 1=2.1V, 2=2.5V, **3=3.7V (LiPo/NiMH/Sodio)**, 4=4.5V, **5=3.3V (LiFePO4)**. **Sin argumento**: muestra el nivel actual. **AVISO**: rollback SOLO con `nrf erase`.
+  - ⚠️ **En Seed Solar P1, Xiao Kit i2c y Xiao E22P** el umbral real es **fijo `3_8` (~3.67V)** (divisor no es 0.5); `set_vwake` no cambia el voltaje de despertar.
+  - ⚠️ **En Heltec T114** el umbral real es **fijo `2_8` (~4.04V)** (divisor 100/490); `set_vwake` tampoco lo cambia.
+  - Ver `transfer_context.md` sección 6 (tabla de divisores reales).
+- **`/nava storm [1-720]`** — Hibernación con radio apagada (RTC2), despierta por temporizador y reinicia. Responde "MODO TORMENTA ACTIVADO..." y espera 15s antes de dormir.
+- **`/nava storm test1` / `test2`** — Prueba rápida: 60s / 120s.
+- **`/nava txoff`** — Apaga TX tras 3s (mantiene RX). **AVISO**: persiste; rollback SOLO con `nrf erase`.
+- **`/nava txon`** — Reactiva TX.
+- **`/nava ble [on/off]`** — Apaga/enciende Bluetooth; programa reinicio real (se lee al boot). **AVISO**: persiste; rollback SOLO con `nrf erase`.
+
+## 📡 7. Transmisión de Datos (SOLO DM PRIVADO CIFRADO)
+
+- **`/nava msg "[TEXTO]"`** — Difunde mensaje en Canal 0 firmado por el repetidor. Valida texto vacío y responde si no hay memoria.
+- **`/nava pos`** — Fuerza emisión de posición.
+- **`/nava nodeinfo`** — Baliza NodeInfo sin pedir respuesta.
+- **`/nava sendtel`** — Telemetrías ambientales inmediatas.
+- **`/nava power`** — Métricas de sensor de potencia I2C (INA219/260): V, mA, mW.
+
+## 🔔 8. Utilidades (SOLO DM PRIVADO CIFRADO)
+
+- **`/nava bell`** — Alarma acústica para localización.
+- **`/nava admin_ls`** — Muestra las 3 claves criptográficas de admin en **base64** (para verificar contra lo configurado).
+
+---
+
+## 🎯 Sintaxis de Direccionamiento de Lote (Prefijos)
+
+1. **Por ID**: `/nava !a7c43b2f ping` (solo responde ese nodo).
+2. **Por Rol**: `/nava @router status` (solo Routers).
+3. **Por Nombre**: `/nava @name:Navarra env` (solo nombres que empiecen por "Navarra").
+4. **A Todos**: `/nava env` (todos los repetidores al alcance, secuencial).
+
+---
+
+## ⚠️ Notas de Despliegue (v4.2.1
+
+- **Ayuda y consulta (v4.3)**: cualquier comando de configuración responde información al llamarse sin argumentos: `/nava set_chem` muestra la química actual, la tabla de cortes/despertar y (si aplica) qué no está disponible; `/nava set_vbat`, `set_vwake`, `set_txpower`, `set_hops`, `set_role`, `set_mqtt`, `set_tz`, `set_name` y `ble` muestran el valor actual. También: `/nava <comando> ?` o `/nava <comando> help` (no válido para `msg`: `/nava msg help` sigue difundiendo el texto). Los comandos que persisten configurán (`set_chem`, `set_vbat`, `set_vwake`, `txoff`, `ble`) avisan: un fallo de configuración solo se revierte con `nrf erase`.)
+
+- La PSK del canal Navadmin es la pública de Meshtastic: cualquiera puede escuchar. Por eso el canal solo admite lectura y NUNCA responde a no-admins.
+- El canal Navadmin se identifica por slot (índice 1), no por nombre: no reordenar canales.
+- Las respuestas largas se fragmentan a 190 caracteres con retardo entre fragmentos (MTU LoRa SFNarrow).
+- `/resilience.bin` en la raíz del disco sobrevive a los resets de fábrica (solo se borra `/prefs`).
+- **Rotación de clave del mando (fix 2026-08-10)**: si un mando aparece con una clave pública distinta a la que el repetidor guarda en su DB, el repetidor acepta el cambio SIEMPRE que la nueva clave coincida con una clave de admin configurada, y lo re-marca como favorito. Esto permite re-acreditar a un mando que se registró con una clave no autorizada (p.ej. tras `db_clear` o `ign rm`): basta con que el mando reenvíe su NodeInfo con la clave correcta; el siguiente DM PKI `/nava` ya se descifra y valida. Si la clave nueva NO es admin, el NodeInfo se descarta como antes.
+
+---
+
+## 💻 Código Fuente de Referencia (para auditoría)
+
+> El código canónico desplegado y compilado es el de `Rama 2 Infraestructura\Infraestructura Propia\Promicro NRF52+E22P NavTastic 2.7.26 R2IP\src\modules\NavaCLIModule.h/.cpp` (idéntico en la Faketec PROPIA salvo `set_txpower` 0-22). Este bloque es la referencia de auditoría; si difiere del repo, **el repo es la fuente de verdad**.
+
+### Estructura clave del módulo (v4.2.1)
+
+- **Clase**: `NavaCLIModule` hereda de `SinglePortModule` + `concurrency::OSThread`.
+- **Métodos**:
+  - `wantPacket()` — acepta `/nava` si DM hacia nosotros o canal 1; registra rxLog; olfatea telemetría local.
+  - `handleReceived()` — autenticación: DM exige PKI; nodo no en DB -> responde una vez `NODO NO REGISTRADO EN NODEDB`; nodo conocido no-admin -> una vez `NO AUTORIZADO COMO ADMINISTRADOR` (rate-limit con `std::set<NodeNum> unauthorizedReplied`); canal 1 solo admins.
+  - `executeCommand()` — normaliza a minúsculas ANTES del filtro de canal; whitelist canal 1; despacha comandos (con guards de longitud en `substr()`).
+  - `helpForCommand(topic)` — ayuda por comando en español.
+  - `runOnce()` — drena `responseQueue` (fragmentos de 190 chars, retardo 12s entre fragmentos), ejecuta `txoff`/`reboot`/`factory_reset`/`storm` diferidos.
+- **Flags internos**: `rebootScheduled`, `factoryResetPending`, `stormPending`/`stormSeconds`, `txOffScheduled`.
+- **Persistencia**: `ResiliencePrefs` en `/resilience.bin` (química, vbat, vwake, tx, ble, auto-fav y —Rama 1— rol).
+
+### Dependencias externas del módulo
+- `extern float lastRxFrequencyError;` (RadioLibInterface).
+- `extern uint32_t rawResetReason;` (main-nrf52).
+- `extern void timedSystemSleepSeconds(uint32_t);` (main-nrf52, storm RTC2).
+- `extern void setBleForceDisabled(bool);` (main-nrf52).
+- `router->getInterface()` (Router.h), `environmentTelemetryModule->sendTelemetry()` (EnvironmentTelemetry public).

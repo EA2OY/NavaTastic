@@ -39,7 +39,7 @@ foreach ($e in $envs) {
     if (-not $map.ContainsKey($e)) { throw "Env no conocido: $e (no esta en el mapa de distribucion)" }
     $info = $map[$e]
     $buildDir = Join-Path $root (".pio\build\$e")
-    if (-not (Test-Path -LiteralPath $buildDir)) { throw "No existe build para $e: $buildDir (compila antes)" }
+    if (-not (Test-Path -LiteralPath $buildDir)) { throw "No existe build para ${e}: $buildDir (compila antes)" }
     $destRama = Join-Path $root ("distribucion\" + $info.Rama)
     $caras = @("LIPO")
     if ($nimh -contains $e) { $caras += "NIMH" }

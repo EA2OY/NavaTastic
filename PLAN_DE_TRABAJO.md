@@ -22,16 +22,18 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       remotes: todos meshtastic/firmware (APP_REPO = meshtastic/firmware)
 - [x] Ing. variant.h: promicro (E22P/HT-RA62), xiao kit (SX1262/E22P) fusionados con #ifdef;
       seed y t114 aplicados (bloques + inis con EXCLUDE flags)
-- [x] Ing. código: Channels.cpp (TX radio), NodeDB.cpp (fallback rol R1), NavaCLIModule.h/.cpp
-      (set_txpower radio + 4 bloques Rama 1)
-- [x] platformio-custom.py: custom_meshtastic_prefs + custom_meshtastic_app_env + NAVARICO_BUILD_EPOCH (inertes)
+- [x] Ing. código: Channels.cpp (TX radio), NodeDB.cpp (fallback rol a 0 líneas netas),
+      NavaCLIModule.h/.cpp (set_txpower radio + 4 bloques Rama 1),
+      main-nrf52.cpp (bloques LPCOMP #elif por placa + #line asserts por radio + RF95_RXEN)
+- [x] platformio-custom.py: prefs/app_env/libdeps-map/APP_VERSION/BUILD_EPOCH/__TIME__/__DATE__ (inertes)
 - [x] variants/nrf52840/navarrico.ini: 12 envs + platformio.ini default_envs
 - [x] Scripts: build.ps1, distribuir.ps1, verificar_paridad.ps1, profiles/README.md, Guia_para_agente
-- [ ] COMMIT intermedio de la unificación (antes de builds)
-- [ ] Build humo navarrico_promicro_e22p_r2ig (modo paridad) -> MD5 vs R2IG Promicro original
-- [ ] Build 12/12 (modo paridad) -> verificar_paridad.ps1
-- [ ] distribuir.ps1 -Todo -> distribucion/
-- [ ] Cierre: commit final + resumen
+- [x] **PARIDAD 12/12 BYTE-IDENTICA** (verificar_paridad.ps1 vs Desktop\NavaTastic 4.3 120826)
+- [x] Distribución a distribucion/ (32 ficheros, nombres históricos, UF2 byte-idénticos)
+- [x] Docs de contexto copiados a docs/ + BITACORA_TECNICA.md (receta completa para rehacer)
+- [ ] GitHub (otra sesión): repo público solo General, docs saneadas de claves Propia
+- [ ] Propia (R2IP/R1IP): perfiles + envs sin tocar código
+- [ ] Opcional: progname por env para OTA zip byte-idéntico
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)
