@@ -14,7 +14,9 @@
 param(
     [string]$EnvName = "",
     [switch]$Distribuir,
-    [switch]$Paridad
+    [switch]$Paridad,
+    [string]$BuildTime = "",
+    [string]$BuildDate = ""
 )
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
@@ -22,10 +24,18 @@ $root = $PSScriptRoot
 if ($Paridad) {
     # Epoch Unix del 12/08/2026 00:00 (UTC+2, Madrid) = dia del build "Eclipse Edition" de Rama 2
     $env:NAVARICO_BUILD_EPOCH = [DateTimeOffset]::new(2026, 8, 12, 0, 0, 0, [TimeSpan]::FromHours(2)).ToUnixTimeSeconds().ToString()
+    # Version embebida de los builds originales (SHA de git 54e0d8d de los 24 repos viejos)
+    $env:NAVARICO_APP_VERSION = "2.7.26.54e0d8d"
     Write-Host "NAVARICO_BUILD_EPOCH = $env:NAVARICO_BUILD_EPOCH (12/08) - MODO PARIDAD"
+    Write-Host "NAVARICO_APP_VERSION = $env:NAVARICO_APP_VERSION (54e0d8d)"
 } else {
     Remove-Item Env:NAVARICO_BUILD_EPOCH -ErrorAction SilentlyContinue
+    Remove-Item Env:NAVARICO_APP_VERSION -ErrorAction SilentlyContinue
 }
+# Marca temporal embebida (Crypto/RNG + RadioLib usan __TIME__/__DATE__): para paridad se pasa
+# la marca exacta de la referencia (la extrae verificar_paridad.ps1). Sin valores: marca de hoy.
+if ($BuildTime) { $env:NAVARICO_BUILD_TIME = $BuildTime }
+if ($BuildDate) { $env:NAVARICO_BUILD_DATE = $BuildDate }
 
 # Localizar pio (PATH primero; si no, ruta tipica de instalacion)
 $pio = Get-Command pio -ErrorAction SilentlyContinue
@@ -50,4 +60,7 @@ try {
 } finally {
     Pop-Location
     Remove-Item Env:NAVARICO_BUILD_EPOCH -ErrorAction SilentlyContinue
+    Remove-Item Env:NAVARICO_APP_VERSION -ErrorAction SilentlyContinue
+    Remove-Item Env:NAVARICO_BUILD_TIME -ErrorAction SilentlyContinue
+    Remove-Item Env:NAVARICO_BUILD_DATE -ErrorAction SilentlyContinue
 }

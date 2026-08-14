@@ -699,13 +699,8 @@ void NodeDB::installDefaultConfig(bool preserveKey = false)
 
 #ifdef USERPREFS_CONFIG_DEVICE_ROLE
     config.device.role = USERPREFS_CONFIG_DEVICE_ROLE;
-#else
-    // NAVARICO: fallback de rol por rama. Rama 1 (Clientes) -> CLIENT; Rama 2 (Routers) -> ROUTER.
-#ifdef NAVARICO_RAMA_1
-    config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT; // Default to client (Rama 1).
-#else
-    config.device.role = meshtastic_Config_DeviceConfig_Role_ROUTER; // Default to router.
-#endif
+#else // NAVARICO: rol por defecto via perfil (R2=ROUTER, R1=CLIENT en el jsonc). Fallback solo si falta la macro.
+    config.device.role = meshtastic_Config_DeviceConfig_Role_ROUTER; // Default to router. NAVARICO: R1 usa CLIENT desde el perfil
 #endif
 
 #ifdef USERPREFS_CONFIG_LORA_REGION

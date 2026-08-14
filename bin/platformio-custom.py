@@ -202,6 +202,12 @@ Import("projenv")
 
 prefsLoc = projenv["PROJECT_DIR"] + "/version.properties"
 verObj = readProps(prefsLoc)
+# NAVARICO: override opcional de la version embebida (variable NAVARICO_APP_VERSION) para
+# reproducir byte a byte builds anteriores (p. ej. "2.7.26.54e0d8d"). Sin la variable, la
+# version es la normal del repo (2.7.26.<sha de git>). Lo usa verificar_paridad.ps1.
+navarico_ver = os.environ.get("NAVARICO_APP_VERSION")
+if navarico_ver:
+    verObj["long"] = navarico_ver
 print(f"Using meshtastic platformio-custom.py, firmware version {verObj['long']} on {env.get('PIOENV')}")
 
 # get repository owner if git is installed
@@ -271,6 +277,45 @@ for flag in flags:
 projenv.Append(
     CCFLAGS=flags,
 )
+
+# NAVARICO: mapeo de ruta de libdeps para paridad byte-a-byte.
+# El parser de build_flags de PlatformIO elimina los backslash, asi que el
+# -ffile-prefix-map se inyecta aqui (Python) con la ruta completa real.
+# El binario embebe rutas ".pio\libdeps\<PIOENV>\..." en bibliotecas que usan
+# __FILE__ (p. ej. arduino-fsm). Con este mapa, todos los envs embeben la ruta
+# canonica (custom_meshtastic_libdeps_map) del build original, y el MD5 deja de
+# depender del nombre del env. Inerte si la opcion no existe.
+nav_libdeps_map = env.GetProjectOption("custom_meshtastic_libdeps_map", "")
+if nav_libdeps_map:
+    src_prefix = ".pio\\libdeps\\" + env.get("PIOENV")
+    canonical = nav_libdeps_map.replace("/", "\\")
+    map_flag = "-ffile-prefix-map=" + src_prefix + "=" + canonical
+    # NOTA: las librerias se compilan en envs propios (lib builders), NO en projenv ni en env.
+    # Se inyecta el flag en cada una para que su __FILE__ (ruta de libdeps con el nombre del env)
+    # quede remapeado a la ruta canonica del build original (paridad byte-a-byte).
+    for lb in env.GetLibBuilders():
+        lb.env.Append(CCFLAGS=[map_flag])
+    env.Append(CCFLAGS=[map_flag])
+    print(f"NAVARICO: -ffile-prefix-map {src_prefix} -> {canonical}")
+
+# NAVARICO: override de la marca temporal embebida (Crypto/RNG y RadioLib/Module usan __TIME__/__DATE__).
+# Sin las variables de entorno, comportamiento original (marca de hoy). Con ellas
+# (verificar_paridad.ps1) se reproduce la marca del build de referencia byte a byte.
+navarico_btime = os.environ.get("NAVARICO_BUILD_TIME", "")
+navarico_bdate = os.environ.get("NAVARICO_BUILD_DATE", "")
+if navarico_btime or navarico_bdate:
+    stamp_flags = []
+    if navarico_btime:
+        # Comillas escapadas (\\"): el parser de linea de comandos de Windows (CommandLineToArgvW)
+        # eliminaria las comillas simples, dejando __TIME__ sin comillas (error de compilacion).
+        stamp_flags.append('-D__TIME__=\\"' + navarico_btime + '\\"')
+    if navarico_bdate:
+        stamp_flags.append('-D__DATE__=\\"' + navarico_bdate + '\\"')
+    for lb in env.GetLibBuilders():
+        lb.env.Append(CCFLAGS=stamp_flags)
+    env.Append(CCFLAGS=stamp_flags)
+    projenv.Append(CCFLAGS=stamp_flags)
+    print(f"NAVARICO: marca temporal override {navarico_btime} {navarico_bdate}")
 
 for lb in env.GetLibBuilders():
     if lb.name == "meshtastic-device-ui":
