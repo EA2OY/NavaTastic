@@ -642,6 +642,24 @@ nrf_lpcomp_ref_t getActiveLpcompThreshold() {
 #endif
 }
 
+// V2: tension teorica de despertar por LPCOMP en mV (para los mensajes [Sueño]/[Vivo])
+uint16_t navaGetLpcompWakeMv() {
+#if defined(SEEED_SOLAR_NODE) || defined(SEEED_XIAO_NRF52840_KIT)
+    return 3670; // 3_8 real (~3.67V) en Seed y Xiao x2 (divisor de placa)
+#elif defined(HELTEC_T114)
+    return 4040; // 2_8 real (~4.04V) en T114 (divisor 100/490)
+#else
+    switch (currentWakeLevel) {
+        case 1: return 2060;
+        case 2: return 2480;
+        case 3: return 3710; // default LiPo/NiMH/Sodio
+        case 4: return 4540;
+        case 5: return 3300; // LiFePO4
+        default: return 3710;
+    }
+#endif
+}
+
 // ---------------------------------------------------------------------------
 // Storm / hibernación temporizada (RTC2 + LOWPWR).
 // NO usar sd_power_system_off(): System OFF solo despierta por GPIO/LPCOMP/NFC/reset

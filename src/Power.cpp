@@ -25,6 +25,7 @@
 #include "configuration.h"
 #include "main.h"
 #include "meshUtils.h"
+#include "modules/NavaCLIModule.h"
 #include "power/PowerHAL.h"
 #include "power/SGM41562.h"
 #include "sleep.h"
@@ -1022,7 +1023,13 @@ void Power::readPowerStatus()
             if (low_voltage_counter > 10) {
 #endif
                 LOG_INFO("Low voltage detected, trigger deep sleep");
-                powerFSM.trigger(EVENT_LOW_BATTERY);
+                // V2: con mensajes de sueno activos, NavaCLI envia [Sueno] al canal
+                // Navadmin y se duerme al drenar la cola; si no, flujo PowerFSM normal.
+                if (navaCLIModule && navaCLIModule->handleLowBatteryEvent()) {
+                    // control tomado por NavaCLI
+                } else {
+                    powerFSM.trigger(EVENT_LOW_BATTERY);
+                }
             }
         } else {
             low_voltage_counter = 0;

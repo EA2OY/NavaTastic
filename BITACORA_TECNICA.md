@@ -175,7 +175,34 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 
 ---
 
-## SESIÓN 14/08 (3ª-5ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya + PDF)
+## SESIÓN 14/08 (3ª-8ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya + PDF + V2)
+
+- **6ª-8ª parte — SNAPSHOT BASELINE + FASE 2 V2 (sueño/vivo/listo + fav real + fragmentación)**:
+  - **Baseline**: `_archivo\NavaTastic 4.3 Eclipse Edition - Unificado.zip` (HEAD 644d09e68).
+    Todo cambio posterior rompe el MD5 de Eclipse a propósito; el snapshot es el rollback.
+  - **A (sueño/vivo/listo)**: al venir de sueño (`ResiliencePrefs.wasInSleep`, seteado antes de
+    cada `cpuDeepSleep` por batería), el pre-check de `main.cpp` usa el despertar LPCOMP real
+    (`navaGetLpcompWakeMv()` en main-nrf52) como umbral: V<corte OCV (3500 E22P / 3400 SX1262
+    = `power->OCV[10]`) → silencio + re-sueño; corte≤V<LPCOMP → [Vivo] + re-sueño tras drenar
+    la cola (patrón storm, `sleepPending` en NavaCLI); V≥LPCOMP → boot normal → [Listo].
+    Sueño en runtime (`Power.cpp` monitor) delega en `navaCLIModule->handleLowBatteryEvent()`
+    → [Sueño] + sueño diferido (evita dormir con la cola sin drenar). Gate `/nava sleepmsg
+    [on|off]` (persistido). INA219 solo si presente en el bus (auto-detectado); `power`
+    muestra ADC + INA ±mA CARGANDO/DESCARGANDO.
+  - **B (fav real)**: `ResiliencePrefs.autoFavIds[16]` persistido; reconciliación en `runOnce`
+    (60s) con `activeDirectRouters`; `status`: Auto = fav ∩ autoFavIds, Manual = fav − autoFavIds
+    (sin doble conteo ni pérdida tras reinicio); `fav ls` etiqueta [AUTO]/[MAN]; `fav rm` limpia.
+  - **C (fragmentación)**: `enqueueResponse` corta en `\n` preferentemente (líneas enteras;
+    si la línea >190, recae en espacio).
+  - **F13 — distribuir.ps1 copiaba el artefacto MÁS ANTIGUO**: `.pio/build/<env>` acumula UF2/zip
+    de builds previos (`54e0d8d`, `1a9937d`, `b9a1fa8`...) y `Get-ChildItem | First` = orden
+    alfabético → se distribuyó el de era Eclipse (Promicro R2IG MD5 C93764F6 = ¡el de referencia!).
+    **Fix**: `Sort-Object LastWriteTime -Descending | Select -First 1`. Detección: MD5 del
+    Promicro distribuido = MD5 de Eclipse (imposible tras el cambio de código).
+  - **Distribución**: `distribuir.ps1 -Todo -V2` → 32+32 ficheros (distribucion\ + Desktop V2),
+    MD5 nuevos. `distribucion\` ya NO es Eclipse; Eclipse sigue en Desktop 120826 + snapshot.
+
+- **3ª parte — CEREBRO VIVO MIGRADO AL REPO ÚNICO**:
 
 - **5ª parte — SISTEMA DE PDF PORTADO AL REPO**:
   - `HerramientasPropiasIA\generar_pdf.ps1` + `plantilla_navatastic.tex` copiados 1:1

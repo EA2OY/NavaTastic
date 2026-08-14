@@ -7,6 +7,7 @@
 #include "memGet.h"
 #include "FSCommon.h"
 #include "power.h"
+#include "sleep.h"
 #include "modules/TraceRouteModule.h"
 #include "modules/PositionModule.h"
 #include "modules/NodeInfoModule.h"
@@ -29,10 +30,14 @@ extern float lastRxFrequencyError;
 extern uint32_t rawResetReason;
 extern void timedSystemSleepSeconds(uint32_t seconds);
 extern void setBleForceDisabled(bool on);
+extern uint16_t navaGetLpcompWakeMv(); // V2: tension teorica de despertar por LPCOMP (mV) segun placa/nivel
 
 NavaCLIModule *navaCLIModule = nullptr;
 
 bool navaAutoFavoriteEnabled = true; // Auto-favoriteo de routers directos 0-hop (default ON)
+
+// V2: flag estatico intermedio: lo pone el pre-check de main.cpp ANTES de que el modulo exista
+static bool navaVivoPendingGlobal = false;
 
 NavaCLIModule::NavaCLIModule()
     : SinglePortModule("nava_cli", meshtastic_PortNum_TEXT_MESSAGE_APP),
@@ -46,6 +51,10 @@ NavaCLIModule::NavaCLIModule()
     
     // Cargar los parámetros de resiliencia persistentes
     loadResiliencePrefs();
+
+    // V2: flags de sueño (los puso el pre-check de main.cpp antes de construir el modulo)
+    wokeFromSleep = (prefs.wasInSleep != 0);
+    vivoPending = navaVivoPendingGlobal;
 }
 
 void NavaCLIModule::loadResiliencePrefs() {
@@ -56,12 +65,18 @@ void NavaCLIModule::loadResiliencePrefs() {
             f.read((uint8_t*)&prefs, sizeof(prefs));
             f.close();
             if (prefs.magic == 0x52455349) {
-                // Ficheros de versiones previas sin el campo auto_fav -> default ON
+                // Ficheros de versiones previas sin los campos V2 -> defaults
                 if (fileSize < sizeof(prefs)) {
                     prefs.auto_fav = 1;
 #ifdef NAVARICO_RAMA_1
                     prefs.role = 0xFF; // NAVARICO Rama 1: sin rol fijado (fichero de version previa)
 #endif
+                    prefs.autoFavCount = 0;
+                    memset(prefs.autoFavIds, 0, sizeof(prefs.autoFavIds));
+                    prefs.sleepMsgs = 1;
+                    prefs.wasInSleep = 0;
+                    prefs.reserved = 0;
+                    saveResiliencePrefs();
                 }
                 navaAutoFavoriteEnabled = (prefs.auto_fav != 0);
                 // Aplicar parámetros cargados a RAM
@@ -110,9 +125,101 @@ void NavaCLIModule::loadResiliencePrefs() {
 #ifdef NAVARICO_RAMA_1
     prefs.role = 0xFF; // NAVARICO Rama 1: sin rol fijado
 #endif
+    prefs.autoFavCount = 0;
+    memset(prefs.autoFavIds, 0, sizeof(prefs.autoFavIds));
+    prefs.sleepMsgs = 1;
+    prefs.wasInSleep = 0;
+    prefs.reserved = 0;
     navaAutoFavoriteEnabled = true;
     setBleForceDisabled(false);
     saveResiliencePrefs();
+}
+
+// --- V2: acceso estatico a los flags de sueño (leidos desde main.cpp pre-check) ---
+static bool navaResiliencePeek(uint8_t &sleepMsgsOut, uint8_t &wasInSleepOut)
+{
+    sleepMsgsOut = 1;
+    wasInSleepOut = 0;
+    if (FSCom.exists("/resilience.bin")) {
+        File f = FSCom.open("/resilience.bin", FILE_O_READ);
+        if (f) {
+            ResiliencePrefs tmp;
+            memset(&tmp, 0, sizeof(tmp));
+            f.read((uint8_t *)&tmp, sizeof(tmp));
+            f.close();
+            if (tmp.magic == 0x52455349) {
+                sleepMsgsOut = tmp.sleepMsgs;
+                wasInSleepOut = tmp.wasInSleep;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool NavaCLIModule::peekSleepMsgsEnabled()
+{
+    uint8_t sm, ws;
+    navaResiliencePeek(sm, ws);
+    return sm != 0;
+}
+
+bool NavaCLIModule::peekWasInSleep()
+{
+    uint8_t sm, ws;
+    navaResiliencePeek(sm, ws);
+    return ws != 0;
+}
+
+void NavaCLIModule::navaSetWasInSleep(bool on)
+{
+    ResiliencePrefs tmp;
+    memset(&tmp, 0, sizeof(tmp));
+    bool exists = false;
+    if (FSCom.exists("/resilience.bin")) {
+        File f = FSCom.open("/resilience.bin", FILE_O_READ);
+        if (f) {
+            size_t fileSize = f.size();
+            if (fileSize > 0 && fileSize <= sizeof(tmp)) {
+                f.read((uint8_t *)&tmp, fileSize);
+                if (tmp.magic == 0x52455349) {
+                    exists = true;
+                    if (fileSize < sizeof(tmp)) {
+                        // V2: migrar fichero previo (defaults de los campos nuevos)
+                        tmp.autoFavCount = 0;
+                        memset(tmp.autoFavIds, 0, sizeof(tmp.autoFavIds));
+                        tmp.sleepMsgs = 1;
+                        tmp.reserved = 0;
+                    }
+                }
+            }
+            f.close();
+        }
+    }
+    if (!exists) {
+        tmp.magic = 0x52455349;
+        tmp.sleepMsgs = 1;
+        tmp.auto_fav = 1;
+#ifdef NAVARICO_RAMA_1
+        tmp.role = 0xFF;
+#endif
+    }
+    tmp.wasInSleep = on ? 1 : 0;
+    File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
+    if (f) {
+        f.write((uint8_t *)&tmp, sizeof(tmp));
+        f.close();
+    }
+}
+
+void NavaCLIModule::navaSetVivoPending()
+{
+    navaVivoPendingGlobal = true;
+}
+
+bool NavaCLIModule::navaGetVivoPending()
+{
+    return navaVivoPendingGlobal;
 }
 
 void NavaCLIModule::saveResiliencePrefs() {
@@ -121,6 +228,96 @@ void NavaCLIModule::saveResiliencePrefs() {
         f.write((uint8_t*)&prefs, sizeof(prefs));
         f.close();
     }
+}
+
+// --- V2: mensajes de sueño/vivo/listo (canal Navadmin) ---
+std::string NavaCLIModule::buildEnergyLine()
+{
+    char buf[96];
+    int adcMv = powerStatus ? powerStatus->getBatteryVoltageMv() : 0;
+    std::string line = "ADC " + std::to_string(adcMv) + " mV";
+#if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
+    if (environmentTelemetryModule) {
+        meshtastic_Telemetry extTelem = meshtastic_Telemetry_init_zero;
+        if (environmentTelemetryModule->getEnvironmentTelemetry(&extTelem)) {
+            if (extTelem.which_variant == meshtastic_Telemetry_environment_metrics_tag) {
+                auto &m = extTelem.variant.environment_metrics;
+                if (m.voltage != 0.0f) {
+                    snprintf(buf, sizeof(buf), " | INA %.2f V %+.0f mA %s", m.voltage, m.current,
+                             m.current >= 0.0f ? "CARGANDO" : "DESCARGANDO");
+                    line += buf;
+                }
+            }
+        }
+    }
+#endif
+    return line;
+}
+
+bool NavaCLIModule::handleLowBatteryEvent()
+{
+    if (!prefs.sleepMsgs || sleepPending) return false;
+    // V2: si el boot viene con [Vivo] pendiente (rango intermedio), el mensaje de
+    // sueno del monitor de bateria sobra: solo programar el re-sueno.
+    if (vivoPending) {
+        sleepPending = true;
+        sleepTime = millis() + 5000;
+        return true;
+    }
+    prefs.wasInSleep = 1;
+    saveResiliencePrefs();
+    char buf[220];
+    snprintf(buf, sizeof(buf), "[Sueno] %s id%08x | %s | sueno profundo, despertara >= %u mV",
+             owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str(),
+             (unsigned int)navaGetLpcompWakeMv());
+    enqueueResponse(0, 1, buf, true);
+    sleepPending = true;
+    sleepTime = millis() + 5000; // dar tiempo a drenar la cola
+    return true;
+}
+
+// --- V2: listado persistente de auto-favoritos (distincion Auto/Manual real tras reinicio) ---
+bool NavaCLIModule::isAutoFav(uint32_t nodeNum) const
+{
+    for (uint8_t i = 0; i < prefs.autoFavCount && i < sizeof(prefs.autoFavIds) / sizeof(prefs.autoFavIds[0]); i++) {
+        if (prefs.autoFavIds[i] == nodeNum) return true;
+    }
+    return false;
+}
+
+bool NavaCLIModule::addAutoFav(uint32_t nodeNum)
+{
+    if (isAutoFav(nodeNum)) return false;
+    if (prefs.autoFavCount >= sizeof(prefs.autoFavIds) / sizeof(prefs.autoFavIds[0])) return false;
+    prefs.autoFavIds[prefs.autoFavCount++] = nodeNum;
+    return true;
+}
+
+bool NavaCLIModule::removeAutoFav(uint32_t nodeNum)
+{
+    for (uint8_t i = 0; i < prefs.autoFavCount && i < sizeof(prefs.autoFavIds) / sizeof(prefs.autoFavIds[0]); i++) {
+        if (prefs.autoFavIds[i] == nodeNum) {
+            for (uint8_t j = i; j + 1 < prefs.autoFavCount; j++) {
+                prefs.autoFavIds[j] = prefs.autoFavIds[j + 1];
+            }
+            prefs.autoFavCount--;
+            return true;
+        }
+    }
+    return false;
+}
+
+void NavaCLIModule::reconcileAutoFavs()
+{
+    if (!navaAutoFavoriteEnabled || !router) return;
+    bool changed = false;
+    for (NodeNum num : router->activeDirectRouters) {
+        meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(num);
+        if (n && n->is_favorite && addAutoFav(num)) {
+            changed = true;
+        }
+    }
+    if (changed) saveResiliencePrefs();
 }
 
 bool NavaCLIModule::wantPacket(const meshtastic_MeshPacket *p)
@@ -242,11 +439,17 @@ void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::
         resp.channel = channel;
         size_t len = std::min<size_t>(190, msg.length() - pos);
         if (pos + len < msg.length()) {
-            // Fix estetico: cortar en el ultimo espacio/salto de linea de la ventana
-            // para no partir comandos ni palabras a la mitad.
-            size_t cut = msg.find_last_of(" \n", pos + len - 1);
-            if (cut > pos) {
-                len = cut - pos;
+            // Fix estetico V2: cortar primero en el ultimo salto de linea de la
+            // ventana (lineas enteras en cada fragmento). Si la linea es mas larga
+            // que la ventana, recaer en el ultimo espacio (no partir palabras).
+            size_t cut = msg.find_last_of('\n', pos + len - 1);
+            if (cut >= pos && cut <= pos + len - 1) {
+                len = cut - pos + 1; // incluir el \n en el fragmento actual
+            } else {
+                cut = msg.find_last_of(' ', pos + len - 1);
+                if (cut > pos) {
+                    len = cut - pos;
+                }
             }
         }
         resp.text = msg.substr(pos, len);
@@ -365,7 +568,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             enqueueResponse(replyDest, replyChannel, usageAndState(topic), true);
         } else {
             enqueueResponse(replyDest, replyChannel,
-                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / power / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] reboot / factory_reset / admin_ls\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
+                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / power / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg [on|off] / reboot / factory_reset / admin_ls\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
         }
     }
     else if (cmd == "ping") {
@@ -430,6 +633,23 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             enqueueResponse(replyDest, replyChannel, buf, true);
         }
     }
+    else if (cmd.rfind("sleepmsg", 0) == 0) {
+        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        while (!arg.empty() && (arg.back() == ' ' || arg.back() == '\r' || arg.back() == '\n')) arg.pop_back();
+        if (arg == "on") {
+            prefs.sleepMsgs = 1;
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: MENSAJES SUENO/VIVO/LISTO ACTIVADOS", true);
+        } else if (arg == "off") {
+            prefs.sleepMsgs = 0;
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: MENSAJES SUENO/VIVO/LISTO DESACTIVADOS", true);
+        } else {
+            char buf[96];
+            snprintf(buf, sizeof(buf), "SLEEPMSGS: %s. USO: sleepmsg [on|off]", prefs.sleepMsgs ? "ON" : "OFF");
+            enqueueResponse(replyDest, replyChannel, buf, true);
+        }
+    }
     else if (cmd.rfind("fav add", 0) == 0) {
         if (cmd.length() > 8) {
             std::string idStr = cmd.substr(8);
@@ -458,6 +678,9 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             if (node != nullptr) {
                 node->is_favorite = false;
                 nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+                if (removeAutoFav(targetId)) {
+                    saveResiliencePrefs();
+                }
                 enqueueResponse(replyDest, replyChannel, "OK: FAVORITO ELIMINADO " + idStr, true);
             } else {
                 enqueueResponse(replyDest, replyChannel, "ERR: NO ENCONTRADO", true);
@@ -472,8 +695,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
             auto n = nodeDB->getMeshNodeByIndex(i);
             if (n && n->is_favorite) {
-                char buf[16];
-                snprintf(buf, sizeof(buf), "!%08x\n", n->num);
+                char buf[24];
+                snprintf(buf, sizeof(buf), "%s !%08x\n", isAutoFav(n->num) ? "[AUTO]" : "[MAN] ", n->num);
                 reply += buf;
                 empty = false;
             }
@@ -582,20 +805,21 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         enqueueResponse(replyDest, replyChannel, reply, true);
     }
     else if (cmd == "status") {
-        uint32_t activeRoutersCount = 0;
-        if (router) {
-            activeRoutersCount = router->activeDirectRouters.size();
-        }
         uint32_t manualFavs = 0;
+        uint32_t autoFavs = 0;
         for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
             auto n = nodeDB->getMeshNodeByIndex(i);
             if (n && n->is_favorite) {
-                manualFavs++;
+                if (isAutoFav(n->num)) {
+                    autoFavs++;
+                } else {
+                    manualFavs++;
+                }
             }
         }
-        char buf[200];
-        snprintf(buf, sizeof(buf), "Nodos RAM: %d/80\nFavs huerfanas: %d\nFavs (Manual): %d\nFavs (Auto): %d\nAuto-Fav: %s\nTiempo activo: %lu s", 
-                 nodeDB->getNumMeshNodes(), nodeDB->countOrphanFavorites(), manualFavs, activeRoutersCount, navaAutoFavoriteEnabled ? "ON" : "OFF", (unsigned long)(millis()/1000));
+        char buf[256];
+        snprintf(buf, sizeof(buf), "Nodos RAM: %d/80\nFavs huerfanas: %d\nFavs (Manual): %d\nFavs (Auto): %d\nAuto-Fav: %s\nTiempo activo: %lu s\n%s", 
+                 nodeDB->getNumMeshNodes(), nodeDB->countOrphanFavorites(), manualFavs, autoFavs, navaAutoFavoriteEnabled ? "ON" : "OFF", (unsigned long)(millis()/1000), buildEnergyLine().c_str());
         enqueueResponse(replyDest, replyChannel, buf, true);
     }
     else if (cmd == "env") {
@@ -1069,10 +1293,11 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
                 if (extTelem.which_variant == meshtastic_Telemetry_environment_metrics_tag) {
                     auto &m = extTelem.variant.environment_metrics;
                     if (m.voltage != 0.0f || m.current != 0.0f) {
-                        char buf[128];
+                        char buf[160];
                         float pwr_mw = m.voltage * m.current;
-                        snprintf(buf, sizeof(buf), "SENSOR DE POTENCIA:\nBus: %.2f V\nCorriente: %.1f mA\nPotencia: %.1f mW", 
-                                 m.voltage, m.current, pwr_mw);
+                        snprintf(buf, sizeof(buf), "SENSOR DE POTENCIA:\nADC: %d mV\nINA: %.2f V | %+.0f mA %s\nPotencia: %.1f mW",
+                                 powerStatus->getBatteryVoltageMv(), m.voltage, m.current,
+                                 m.current >= 0.0f ? "CARGANDO" : "DESCARGANDO", pwr_mw);
                         enqueueResponse(replyDest, replyChannel, buf, true);
                         return;
                     }
@@ -1115,6 +1340,42 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
 
 int32_t NavaCLIModule::runOnce()
 {
+    // V2: reconciliar el listado persistente de auto-favoritos con los routers
+    // directos actuales (persiste solo si cambia algo, max 1 escritura/60s).
+    reconcileAutoFavs();
+
+    // V2: primer tick tras el boot: mensajes [Vivo]/[Listo] segun como se desperto
+    if (!firstRunDone) {
+        firstRunDone = true;
+        if (wokeFromSleep || vivoPending) {
+            if (vivoPending && prefs.sleepMsgs) {
+                // V2: despertado por reset externo (p. ej. ATtiny13A) con bateria en
+                // rango seguro (>= corte OCV): avisar y volver a dormirse al drenar la cola
+                prefs.wasInSleep = 1;
+                saveResiliencePrefs();
+                char buf[220];
+                snprintf(buf, sizeof(buf), "[Vivo] %s id%08x | %s | sigo vivo, esperando recuperar carga",
+                         owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
+                enqueueResponse(0, 1, buf, true);
+                sleepPending = true;
+                sleepTime = millis() + 5000;
+            } else if (wokeFromSleep && prefs.sleepMsgs) {
+                // V2: despertar real por LPCOMP (solar): bateria ya cargada
+                prefs.wasInSleep = 0;
+                saveResiliencePrefs();
+                char buf[220];
+                snprintf(buf, sizeof(buf), "[Listo] %s id%08x | %s | despierto, cargando, listo para trabajar",
+                         owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
+                enqueueResponse(0, 1, buf, true);
+            } else {
+                if (wokeFromSleep) {
+                    prefs.wasInSleep = 0;
+                    saveResiliencePrefs();
+                }
+            }
+        }
+    }
+
     if (!responseQueue.empty()) {
         auto response = responseQueue.front();
         responseQueue.pop();
@@ -1172,6 +1433,18 @@ int32_t NavaCLIModule::runOnce()
         return 1000;
     }
 
+    // V2: sueño por bateria diferido: esperar a que la cola de mensajes drene
+    // (envia [Sueño]/[Vivo] al aire ANTES de apagar la radio).
+    if (sleepPending && responseQueue.empty() && (int32_t)(millis() - sleepTime) >= 0) {
+        LOG_INFO("Entering battery sleep after status message");
+        sleepPending = false;
+        cpuDeepSleep(portMAX_DELAY);
+        return 1000;
+    }
+    if (sleepPending) {
+        return 1000;
+    }
+
     return 60000;
 }
 
@@ -1212,7 +1485,7 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
     else if (topic == "noise")
         return "noise: Piso de ruido instantaneo del chip de radio. Uso: /nava noise";
     else if (topic == "power")
-        return "power: Metricas del sensor de potencia I2C (INA219/INA260). Uso: /nava power";
+        return "power: Metricas de energia: ADC interno + INA219/260 (V, +-mA, CARGANDO/DESCARGANDO, mW). Uso: /nava power";
     else if (topic == "bat")
         return "bat: Estado de bateria: quimica activa, voltaje, % OCV y estado TX. Uso: /nava bat";
     else if (topic == "fav")
@@ -1270,6 +1543,8 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
         return "factory_reset: Formateo remoto de emergencia; restaura valores de rescate. Uso: /nava factory_reset";
     else if (topic == "admin_ls")
         return "admin_ls: Muestra las 3 claves criptograficas de admin en base64. Uso: /nava admin_ls";
+    else if (topic == "sleepmsg")
+        return "sleepmsg: Activa/desactiva los avisos de sueno/vivo/listo al canal Navadmin. Uso: /nava sleepmsg [on|off]";
     else if (topic == "help")
         return "help: Muestra la lista de comandos o ayuda de uno concreto. Uso: /nava help [comando]";
 }
@@ -1284,6 +1559,10 @@ std::string NavaCLIModule::usageAndState(const std::string &topic)
 #else
         snprintf(buf, sizeof(buf), "QCA: %s (%dmV,w%d)\nOPC: lipo|nimh|sodium|lifepo4\nlipo:3500/3.71V nimh:3400/3.71V sodium:2600/3.71V lifepo4:2800/3.30V\nAVISO: persiste. ROLLBACK SOLO: nrf erase. CUIDADO", qca, prefs.vbat_cutoff, prefs.vwake_level);
 #endif
+        return buf;
+    }
+    if (topic == "sleepmsg") {
+        snprintf(buf, sizeof(buf), "SLEEPMSGS ACT: %s. USO: sleepmsg [on|off]", prefs.sleepMsgs ? "ON" : "OFF");
         return buf;
     }
     if (topic == "set_vbat") {

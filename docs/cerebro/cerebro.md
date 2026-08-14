@@ -232,6 +232,24 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   **Baseline conocido-funciona**: con él, cualquier cambio futuro (comandos NavaCLI, energía,
   etc.) es reversible: descomprimir sobre la raíz o `git checkout 644d09e68`. La paridad MD5
   12/12 vs Desktop es la prueba de que el snapshot reproduce exactamente los binarios de Eclipse.
+- **2026-08-14 (7ª parte) — NORMA 0.12 + DESTINO V2 + FASE 2 (V2)**: nueva norma §0.12:
+  los builds NUEVOS (post-snapshot) se distribuyen a `Desktop\NavaTastic Eclipse Edition V2`
+  (`distribuir.ps1 -V2`, misma estructura Rama×LIPO|NIMH×UF2|OTA). Eclipse
+  (`Desktop\NavaTastic 4.3 120826`) SOLO LECTURA, no se toca. En FASE 2 (V2) se implementan:
+  (A) mensajes de sueño/vivo/listo al canal Navadmin + gate `/nava sleepmsg` + INA219 cuando
+  presente + ampliar `/nava power` (±mA cargando/descargando); (B) fix favoritos en `status`/
+  `fav ls` (distinción Auto/Manual persistida en `ResiliencePrefs.autoFavIds`); (C) fix
+  fragmentación de respuestas multilínea (corte en `\n`). MD5 baseline congelado (Eclipse).
+- **2026-08-14 (8ª parte) — FASE 2 V2 COMPLETADA Y DISTRIBUIDA (12/12 compilados, 16:20-16:50)**:
+  implementado A+B+C (ver BITACORA "V2"). Lógica de sueño: al venir de sueño, el pre-check
+  usa el despertar LPCOMP como umbral → 3 bandas: V<corte OCV = silencio+re-sueño; corte≤V<LPCOMP
+  = [Vivo]+re-sueño tras TX; V≥LPCOMP = boot normal ([Listo]). Sueño en runtime delega en
+  NavaCLI (envía [Sueño] y duerme al drenar la cola). **F13**: `distribuir.ps1` copiaba el
+  artefacto MÁS ANTIGUO de `.pio/build` (orden alfabético) → distribuía binarios de era Eclipse;
+  fix: siempre el más reciente por LastWriteTime. Distribuido a `distribucion\` + V2 Desktop
+  (32+32 ficheros, MD5 nuevos; `distribucion\` ya NO es Eclipse, es V2). Manual actualizado
+  (backup 0.11: `.bak-20260814-1651`) + PDFs regenerados. Pendiente banco: ciclo real
+  solar/LPCOMP + ATtiny + status tras reinicio.
 - **2026-08-14 (anterior)**: unificación completa (12 envs, perfiles, scripts) + paridad
   12/12 + distribución a `distribucion\` + copia inicial de docs (ver `BITACORA_TECNICA.md`
   y `PLAN_DE_TRABAJO.md`).
@@ -284,8 +302,9 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 - **Build Felix "Puerto Venecia"**: build puntual fuera del repo; no participa en el
   unificado (su jsonc con claves propias NO se sube a GitHub).
 - **Distribución al Desktop** (`Desktop\NavaTastic 4.3 120826\` + `distribuir_desktop.ps1`):
-  sustituida por `distribucion\` dentro del repo. El Desktop queda solo como referencia
-  de paridad MD5 para `verificar_paridad.ps1`.
+  sustituida por `distribucion\` dentro del repo. El Desktop de Eclipse queda SOLO como
+  referencia de paridad MD5 (NO se toca). Los builds V2 nuevos van a
+  `Desktop\NavaTastic Eclipse Edition V2` (norma 0.12, `distribuir.ps1 -V2`).
 - **`HerramientasPropiasIA\`** (4.3): `distribuir_binarios.ps1`/`distribuir_desktop.ps1` —
   obsoletas; el repo tiene `build.ps1`/`distribuir.ps1`. El **sistema de PDF SÍ está en el
   repo** (`HerramientasPropiasIA\generar_pdf.ps1` + `plantilla_navatastic.tex` → `docs\pdf\`,

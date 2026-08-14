@@ -1,11 +1,9 @@
 # Manual de Administración Remota NavaTastic (v4.2.1)
 
-> **ADENDA 14/08/2026 — REPO UNIFICADO (V2)**: manual **VIGENTE**. Ronda V2 (14/08, tras
-> el snapshot baseline): nuevos comandos/mensajes `sleepmsg` y avisos [Sueño]/[Vivo]/[Listo],
-> `status` con favoritos Auto/Manual reales, `power` con ADC + INA cargando/descargando,
-> `fav ls` etiquetado, fragmentación por línea. El código de referencia vive en
-> `src/modules/NavaCLIModule.h/.cpp` del repo único. Los 12 envs compilan este mismo
-> módulo (diferencia solo `set_txpower` 0-12/0-22 por `NAVARICO_RADIO_*`).
+> **ADENDA 14/08/2026 — REPO UNIFICADO**: manual **VIGENTE** (los comandos `/nava` no
+> cambiaron). El código de referencia vive en `src/modules/NavaCLIModule.h/.cpp` del
+> repo único (antes 12 copias). Ronda 14/08: los 12 envs del repo único compilan este
+> mismo módulo (diferencia solo `set_txpower` 0-12/0-22 por `NAVARICO_RADIO_*`).
 
 Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comandos `/nava` (módulo `NavaCLIModule`) y código fuente de referencia para auditoría con otro agente.
 
@@ -23,7 +21,7 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 ## 📊 1. Diagnóstico y Telemetría (Permitidos en Canal Abierto y DM)
 
 - **`/nava ping`** — Respuesta de latencia con uptime y piso de ruido. Ej: `PONG: RN1 | SNR: 3.5 dB | Bat: 4120 mV | UP: 32d 4h | RUIDO: -120 dBm`. Rate-limit: 1 respuesta cada 10s por nodo.
-- **`/nava status`** — Salud de memoria: nodos RAM/80, favoritos **Manual/Auto reales** (persisten tras reinicio), huérfanos, estado Auto-Fav, tiempo activo y línea de energía (ADC + INA si presente).
+- **`/nava status`** — Salud de memoria: nodos RAM/80, favoritos manuales/auto, huérfanos, estado Auto-Fav y tiempo activo.
 - **`/nava env`** — Batería, heap, temperatura CPU nRF52 y sensor ambiental I2C.
 - **`/nava channel`** — Uso de espectro (airtime % y TX %).
 - **`/nava peers`** — Vecinos directos a 0 saltos (ID, rol, SNR, tiempo desde último contacto).
@@ -48,8 +46,8 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 
 - **`/nava fav add !ID`** — Añade a favoritos con bypass de saltos; crea slot huérfano en RAM si no se ha oído (máx. 10).
 - **`/nava fav rm !ID`** — Elimina de favoritos.
-- **`/nava fav ls`** — Lista los favoritos, etiquetados `[AUTO]` (auto-favoriteo) o `[MAN]` (manuales).
-- **`/nava fav auto [on|off]`** — Activa/desactiva el auto-favoriteo de routers directos (0 saltos). Por defecto: ACTIVADO. Con OFF no se marcan nuevos auto-favoritos ni se registran routers para bypass de saltos; los favoritos ya existentes se conservan. `/nava fav auto` sin argumento muestra el estado. Persiste en `/resilience.bin` (sobrevive a factory reset). El listado Auto/Manual persistido se reconstruye tras reinicio.
+- **`/nava fav ls`** — Lista los favoritos.
+- **`/nava fav auto [on|off]`** — Activa/desactiva el auto-favoriteo de routers directos (0 saltos). Por defecto: ACTIVADO. Con OFF no se marcan nuevos auto-favoritos ni se registran routers para bypass de saltos; los favoritos ya existentes se conservan. `/nava fav auto` sin argumento muestra el estado. Persiste en `/resilience.bin` (sobrevive a factory reset).
 
 ## ⚙️ 4. Configuración del Nodo en Caliente (SOLO DM PRIVADO CIFRADO)
 
@@ -88,20 +86,9 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 - **`/nava pos`** — Fuerza emisión de posición.
 - **`/nava nodeinfo`** — Baliza NodeInfo sin pedir respuesta.
 - **`/nava sendtel`** — Telemetrías ambientales inmediatas.
-- **`/nava power`** — Métricas de energía: ADC interno (mV) + sensor de potencia I2C (INA219/260) con **V, ±mA y CARGANDO/DESCARGANDO** y potencia en mW.
+- **`/nava power`** — Métricas de sensor de potencia I2C (INA219/260): V, mA, mW.
 
-## 💤 8. Avisos de Sueño/Despertar (v4.3 V2)
-
-El nodo puede anunciar en el canal Navadmin su ciclo de batería (ON por defecto; NO afecta
-al comportamiento energético, solo a los avisos):
-
-- **`/nava sleepmsg [on|off]`** — Activa/desactiva los avisos. **Sin argumento**: estado actual. Persiste en `/resilience.bin` (sobrevive a factory reset).
-- **`[Sueño]`** — Antes de dormir por batería baja: nombre, id, ADC mV (+ INA si presente) y tensión de despertar por LPCOMP.
-- **`[Vivo]`** — Despertado por reset externo (p. ej. ATtiny13A) con batería en rango seguro (≥ corte OCV del env): aviso "sigo vivo, esperando recuperar carga" y re-sueño tras el envío.
-- **`[Listo]`** — Despertar real por LPCOMP (solar): "despierto, cargando, listo para trabajar".
-- Regla de silencio: si la batería está por debajo del corte OCV (3400/3500 mV según env) NO se envía nada — re-sueño directo (protección anti-brownout).
-
-## 🔔 9. Utilidades (SOLO DM PRIVADO CIFRADO)
+## 🔔 8. Utilidades (SOLO DM PRIVADO CIFRADO)
 
 - **`/nava bell`** — Alarma acústica para localización.
 - **`/nava admin_ls`** — Muestra las 3 claves criptográficas de admin en **base64** (para verificar contra lo configurado).
@@ -120,7 +107,6 @@ al comportamiento energético, solo a los avisos):
 ## ⚠️ Notas de Despliegue (v4.2.1
 
 - **Ayuda y consulta (v4.3)**: cualquier comando de configuración responde información al llamarse sin argumentos: `/nava set_chem` muestra la química actual, la tabla de cortes/despertar y (si aplica) qué no está disponible; `/nava set_vbat`, `set_vwake`, `set_txpower`, `set_hops`, `set_role`, `set_mqtt`, `set_tz`, `set_name` y `ble` muestran el valor actual. También: `/nava <comando> ?` o `/nava <comando> help` (no válido para `msg`: `/nava msg help` sigue difundiendo el texto). Los comandos que persisten configurán (`set_chem`, `set_vbat`, `set_vwake`, `txoff`, `ble`) avisan: un fallo de configuración solo se revierte con `nrf erase`.)
-- **Fragmentación (V2)**: las respuestas multilínea (`help`, `status`, `env`, `fav ls`…) se cortan en saltos de línea (máx. 190 chars/fragmento) — ya no se parte una línea de índice entre dos mensajes.
 
 - La PSK del canal Navadmin es la pública de Meshtastic: cualquiera puede escuchar. Por eso el canal solo admite lectura y NUNCA responde a no-admins.
 - El canal Navadmin se identifica por slot (índice 1), no por nombre: no reordenar canales.

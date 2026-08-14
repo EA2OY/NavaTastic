@@ -34,12 +34,28 @@ struct ResiliencePrefs {
 #ifdef NAVARICO_RAMA_1
     uint8_t role;           // NAVARICO Rama 1: rol semi-permanente. 0xFF=sin fijar; 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER. Sobrevive a factory reset
 #endif
+    uint32_t autoFavIds[16]; // V2: ids (NodeNum) de nodos favoritados por auto-fav. Persistente para que /nava status los distinga de manual tras reinicio
+    uint8_t autoFavCount;    // V2: numero de ids validos en autoFavIds (0-16)
+    uint8_t sleepMsgs;       // V2: 1=mensajes sueño/vivo/listo ON (default), 0=OFF (/nava sleepmsg)
+    uint8_t wasInSleep;      // V2: 1=dormido por bateria (se setea antes de cpuDeepSleep, se lee al boot para Listo/Vivo)
+    uint8_t reserved;        // V2: reservado
 };
 
 class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
 {
   public:
     NavaCLIModule();
+
+    // V2: acceso estatico desde main.cpp (pre-check de arranque, antes de construir el modulo)
+    static bool peekSleepMsgsEnabled();
+    static bool peekWasInSleep();
+    static void navaSetWasInSleep(bool on);
+    static void navaSetVivoPending();
+    static bool navaGetVivoPending();
+
+    // V2: el monitor de bateria (Power.cpp) delega el sueño aqui para mandar el
+    // mensaje [Sueño] antes de dormir. Devuelve true si tomo el control.
+    bool handleLowBatteryEvent();
 
   protected:
     virtual ProcessMessage handleReceived(const meshtastic_MeshPacket &mp) override;
@@ -52,6 +68,13 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     
     bool rebootScheduled = false;
     uint32_t rebootTime = 0;
+
+    // V2: sueño diferido tras enviar [Sueño]/[Vivo] (mismo patron que storm/reboot)
+    bool sleepPending = false;
+    uint32_t sleepTime = 0;
+    bool firstRunDone = false;
+    bool vivoPending = false;
+    bool wokeFromSleep = false;
 
     // Reset de fábrica diferido: se ejecuta en runOnce() cuando la cola de respuestas esté vacía
     bool factoryResetPending = false;
@@ -80,6 +103,12 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     void loadResiliencePrefs();
     void saveResiliencePrefs();
 
+    // V2: helpers del listado persistente de auto-favoritos (status real tras reinicio)
+    bool isAutoFav(uint32_t nodeNum) const;
+    bool addAutoFav(uint32_t nodeNum);    // true si cambio
+    bool removeAutoFav(uint32_t nodeNum); // true si cambio
+    void reconcileAutoFavs();             // sincroniza con activeDirectRouters (runOnce)
+
     // Rate-limit de respuesta a no-admins: solo se responde una vez por nodo
     // para evitar que un atacante haga transmitir al repetidor en bucle.
     std::set<NodeNum> unauthorizedReplied;
@@ -93,6 +122,7 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     std::string helpForCommand(const std::string &topic);
     std::string usageAndState(const std::string &topic);
     std::string base64Encode(const uint8_t *data, size_t len);
+    std::string buildEnergyLine(); // V2: ADC mV + INA (V, ±mA, cargando/descargando) si disponible
 };
 
 extern NavaCLIModule *navaCLIModule;

@@ -40,6 +40,11 @@ Heredadas del cerebro 4.3 (`PROMPT_INICIALIZACION.md`). Son obligatorias en toda
     entrega), crear copia `nombre.md.bak-AAAAMMDD-HHMM` (misma convención de la norma 9) para
     poder revertir si se detecta un error tras el cambio. Tras editar el manual, regenerar el
     PDF con `.\HerramientasPropiasIA\generar_pdf.ps1` y verificar la salida.
+12. **Distribución V2 al Desktop (norma 14/08)**: los builds NUEVOS (cambios posteriores al
+    snapshot baseline "NavaTastic 4.3 Eclipse Edition - Unificado") se distribuyen con
+    `distribuir.ps1 -V2` a `Desktop\NavaTastic Eclipse Edition V2` (misma estructura
+    Rama×LIPO|NIMH×UF2|OTA, nombres históricos). El Desktop de Eclipse
+    (`Desktop\NavaTastic 4.3 120826`) es SOLO LECTURA y NO se toca nunca.
 
 > Detalle completo (original histórico): `docs\cerebro\PROMPT_INICIALIZACION.md` y `PROMPT_DESPLIEGUE.md`.
 
@@ -99,6 +104,7 @@ Helpers PowerShell (Windows):
 .\build.ps1 -EnvName navarrico_promicro_e22p_r2ig -Distribuir
 .\build.ps1 -Paridad          # reproduce builds del 12/08/2026 byte a byte (solo verificación)
 .\distribuir.ps1 -Todo        # copia a distribucion\Rama 1 Clientes|Rama 2 Routers × LIPO|NIMH × UF2|OTA
+.\distribuir.ps1 -Todo -V2    # ADEMAS copia a Desktop\NavaTastic Eclipse Edition V2 (norma 0.12)
 .\verificar_paridad.ps1 -RefR2IG <carpeta> -RefR1IG <carpeta>   # MD5 12/12 contra builds originales
 ```
 

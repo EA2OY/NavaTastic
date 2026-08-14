@@ -35,8 +35,12 @@
 #include "mesh/generated/meshtastic/config.pb.h"
 #include "meshUtils.h"
 #include "modules/Modules.h"
+#include "modules/NavaCLIModule.h"
 #include "sleep.h"
 #include "target_specific.h"
+#ifdef NRF52840_XXAA
+extern uint16_t navaGetLpcompWakeMv(); // V2: tension teorica de despertar por LPCOMP (mV)
+#endif
 #include <memory>
 #include <utility>
 #if HAS_SCREEN
@@ -542,23 +546,47 @@ void setup()
 #else
         const uint8_t lowBattReadingsNeeded = 5;
 #endif
+        // V2: al venir de sueno por bateria (wasInSleep), el umbral de re-sueno es el
+        // despertar real del LPCOMP (no el de arranque), para distinguir:
+        //   V < corte OCV            -> re-sueno silencioso (proteccion brownout)
+        //   corte OCV <= V < LPCOMP  -> [Vivo] al canal Navadmin + re-sueno tras el envio
+        //   V >= LPCOMP              -> boot normal ([Listo] lo manda NavaCLI)
+        bool navaFromSleep = NavaCLIModule::peekWasInSleep();
+        uint16_t lowGateMv = lowBattSleepMv;
+#ifdef NRF52840_XXAA
+        if (navaFromSleep) {
+            lowGateMv = navaGetLpcompWakeMv();
+        }
+#endif
         auto isLowNow = [&]() -> bool {
             power->readPowerStatus();
             int mv = powerStatus->getBatteryVoltageMv();
-            return powerStatus->getHasBattery() && !powerStatus->getHasUSB() && mv > 0 && mv < lowBattSleepMv;
+            return powerStatus->getHasBattery() && !powerStatus->getHasUSB() && mv > 0 && mv < lowGateMv;
         };
         uint8_t consecutiveLow = 0;
+        int lastLowMv = 0;
         for (uint8_t i = 0; i < lowBattReadingsNeeded; i++) {
             if (!isLowNow()) break;
+            lastLowMv = powerStatus->getBatteryVoltageMv();
             consecutiveLow++;
             delay(200);
         }
         if (consecutiveLow >= lowBattReadingsNeeded) {
-            LOG_WARN("Battery below %u mV for %u consecutive readings: entering System OFF "
-                      "(radio/BT/screen never powered this boot) - hardware LPCOMP wakes the MCU "
-                      "(full reset) once VBAT crosses BATTERY_LPCOMP_THRESHOLD, see variant.h",
-                      lowBattSleepMv, lowBattReadingsNeeded);
-            cpuDeepSleep(portMAX_DELAY);
+            NavaCLIModule::navaSetWasInSleep(true);
+            if (NavaCLIModule::peekSleepMsgsEnabled() && navaFromSleep &&
+                lastLowMv >= power->OCV[NUM_OCV_POINTS - 1]) {
+                // V2: reset externo (p. ej. ATtiny13A) con bateria en rango seguro:
+                // permitir el boot para mandar [Vivo] y volver a dormir tras el envio
+                LOG_WARN("Battery %d mV in [OCV cutoff, LPCOMP wake): boot for [Vivo] message, re-sleep after TX",
+                         lastLowMv);
+                NavaCLIModule::navaSetVivoPending();
+            } else {
+                LOG_WARN("Battery below %u mV for %u consecutive readings: entering System OFF "
+                          "(radio/BT/screen never powered this boot) - hardware LPCOMP wakes the MCU "
+                          "(full reset) once VBAT crosses BATTERY_LPCOMP_THRESHOLD, see variant.h",
+                          lowGateMv, lowBattReadingsNeeded);
+                cpuDeepSleep(portMAX_DELAY);
+            }
         }
     }
 #endif

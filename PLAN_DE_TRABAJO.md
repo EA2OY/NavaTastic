@@ -59,6 +59,14 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       Unificado.zip` (HEAD 644d09e68, 5,3 MB, sin binarios). Rollback de cualquier cambio
       futuro: descomprimir sobre la raíz o `git checkout 644d09e68`; binarios buenos en
       Desktop 120826 + `distribucion\`.
+- [x] **NORMA 0.12 + V2 (14/08, 7ª parte)**: `Desktop\NavaTastic Eclipse Edition V2` creado;
+      `distribuir.ps1 -V2` copia los builds nuevos ahí (misma estructura). Eclipse 120826
+      SOLO LECTURA. FASE 2 en curso: (A) sueño/vivo/listo + sleepmsg; (B) fix fav status;
+      (C) fix fragmentación.
+- [x] **FASE 2 V2 COMPLETADA (14/08, 8ª parte)**: A+B+C implementados y compilados 12/12
+      (16:20-16:50, 0 fallos). Distribuido 32+32 a `distribucion\` + `Desktop\NavaTastic
+      Eclipse Edition V2` (F13 fix: distribuir cogía el artefacto viejo). Manual actualizado
+      + PDFs. Pendiente: test en banco (ciclo solar/LPCOMP real, ATtiny, status tras reinicio).
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)
