@@ -216,6 +216,13 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   repo) — guía maestra para integrar TODAS las mejoras Navarrico en un fork NUEVO de
   Meshtastic: inventario fichero a fichero con anclas, catálogo de bloques con
   dependencias, procedimiento paso a paso y checklist de trampas (F1-F12).
+- **2026-08-14 (5ª parte) — SISTEMA DE PDF PORTADO AL REPO**: `HerramientasPropiasIA\`
+  `generar_pdf.ps1` + `plantilla_navatastic.tex` (copia 1:1 de 4.3, SOLO LECTURA allí).
+  Entrada = `docs\`, salida = `docs\pdf\` (**gitignored**). `$Excluir` = docs de contexto
+  (transfer_context, guia_integracion, GUIA_AGENTE_NAVTASTIC, INSTRUCCION_AUDITORIA_CLAUDE)
+  — norma 11/08: solo manuales de firmware y comandos. Verificado: 2 PDFs generados sin
+  errores (Pandoc + MiKTeX presentes). **Decisión operador**: se mantiene como herramienta
+  inerte; `docs\*.md` siguen siendo la fuente única de los manuales.
 - **2026-08-14 (anterior)**: unificación completa (12 envs, perfiles, scripts) + paridad
   12/12 + distribución a `distribucion\` + copia inicial de docs (ver `BITACORA_TECNICA.md`
   y `PLAN_DE_TRABAJO.md`).
@@ -270,9 +277,10 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 - **Distribución al Desktop** (`Desktop\NavaTastic 4.3 120826\` + `distribuir_desktop.ps1`):
   sustituida por `distribucion\` dentro del repo. El Desktop queda solo como referencia
   de paridad MD5 para `verificar_paridad.ps1`.
-- **`HerramientasPropiasIA\`** (4.3): `distribuir_binarios.ps1`/`generar_pdf.ps1`/
-  plantilla LaTeX — obsoletas; el repo tiene `build.ps1`/`distribuir.ps1`. Los PDFs de
-  los manuales NO se regeneran en el repo.
+- **`HerramientasPropiasIA\`** (4.3): `distribuir_binarios.ps1`/`distribuir_desktop.ps1` —
+  obsoletas; el repo tiene `build.ps1`/`distribuir.ps1`. El **sistema de PDF SÍ está en el
+  repo** (`HerramientasPropiasIA\generar_pdf.ps1` + `plantilla_navatastic.tex` → `docs\pdf\`,
+  gitignored); los PDFs de contexto NO se generan (norma 11/08: solo manuales).
 - **Rutas `C:\Firmware Navarrico 4.3\...`** citadas en secciones 1-4 y subnotas: leerlas
   como referencia; la verdad viva es el repo único.
 - **`default_envs = tbeam`** (fallaba por toolchain ESP32): ya no existe — `default_envs`

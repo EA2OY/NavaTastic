@@ -175,7 +175,17 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 
 ---
 
-## SESIÓN 14/08 (3ª-4ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya)
+## SESIÓN 14/08 (3ª-5ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya + PDF)
+
+- **5ª parte — SISTEMA DE PDF PORTADO AL REPO**:
+  - `HerramientasPropiasIA\generar_pdf.ps1` + `plantilla_navatastic.tex` copiados 1:1
+    desde 4.3 (SOLO LECTURA allí) al repo. Entrada por defecto = `docs\`, salida =
+    `docs\pdf\` (**gitignored**, se crea sola). Plantilla intacta (estética "panel de
+    control": fondo #0A1120, dorado #F1D38E, verde #39FF14, Segoe UI/Consolas).
+  - `$Excluir` (norma 11/08): transfer_context, guia_integracion, GUIA_AGENTE_NAVTASTIC,
+    INSTRUCCION_AUDITORIA_CLAUDE → solo se generan los 2 manuales.
+  - Verificado: 2 PDFs generados sin errores (Pandoc local + MiKTeX x64 presentes).
+  - Regla: los PDFs NO se regeneran en el Desktop; el repo es la única fuente.
 
 - **3ª parte — CEREBRO VIVO MIGRADO AL REPO ÚNICO**:
   - `docs\` reestructurado a layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12

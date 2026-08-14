@@ -186,6 +186,10 @@ Está gitignored y no forma parte del código.
 
 ## 8. Documentación
 
-- `Manual_NavaTastic.md` (docs/, si se migra) — manual de comandos `/nava`.
+- `HerramientasPropiasIA\generar_pdf.ps1` + `plantilla_navatastic.tex` — genera los PDFs de
+  los manuales (Pandoc + MiKTeX) en `docs\pdf\` (gitignored). Excluye los docs de contexto
+  por defecto (norma 11/08: solo manuales de firmware y comandos). Uso:
+  `.\HerramientasPropiasIA\generar_pdf.ps1` o con `-Archivo Manual_NavaTastic.md`.
+- `Manual_NavaTastic.md` (docs/) — manual de comandos `/nava`.
 - `profiles/README.md` — perfiles.
 - Este fichero es la guía de retoma para agentes.

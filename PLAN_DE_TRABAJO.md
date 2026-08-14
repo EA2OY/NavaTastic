@@ -51,6 +51,10 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       (3) procedimiento paso a paso (FASE 0 preparación → FASE 1 análisis → FASE 2
       pases → FASE 3 compilar → FASE 4 verificar); (4) checklist de trampas (F1-F12 +
       MAX_PATH + .pio heredado + no paralelizar).
+- [x] **SISTEMA PDF (14/08, 5ª parte)**: `HerramientasPropiasIA\` portado de 4.3
+      (generar_pdf.ps1 + plantilla_navatastic.tex, copia 1:1) → salida `docs\pdf\`
+      gitignored; `$Excluir` = 4 docs de contexto (norma 11/08: solo manuales);
+      verificado: 2 PDFs generados OK (Pandoc + MiKTeX).
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)
