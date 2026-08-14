@@ -530,6 +530,39 @@ void setup()
     powerStatus->observe(&power->newStatus);
     power->setup(); // Must be after status handler is installed, so that handler gets notified of the initial configuration
 
+#if defined(USERPREFS_LOW_BATTERY_LOWPOWER_ENABLED) && USERPREFS_LOW_BATTERY_LOWPOWER_ENABLED
+    {
+#ifdef USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV
+        const uint16_t lowBattSleepMv = USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV;
+#else
+        const uint16_t lowBattSleepMv = 3500;
+#endif
+#ifdef USERPREFS_LOW_BATTERY_READINGS_COUNT
+        const uint8_t lowBattReadingsNeeded = USERPREFS_LOW_BATTERY_READINGS_COUNT;
+#else
+        const uint8_t lowBattReadingsNeeded = 5;
+#endif
+        auto isLowNow = [&]() -> bool {
+            power->readPowerStatus();
+            int mv = powerStatus->getBatteryVoltageMv();
+            return powerStatus->getHasBattery() && !powerStatus->getHasUSB() && mv > 0 && mv < lowBattSleepMv;
+        };
+        uint8_t consecutiveLow = 0;
+        for (uint8_t i = 0; i < lowBattReadingsNeeded; i++) {
+            if (!isLowNow()) break;
+            consecutiveLow++;
+            delay(200);
+        }
+        if (consecutiveLow >= lowBattReadingsNeeded) {
+            LOG_WARN("Battery below %u mV for %u consecutive readings: entering System OFF "
+                      "(radio/BT/screen never powered this boot) - hardware LPCOMP wakes the MCU "
+                      "(full reset) once VBAT crosses BATTERY_LPCOMP_THRESHOLD, see variant.h",
+                      lowBattSleepMv, lowBattReadingsNeeded);
+            cpuDeepSleep(portMAX_DELAY);
+        }
+    }
+#endif
+
 #if !MESHTASTIC_EXCLUDE_I2C
     // We need to scan here to decide if we have a screen for nodeDB.init() and because power has been applied to
     // accessories

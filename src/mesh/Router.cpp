@@ -1,4 +1,5 @@
 #include "Router.h"
+#include <algorithm>
 #include "Channels.h"
 #include "CryptoEngine.h"
 #include "MeshRadio.h"
@@ -104,8 +105,12 @@ bool Router::shouldDecrementHopLimit(const meshtastic_MeshPacket *p)
         if (!node)
             continue;
 
-        // Check 1: is_favorite (cheapest - single bool)
-        if (!node->is_favorite)
+        // Check 1: is_favorite (flash) OR present in RAM auto-favorite registry
+        bool isFav = node->is_favorite;
+        if (!isFav) {
+            isFav = (std::find(activeDirectRouters.begin(), activeDirectRouters.end(), node->num) != activeDirectRouters.end());
+        }
+        if (!isFav)
             continue;
 
         // Check 2: has_user (cheap - single bool)

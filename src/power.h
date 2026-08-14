@@ -94,7 +94,9 @@ class Power : public concurrency::OSThread
     virtual bool setup();
     virtual int32_t runOnce() override;
     void setStatusHandler(meshtastic::PowerStatus *handler) { statusHandler = handler; }
-    const uint16_t OCV[11] = {OCV_ARRAY};
+    uint16_t OCV[11] = {OCV_ARRAY};
+    void updateOcvCurve(uint16_t cutoff);
+    void setChemistryProfile(uint8_t chem);
 
 #ifdef ARCH_ESP32
     int beforeLightSleep(void *unused);
@@ -140,6 +142,8 @@ class Power : public concurrency::OSThread
     uint32_t lastheap;
 #endif
 };
+
+extern uint8_t currentWakeLevel;
 
 void battery_adcEnable();
 

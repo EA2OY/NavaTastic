@@ -1,0 +1,950 @@
+#include "NavaCLIModule.h"
+#include "MeshService.h"
+#include "NodeDB.h"
+#include "PowerFSM.h"
+#include "Router.h"
+#include "main.h"
+#include "memGet.h"
+#include "FSCommon.h"
+#include "power.h"
+#include "modules/TraceRouteModule.h"
+#include "modules/PositionModule.h"
+#include "modules/NodeInfoModule.h"
+#include "mesh/RadioLibInterface.h"
+#include "buzz/buzz.h"
+#if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
+#include "modules/Telemetry/EnvironmentTelemetry.h"
+#endif
+
+// APIs del SoftDevice de Nordic para temperatura interna de la CPU
+#ifdef NRF52840_XXAA
+#include "nrf_soc.h"
+#endif
+
+// Protobuf de telemetría para decodificación en caliente
+#include "../mesh/generated/meshtastic/telemetry.pb.h"
+
+// Variables y clases externas declaradas en otros ficheros
+extern float lastRxFrequencyError;
+extern uint32_t rawResetReason;
+
+NavaCLIModule *navaCLIModule = nullptr;
+
+NavaCLIModule::NavaCLIModule()
+    : SinglePortModule("nava_cli", meshtastic_PortNum_TEXT_MESSAGE_APP),
+      concurrency::OSThread("NavaCLI")
+{
+    isPromiscuous = true;
+    
+    // Forzamos que la mensajería privada siempre esté activa para los administradores
+    owner.is_unmessagable = false;
+    owner.has_is_unmessagable = true;
+    
+    // Cargar los parámetros de resiliencia persistentes
+    loadResiliencePrefs();
+}
+
+void NavaCLIModule::loadResiliencePrefs() {
+    if (FSCom.exists("/resilience.bin")) {
+        File f = FSCom.open("/resilience.bin", FILE_O_READ);
+        if (f) {
+            f.read((uint8_t*)&prefs, sizeof(prefs));
+            f.close();
+            if (prefs.magic == 0x52455349) {
+                // Aplicar parámetros cargados a RAM
+                power->setChemistryProfile(prefs.chemistry);
+                power->updateOcvCurve(prefs.vbat_cutoff);
+                config.lora.tx_enabled = (prefs.tx_disabled == 0);
+                currentWakeLevel = prefs.vwake_level;
+                return;
+            }
+        }
+    }
+    
+    // Fallback valores por defecto
+    prefs.magic = 0x52455349;
+    #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
+        prefs.chemistry = 2; // SODIUM
+        prefs.vbat_cutoff = 2600;
+        prefs.vwake_level = 1;
+    #else
+        prefs.chemistry = 0; // LIPO
+        prefs.vbat_cutoff = 3500;
+        prefs.vwake_level = 3;
+    #endif
+    prefs.tx_disabled = 0;
+    prefs.ble_disabled = 0;
+    saveResiliencePrefs();
+}
+
+void NavaCLIModule::saveResiliencePrefs() {
+    File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
+    if (f) {
+        f.write((uint8_t*)&prefs, sizeof(prefs));
+        f.close();
+    }
+}
+
+bool NavaCLIModule::wantPacket(const meshtastic_MeshPacket *p)
+{
+    if (p != nullptr) {
+        // --- INYECCIÓN NAVARRICO: REGISTRO PROMISCUO RXLOG ---
+        RxLogEntry &entry = rxLog[rxLogIndex];
+        entry.from = p->from;
+        entry.portnum = p->decoded.portnum;
+        entry.snr = p->rx_snr;
+        entry.rssi = p->rx_rssi;
+        entry.timestamp = millis() / 1000;
+        
+        rxLogIndex = (rxLogIndex + 1) % 5;
+        if (rxLogCount < 5) rxLogCount++;
+    }
+
+    if (p != nullptr && p->decoded.portnum == ourPortNum && p->decoded.payload.size >= 5) {
+        // Regla de aislamiento: solo aceptamos si es mensaje directo (DM)
+        // o si viaja por el Canal 1 (Navadmin)
+        bool isDM = !isBroadcast(p->to) && (p->to == nodeDB->getNodeNum());
+        bool isChannel1 = (p->channel == 1);
+        
+        if (isDM || isChannel1) {
+            return (memcmp(p->decoded.payload.bytes, "/nava", 5) == 0);
+        }
+    }
+    
+    // Olfateamos telemetría local pasiva para actualizar la caché redundante
+    if (p != nullptr && p->decoded.portnum == meshtastic_PortNum_TELEMETRY_APP && p->from == nodeDB->getNodeNum()) {
+        return true;
+    }
+    
+    return false;
+}
+
+ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
+{
+    if (mp.decoded.portnum == meshtastic_PortNum_TELEMETRY_APP) {
+        meshtastic_Telemetry telemetry = meshtastic_Telemetry_init_zero;
+        if (pb_decode_from_bytes(mp.decoded.payload.bytes, mp.decoded.payload.size, &meshtastic_Telemetry_msg, &telemetry)) {
+            if (telemetry.which_variant == meshtastic_Telemetry_environment_metrics_tag) {
+                auto &m = telemetry.variant.environment_metrics;
+                if (m.has_temperature) {
+                    latestTemp = m.temperature;
+                    latestHum = m.relative_humidity;
+                    hasTelemetryCache = true;
+                }
+            }
+        }
+        return ProcessMessage::CONTINUE;
+    }
+
+    // Validación PKI de administrador
+    const meshtastic_NodeInfoLite *senderNode = nodeDB->getMeshNode(mp.from);
+    if (!senderNode || !nodeDB->isAdminNode(*senderNode)) {
+        LOG_WARN("Rechazado: Comando /nava sin firma PKI desde 0x%08x", mp.from);
+        return ProcessMessage::STOP;
+    }
+
+    std::string text((char *)mp.decoded.payload.bytes, mp.decoded.payload.size);
+    std::string cmd = (text.length() > 6) ? text.substr(6) : "";
+
+    // Determinar canal y destinatario de la respuesta
+    uint8_t replyChannel = 0;
+    NodeNum replyDest = mp.from;
+    if (mp.channel == 1) {
+        replyChannel = 1;
+        replyDest = NODENUM_BROADCAST;
+    }
+
+    // --- CORRECCIÓN CRÍTICA DE AUTENTICACIÓN ---
+    // Si la comunicación es por Mensaje Directo (replyChannel == 0),
+    // el paquete DEBE estar cifrado por PKI (mp.pki_encrypted) para evitar
+    // la suplantación de la ID del administrador a través de DMs en claro.
+    if (replyChannel == 0 && !mp.pki_encrypted) {
+        LOG_WARN("Rechazado: Comando /nava por DM no cifrado PKI desde 0x%08x", mp.from);
+        return ProcessMessage::STOP;
+    }
+
+    executeCommand(mp.from, cmd, replyChannel, replyDest, mp.rx_snr);
+    return ProcessMessage::STOP;
+}
+
+void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::string &msg, bool isFirstFragment)
+{
+    size_t pos = 0;
+    while (pos < msg.length() && responseQueue.size() < 10) {
+        NavaResponse resp;
+        resp.dest = toNode;
+        resp.channel = channel;
+        resp.text = msg.substr(pos, 190);
+        responseQueue.push(resp);
+        pos += 190;
+    }
+    if (pos < msg.length()) {
+        NavaResponse resp;
+        resp.dest = toNode;
+        resp.channel = channel;
+        resp.text = "... [TRUNCADO POR LIMITACIONES DE MTU]";
+        responseQueue.push(resp);
+    }
+
+    if (isFirstFragment && channel == 1) {
+        // Jitter dinámico anticolisión de 500ms a 6500ms para el Canal 1
+        uint32_t jitter = 500 + (nodeDB->getNodeNum() % 5) * 1200 + (rand() % 1000);
+        setIntervalFromNow(jitter);
+    } else {
+        setIntervalFromNow(50);
+    }
+}
+
+void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t replyChannel, NodeNum replyDest, float rxSnr)
+{
+    // Limpieza de espacios y saltos de línea al final
+    while (!cmd.empty() && (cmd.back() == ' ' || cmd.back() == '\r' || cmd.back() == '\n' || cmd.back() == '\t')) {
+        cmd.pop_back();
+    }
+    
+    // 1. Filtrado dinámico individual (!ID)
+    if (cmd.rfind("!", 0) == 0) {
+        size_t spacePos = cmd.find(" ");
+        if (spacePos != std::string::npos) {
+            std::string targetIdStr = cmd.substr(1, spacePos - 1);
+            uint32_t targetId = strtoul(targetIdStr.c_str(), NULL, 16);
+            if (targetId != nodeDB->getNodeNum()) {
+                return; // Abortar en silencio, no es para nosotros
+            }
+            cmd = cmd.substr(spacePos + 1);
+        }
+    }
+    // 2. Filtrado dinámico por grupo (@r, @c, @a, @name:)
+    else if (cmd.rfind("@", 0) == 0) {
+        size_t spacePos = cmd.find(" ");
+        if (spacePos != std::string::npos) {
+            std::string group = cmd.substr(1, spacePos - 1);
+            bool matchesGroup = false;
+            
+            if (group == "router" || group == "r") {
+                matchesGroup = (config.device.role == meshtastic_Config_DeviceConfig_Role_ROUTER ||
+                                config.device.role == meshtastic_Config_DeviceConfig_Role_ROUTER_LATE);
+            } else if (group == "client" || group == "c") {
+                matchesGroup = (config.device.role == meshtastic_Config_DeviceConfig_Role_CLIENT ||
+                                config.device.role == meshtastic_Config_DeviceConfig_Role_CLIENT_MUTE);
+            } else if (group == "all" || group == "a") {
+                matchesGroup = true;
+            } else if (group.rfind("name:", 0) == 0) {
+                std::string prefix = group.substr(5);
+                matchesGroup = (strncasecmp(owner.long_name, prefix.c_str(), prefix.length()) == 0) ||
+                               (strncasecmp(owner.short_name, prefix.c_str(), prefix.length()) == 0);
+            }
+            
+            if (!matchesGroup) {
+                return; // Abortar en silencio
+            }
+            cmd = cmd.substr(spacePos + 1);
+        }
+    }
+
+    // 3. Filtro de canal híbrido seguro
+    if (replyChannel == 1) { // Viene por el canal Navadmin
+        // Bloqueamos comandos de modificación
+        if (cmd.rfind("fav", 0) == 0 ||
+            cmd.rfind("ign rm", 0) == 0 ||
+            cmd.rfind("set_", 0) == 0 ||
+            cmd.rfind("db_", 0) == 0 ||
+            cmd == "reboot" ||
+            cmd == "txoff" ||
+            cmd == "txon" ||
+            cmd.rfind("ble", 0) == 0 ||
+            cmd.rfind("storm", 0) == 0 ||
+            cmd == "factory_reset") {
+            
+            enqueueResponse(replyDest, replyChannel, "ERR: SECURE DM ONLY", true);
+            return;
+        }
+    }
+
+    // Normalizar comando a minúsculas para comparaciones
+    for (size_t i = 0; i < cmd.length() && i < 15; i++) {
+        if (cmd[i] == '"') break;
+        cmd[i] = tolower(cmd[i]);
+    }
+
+    // --- CONDICIONALES DE COMANDOS ---
+    if (cmd == "help") {
+        enqueueResponse(replyDest, replyChannel, "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / power\n[E] set_chem [lipo/nimh/sodium]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] bat / storm [h] / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel\n\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
+    }
+    else if (cmd == "ping") {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "PONG: %s | SNR: %.1f dB | Bat: %d mV", 
+                 owner.short_name, rxSnr, powerStatus->getBatteryVoltageMv());
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd == "factory_reset") {
+        enqueueResponse(replyDest, replyChannel, "OK: FACTORY RESET SCHED", true);
+        rebootScheduled = true;
+        rebootTime = millis() + 3000;
+        nodeDB->factoryReset(true);
+    }
+    else if (cmd.rfind("fav add", 0) == 0) {
+        if (cmd.length() > 8) {
+            std::string idStr = cmd.substr(8);
+            while (!idStr.empty() && (idStr.back() == ' ' || idStr.back() == '\r' || idStr.back() == '\n')) idStr.pop_back();
+            
+            uint32_t targetId = strtoul(idStr.c_str() + (idStr[0] == '!' ? 1 : 0), NULL, 16);
+            meshtastic_NodeInfoLite *node = nodeDB->getOrCreateMeshNode(targetId);
+            if (node != nullptr) {
+                node->is_favorite = true;
+                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+                enqueueResponse(replyDest, replyChannel, "OK: FAV ADD " + idStr, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "ERR: DB FULL", true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE fav add !ID", true);
+        }
+    }
+    else if (cmd.rfind("fav rm", 0) == 0) {
+        if (cmd.length() > 7) {
+            std::string idStr = cmd.substr(7);
+            while (!idStr.empty() && (idStr.back() == ' ' || idStr.back() == '\r' || idStr.back() == '\n')) idStr.pop_back();
+            
+            uint32_t targetId = strtoul(idStr.c_str() + (idStr[0] == '!' ? 1 : 0), NULL, 16);
+            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
+            if (node != nullptr) {
+                node->is_favorite = false;
+                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+                enqueueResponse(replyDest, replyChannel, "OK: FAV RM " + idStr, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "ERR: NOT FOUND", true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE fav rm !ID", true);
+        }
+    }
+    else if (cmd == "fav ls") {
+        std::string reply = "FAVS:\n";
+        bool empty = true;
+        for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
+            auto n = nodeDB->getMeshNodeByIndex(i);
+            if (n && n->is_favorite) {
+                char buf[16];
+                snprintf(buf, sizeof(buf), "!%08x\n", n->num);
+                reply += buf;
+                empty = false;
+            }
+        }
+        if (empty) reply += "NINGUNO";
+        enqueueResponse(replyDest, replyChannel, reply, true);
+    }
+    else if (cmd.rfind("ign add", 0) == 0) {
+        if (cmd.length() > 8) {
+            std::string idStr = cmd.substr(8);
+            while (!idStr.empty() && (idStr.back() == ' ' || idStr.back() == '\r' || idStr.back() == '\n')) idStr.pop_back();
+            
+            uint32_t targetId = strtoul(idStr.c_str() + (idStr[0] == '!' ? 1 : 0), NULL, 16);
+            
+            if (targetId == fromNode) {
+                enqueueResponse(replyDest, replyChannel, "ERR: CANNOT IGNORE YOURSELF", true);
+                return;
+            }
+            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
+            if (node != nullptr) {
+                bool isVerifiedAdmin = nodeDB->isAdminNode(*node);
+                bool isHardcodedAdmin = false;
+                if (node->user.public_key.size == 32) {
+                    if ((config.security.admin_key[0].size == 32 && memcmp(node->user.public_key.bytes, config.security.admin_key[0].bytes, 32) == 0) ||
+                        (config.security.admin_key[1].size == 32 && memcmp(node->user.public_key.bytes, config.security.admin_key[1].bytes, 32) == 0) ||
+                        (config.security.admin_key[2].size == 32 && memcmp(node->user.public_key.bytes, config.security.admin_key[2].bytes, 32) == 0)) {
+                        isHardcodedAdmin = true;
+                    }
+                }
+                if (isVerifiedAdmin || isHardcodedAdmin) {
+                    enqueueResponse(replyDest, replyChannel, "ERR: CANNOT IGNORE ADMIN", true);
+                    return;
+                }
+            }
+
+            node = nodeDB->getOrCreateMeshNode(targetId);
+            if (node != nullptr) {
+                node->is_ignored = true;
+                node->has_device_metrics = false;
+                node->has_position = false;
+                node->user.public_key.size = 0;
+                memset(node->user.public_key.bytes, 0, sizeof(node->user.public_key.bytes));
+                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+                enqueueResponse(replyDest, replyChannel, "OK: IGN ADD " + idStr, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "ERR: DB FULL", true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE ign add !ID", true);
+        }
+    }
+    else if (cmd.rfind("ign rm", 0) == 0) {
+        if (cmd.length() > 7) {
+            std::string idStr = cmd.substr(7);
+            while (!idStr.empty() && (idStr.back() == ' ' || idStr.back() == '\r' || idStr.back() == '\n')) idStr.pop_back();
+            
+            uint32_t targetId = strtoul(idStr.c_str() + (idStr[0] == '!' ? 1 : 0), NULL, 16);
+            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
+            if (node != nullptr) {
+                node->is_ignored = false;
+                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+                enqueueResponse(replyDest, replyChannel, "OK: IGN RM " + idStr, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "ERR: NOT FOUND", true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE ign rm !ID", true);
+        }
+    }
+    else if (cmd == "ign ls") {
+        std::string reply = "IGN:\n";
+        bool empty = true;
+        for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
+            auto n = nodeDB->getMeshNodeByIndex(i);
+            if (n && n->is_ignored) {
+                char buf[16];
+                snprintf(buf, sizeof(buf), "!%08x\n", n->num);
+                reply += buf;
+                empty = false;
+            }
+        }
+        if (empty) reply += "NINGUNO";
+        enqueueResponse(replyDest, replyChannel, reply, true);
+    }
+    else if (cmd == "peers") {
+        std::string reply = "PEERS (0 hop):\n";
+        bool empty = true;
+        for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
+            auto n = nodeDB->getMeshNodeByIndex(i);
+            if (n && n->has_hops_away && n->hops_away == 0) {
+                uint32_t nowSecs = millis() / 1000;
+                uint32_t agoSecs = (nowSecs > n->last_heard) ? (nowSecs - n->last_heard) : 0;
+                char buf[80];
+                snprintf(buf, sizeof(buf), "!%08x | R:%s | S:%.1f | Ago:%lus\n", 
+                         n->num, getRoleName(n->user.role).c_str(), n->snr, (unsigned long)agoSecs);
+                reply += buf;
+                empty = false;
+            }
+        }
+        if (empty) reply += "NINGUNO";
+        enqueueResponse(replyDest, replyChannel, reply, true);
+    }
+    else if (cmd == "status") {
+        uint32_t activeRoutersCount = 0;
+        if (router) {
+            activeRoutersCount = router->activeDirectRouters.size();
+        }
+        uint32_t manualFavs = 0;
+        for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
+            auto n = nodeDB->getMeshNodeByIndex(i);
+            if (n && n->is_favorite) {
+                manualFavs++;
+            }
+        }
+        char buf[200];
+        snprintf(buf, sizeof(buf), "RAM Nodes: %d/80\nOrphan Favs: %d\nFavs (Man): %d\nFavs (Auto): %d\nUptime: %lu s", 
+                 nodeDB->getNumMeshNodes(), nodeDB->countOrphanFavorites(), manualFavs, activeRoutersCount, (unsigned long)(millis()/1000));
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd == "env") {
+        uint32_t freeHeap = memGet.getFreeHeap();
+        float chipTemp = 0.0f;
+        bool hasChipTemp = false;
+
+        #ifdef NRF52840_XXAA
+            int32_t temp_raw = 0;
+            if (sd_temp_get(&temp_raw) == NRF_SUCCESS) {
+                chipTemp = temp_raw / 4.0f;
+                hasChipTemp = true;
+            }
+        #endif
+
+        float latestTemp = 0.0f;
+        float latestHum = 0.0f;
+        bool hasExtSensor = false;
+
+#if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
+        if (environmentTelemetryModule) {
+            meshtastic_Telemetry extTelem = meshtastic_Telemetry_init_zero;
+            if (environmentTelemetryModule->getEnvironmentTelemetry(&extTelem)) {
+                if (extTelem.which_variant == meshtastic_Telemetry_environment_metrics_tag) {
+                    latestTemp = extTelem.variant.environment_metrics.temperature;
+                    latestHum = extTelem.variant.environment_metrics.relative_humidity;
+                    hasExtSensor = true;
+                }
+            }
+        }
+#endif
+        if (!hasExtSensor && hasTelemetryCache) {
+            latestTemp = this->latestTemp;
+            latestHum = this->latestHum;
+            hasExtSensor = true;
+        }
+
+        char buf[200];
+        char extBuf[64] = "Ext: ERROR/I2C OFF";
+        if (hasExtSensor) {
+            snprintf(extBuf, sizeof(extBuf), "Ext: %.1f C | %.1f%%", latestTemp, latestHum);
+        }
+        
+        if (hasChipTemp) {
+            snprintf(buf, sizeof(buf), "Bat: %d mV\nHeap: %lu B\nChip: %.1f C\n%s", 
+                     powerStatus->getBatteryVoltageMv(), (unsigned long)freeHeap, chipTemp, extBuf);
+        } else {
+            snprintf(buf, sizeof(buf), "Bat: %d mV\nHeap: %lu B\nChip: NA\n%s", 
+                     powerStatus->getBatteryVoltageMv(), (unsigned long)freeHeap, extBuf);
+        }
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd == "channel") {
+        float channelUtil = 0.0f;
+        float txUtil = 0.0f;
+        if (airTime) {
+            channelUtil = airTime->channelUtilizationPercent();
+            txUtil = airTime->utilizationTXPercent();
+        }
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Chan Util: %.1f%%\nTX Util: %.1f%%", channelUtil, txUtil);
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd.rfind("set_name", 0) == 0) {
+        std::string args = (cmd.length() > 9) ? cmd.substr(9) : "";
+        std::string longName = "";
+        std::string shortName = "";
+        
+        if (!args.empty()) {
+            size_t firstQuote = args.find('"');
+            if (firstQuote != std::string::npos) {
+                size_t secondQuote = args.find('"', firstQuote + 1);
+                if (secondQuote != std::string::npos) {
+                    longName = args.substr(firstQuote + 1, secondQuote - firstQuote - 1);
+                    size_t thirdQuote = args.find('"', secondQuote + 1);
+                    if (thirdQuote != std::string::npos) {
+                        size_t fourthQuote = args.find('"', thirdQuote + 1);
+                        if (fourthQuote != std::string::npos) {
+                            shortName = args.substr(thirdQuote + 1, fourthQuote - thirdQuote - 1);
+                        }
+                    }
+                }
+            }
+            if (longName.empty() || shortName.empty()) {
+                size_t space = args.find(' ');
+                if (space != std::string::npos) {
+                    longName = args.substr(0, space);
+                    shortName = args.substr(space + 1);
+                }
+            }
+        }
+        
+        if (!longName.empty() && !shortName.empty()) {
+            strncpy(owner.long_name, longName.c_str(), sizeof(owner.long_name));
+            owner.long_name[sizeof(owner.long_name) - 1] = '\0';
+            strncpy(owner.short_name, shortName.c_str(), sizeof(owner.short_name));
+            owner.short_name[sizeof(owner.short_name) - 1] = '\0';
+            service->reloadOwner(true);
+            nodeDB->saveToDisk(SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE);
+            
+            std::string reply = "OK: NAME SET TO \"" + longName + "\" [" + shortName + "]";
+            enqueueResponse(replyDest, replyChannel, reply, true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE set_name \"Long Name\" \"Short\"", true);
+        }
+    }
+    else if (cmd.rfind("set_role", 0) == 0) {
+        std::string roleStr = (cmd.length() > 9) ? cmd.substr(9) : "";
+        bool valid = true;
+        if (roleStr == "client") {
+            config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT;
+        } else if (roleStr == "mute") {
+            config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT_MUTE;
+        } else if (roleStr == "router") {
+            config.device.role = meshtastic_Config_DeviceConfig_Role_ROUTER;
+        } else {
+            valid = false;
+        }
+        
+        if (valid) {
+            nodeDB->installRoleDefaults(config.device.role);
+            owner.is_unmessagable = false;
+            owner.has_is_unmessagable = true;
+            nodeDB->saveToDisk(SEGMENT_CONFIG | SEGMENT_NODEDATABASE);
+            enqueueResponse(replyDest, replyChannel, "OK: ROLE CHANGED", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE set_role [client/mute/router]", true);
+        }
+    }
+    else if (cmd.rfind("set_mqtt", 0) == 0) {
+        std::string stateStr = (cmd.length() > 9) ? cmd.substr(9) : "";
+        if (stateStr == "on") {
+            moduleConfig.mqtt.enabled = true;
+            nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: MQTT ON", true);
+        } else if (stateStr == "off") {
+            moduleConfig.mqtt.enabled = false;
+            nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: MQTT OFF", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE set_mqtt [on/off]", true);
+        }
+    }
+    else if (cmd.rfind("set_tz", 0) == 0) {
+        if (cmd.length() > 7) {
+            std::string tzStr = cmd.substr(7);
+            strncpy(config.device.tzdef, tzStr.c_str(), sizeof(config.device.tzdef));
+            config.device.tzdef[sizeof(config.device.tzdef) - 1] = '\0';
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: TZ SET", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE set_tz [tz_POSIX]", true);
+        }
+    }
+    else if (cmd.rfind("set_hops", 0) == 0) {
+        if (cmd.length() > 9) {
+            std::string hopsStr = cmd.substr(9);
+            uint32_t hops = strtoul(hopsStr.c_str(), NULL, 10);
+            if (hops >= 1 && hops <= 7) {
+                config.lora.hop_limit = hops;
+                nodeDB->saveToDisk(SEGMENT_CONFIG);
+                char buf[32];
+                snprintf(buf, sizeof(buf), "OK: HOPS SET TO %d", hops);
+                enqueueResponse(replyDest, replyChannel, buf, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "ERR: HOPS MUST BE 1-7", true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE set_hops [1-7]", true);
+        }
+    }
+    else if (cmd.rfind("set_txpower", 0) == 0) {
+        if (cmd.length() > 12) {
+            std::string pwrStr = cmd.substr(12);
+            uint32_t pwr = strtoul(pwrStr.c_str(), NULL, 10);
+            if (pwr >= 0 && pwr <= 12) {
+                config.lora.tx_power = pwr;
+                nodeDB->saveToDisk(SEGMENT_CONFIG);
+                char buf[32];
+                snprintf(buf, sizeof(buf), "OK: TX POWER SET TO %d", pwr);
+                enqueueResponse(replyDest, replyChannel, buf, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "ERR: POWER MUST BE 0-12", true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE set_txpower [0-12]", true);
+        }
+    }
+    else if (cmd == "db_purge") {
+        int writeIndex = 1; 
+        for (uint32_t i = 1; i < nodeDB->getNumMeshNodes(); i++) {
+            auto n = nodeDB->getMeshNodeByIndex(i);
+            if (n && (n->is_favorite || nodeDB->isAdminNode(*n))) {
+                *nodeDB->getMeshNodeByIndex(writeIndex++) = *n;
+            }
+        }
+        nodeDB->numMeshNodes = writeIndex;
+        char buf[64];
+        snprintf(buf, sizeof(buf), "OK: RAM PURGED. Active nodes: %d", writeIndex);
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd == "db_clear") {
+        nodeDB->numMeshNodes = 1;
+        if (router) {
+            router->activeDirectRouters.clear();
+        }
+        nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+        enqueueResponse(replyDest, replyChannel, "OK: DB NUKED. ALL PEERS DELETED.", true);
+    }
+    else if (cmd == "reboot") {
+        enqueueResponse(replyDest, replyChannel, "OK: REBOOT SCHED", true);
+        rebootScheduled = true;
+        rebootTime = millis() + 3000;
+    }
+    // --- NUEVOS COMANDOS SECUENCIA REMOTA 2 ---
+    else if (cmd.rfind("set_chem", 0) == 0) {
+        std::string chem = cmd.substr(9);
+        if (chem == "lipo") {
+            prefs.chemistry = 0;
+            prefs.vbat_cutoff = 3500;
+            prefs.vwake_level = 3;
+        } else if (chem == "nimh") {
+            prefs.chemistry = 1;
+            prefs.vbat_cutoff = 3400;
+            prefs.vwake_level = 3;
+        } else if (chem == "sodium") {
+            prefs.chemistry = 2;
+            prefs.vbat_cutoff = 2600;
+            prefs.vwake_level = 1;
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE [lipo/nimh/sodium]", true);
+            return;
+        }
+        power->setChemistryProfile(prefs.chemistry);
+        power->updateOcvCurve(prefs.vbat_cutoff);
+        currentWakeLevel = prefs.vwake_level;
+        saveResiliencePrefs();
+        enqueueResponse(replyDest, replyChannel, "OK: CHEM SET TO " + chem, true);
+    }
+    else if (cmd.rfind("set_vbat", 0) == 0) {
+        uint32_t val = strtoul(cmd.substr(9).c_str(), NULL, 10);
+        if (val >= 2400 && val <= 3600) {
+            prefs.vbat_cutoff = val;
+            power->updateOcvCurve(val);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: VBAT CUTOFF SET", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: RANGE 2400-3600", true);
+        }
+    }
+    else if (cmd.rfind("set_vwake", 0) == 0) {
+        uint32_t val = strtoul(cmd.substr(10).c_str(), NULL, 10);
+        if (val >= 1 && val <= 5) {
+            prefs.vwake_level = val;
+            currentWakeLevel = val;
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: VWAKE LEVEL SET", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: RANGE 1-5", true);
+        }
+    }
+    else if (cmd == "bat") {
+        char buf[128];
+        int32_t drop = power->executeTxDropTest();
+        const char* chemNames[] = { "LIPO", "NIMH", "SODIUM" };
+        snprintf(buf, sizeof(buf), "CHEM: %s\nBat: %d mV | OCV: %d%%\nSag (Drop): %d mV", 
+                 chemNames[prefs.chemistry], powerStatus->getBatteryVoltageMv(), powerStatus->getBatteryChargePercent(), drop);
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd.rfind("storm", 0) == 0) {
+        uint32_t hours = strtoul(cmd.substr(6).c_str(), NULL, 10);
+        if (hours >= 1 && hours <= 720) { // máx 30 días
+            char buf[64];
+            snprintf(buf, sizeof(buf), "OK: STORM MODE IN %d HOURS", hours);
+            enqueueResponse(replyDest, replyChannel, buf, true);
+            // Pospone la ejecución real del sleep hasta vaciar cola
+            rebootScheduled = true; 
+            rebootTime = millis() + 4000;
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: HOURS 1-720", true);
+        }
+    }
+    else if (cmd == "txoff") {
+        enqueueResponse(replyDest, replyChannel, "OK: TX DISABLED", true);
+        txOffScheduled = true;
+        txOffTime = millis() + 3000;
+    }
+    else if (cmd == "txon") {
+        config.lora.tx_enabled = true;
+        prefs.tx_disabled = 0;
+        saveResiliencePrefs();
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        enqueueResponse(replyDest, replyChannel, "OK: TX ENABLED", true);
+    }
+    else if (cmd.rfind("ble", 0) == 0) {
+        std::string mode = cmd.substr(4);
+        if (mode == "on") {
+            prefs.ble_disabled = 0;
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: BLE ENABLED. REBOOT REQ.", true);
+        } else if (mode == "off") {
+            prefs.ble_disabled = 1;
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: BLE DISABLED. REBOOT REQ.", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE ble [on/off]", true);
+        }
+    }
+    else if (cmd == "rxlog") {
+        std::string reply = "RXLOG (Last 5):\n";
+        for (int i = 0; i < rxLogCount; i++) {
+            int idx = (rxLogIndex - 1 - i + 5) % 5;
+            char buf[80];
+            snprintf(buf, sizeof(buf), "!%08x | P:%d | S:%.1f | R:%d\n",
+                     rxLog[idx].from, rxLog[idx].portnum, rxLog[idx].snr, rxLog[idx].rssi);
+            reply += buf;
+        }
+        enqueueResponse(replyDest, replyChannel, reply, true);
+    }
+    else if (cmd == "afc") {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "TCXO Drift: %.2f Hz", lastRxFrequencyError);
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd == "reset_reason") {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "Last Boot: 0x%08X", rawResetReason);
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd.rfind("trace", 0) == 0) {
+        if (cmd.length() > 6) {
+            uint32_t targetId = strtoul(cmd.substr(6).c_str() + (cmd[6] == '!' ? 1 : 0), NULL, 16);
+            traceRouteModule->startTraceRoute(targetId);
+            enqueueResponse(replyDest, replyChannel, "OK: TRACE STARTED", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE trace !ID", true);
+        }
+    }
+    else if (cmd.rfind("route", 0) == 0) {
+        if (cmd.length() > 6) {
+            uint32_t targetId = strtoul(cmd.substr(6).c_str() + (cmd[6] == '!' ? 1 : 0), NULL, 16);
+            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
+            if (node != nullptr) {
+                char buf[128];
+                uint32_t nowSecs = millis() / 1000;
+                uint32_t agoSecs = (nowSecs > node->last_heard) ? (nowSecs - node->last_heard) : 0;
+                snprintf(buf, sizeof(buf), "ROUTE to !%08x:\nHops away: %d\nSNR: %.1f dB\nHerd: %lu s ago",
+                         node->num, node->hops_away, node->snr, (unsigned long)agoSecs);
+                enqueueResponse(replyDest, replyChannel, buf, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "ERR: NOT IN DB", true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USE route !ID", true);
+        }
+    }
+    else if (cmd.rfind("msg", 0) == 0) {
+        std::string text = cmd.substr(4);
+        meshtastic_MeshPacket *p = allocDataPacket();
+        if (p) {
+            p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
+            p->decoded.payload.size = text.length();
+            memcpy(p->decoded.payload.bytes, text.c_str(), text.length());
+            p->to = NODENUM_BROADCAST;
+            p->channel = 0;
+            p->want_ack = false;
+            service->sendToMesh(p);
+            enqueueResponse(replyDest, replyChannel, "OK: MSG BROADCASTED", true);
+        }
+    }
+    else if (cmd == "bell") {
+        playStartMelody();
+        enqueueResponse(replyDest, replyChannel, "OK: RINGING", true);
+    }
+    else if (cmd == "pos") {
+        positionModule->sendOurPosition();
+        enqueueResponse(replyDest, replyChannel, "OK: POSITION SENT", true);
+    }
+    else if (cmd == "nodeinfo") {
+        nodeInfoModule->sendOurNodeInfo(NODENUM_BROADCAST, false);
+        enqueueResponse(replyDest, replyChannel, "OK: NODEINFO SENT", true);
+    }
+    else if (cmd == "sendtel") {
+#if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
+        if (environmentTelemetryModule) {
+            environmentTelemetryModule->sendTelemetry(NODENUM_BROADCAST, false);
+            enqueueResponse(replyDest, replyChannel, "OK: TELEMETRY SENT", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: NO I2C SENSORS", true);
+        }
+#else
+        enqueueResponse(replyDest, replyChannel, "ERR: TELEMETRY DISABLED", true);
+#endif
+    }
+    else if (cmd == "power") {
+#if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
+        if (environmentTelemetryModule) {
+            meshtastic_Telemetry extTelem = meshtastic_Telemetry_init_zero;
+            if (environmentTelemetryModule->getEnvironmentTelemetry(&extTelem)) {
+                if (extTelem.which_variant == meshtastic_Telemetry_environment_metrics_tag) {
+                    auto &m = extTelem.variant.environment_metrics;
+                    if (m.voltage != 0.0f || m.current != 0.0f) {
+                        char buf[128];
+                        float pwr_mw = m.voltage * m.current;
+                        snprintf(buf, sizeof(buf), "POWER SENSOR:\nBus: %.2f V\nCurrent: %.1f mA\nPower: %.1f mW", 
+                                 m.voltage, m.current, pwr_mw);
+                        enqueueResponse(replyDest, replyChannel, buf, true);
+                        return;
+                    }
+                }
+            }
+        }
+        enqueueResponse(replyDest, replyChannel, "ERR: NO POWER SENSOR", true);
+#else
+        enqueueResponse(replyDest, replyChannel, "ERR: TELEMETRY DISABLED", true);
+#endif
+    }
+    else if (cmd == "noise") {
+        if (router && router->getInterface()) {
+            RadioLibInterface* rLib = static_cast<RadioLibInterface*>(router->getInterface());
+            if (rLib) {
+                char buf[64];
+                snprintf(buf, sizeof(buf), "Noise Floor: %d dBm", rLib->getNoiseFloor());
+                enqueueResponse(replyDest, replyChannel, buf, true);
+                return;
+            }
+        }
+        enqueueResponse(replyDest, replyChannel, "ERR: RADIO OFF", true);
+    }
+    else if (cmd == "admin_ls") {
+        std::string reply = "ADMIN KEYS:\n";
+        for (int i = 0; i < 3; i++) {
+            if (config.security.admin_key[i].size == 32) {
+                char buf[40];
+                snprintf(buf, sizeof(buf), "Key %d: REGISTRADA\n", i);
+                reply += buf;
+            } else {
+                char buf[40];
+                snprintf(buf, sizeof(buf), "Key %d: VACIA\n", i);
+                reply += buf;
+            }
+        }
+        enqueueResponse(replyDest, replyChannel, reply, true);
+    }
+    else {
+        enqueueResponse(replyDest, replyChannel, "ERR: UNKNOWN CMD", true);
+    }
+}
+
+int32_t NavaCLIModule::runOnce()
+{
+    if (!responseQueue.empty()) {
+        auto response = responseQueue.front();
+        responseQueue.pop();
+
+        meshtastic_MeshPacket *reply = allocDataPacket();
+        if (reply) {
+            reply->decoded.payload.size = response.text.length();
+            memcpy(reply->decoded.payload.bytes, response.text.c_str(), response.text.length());
+            reply->to = response.dest;
+            reply->channel = response.channel;
+            reply->want_ack = false;
+            service->sendToMesh(reply);
+        }
+        
+        if (!responseQueue.empty()) {
+            return 12000; // Retardo de 12 segundos para cumplir con el MTU de LoRa SFNarrow
+        }
+    }
+
+    // Comprobar si hay un txoff diferido programado
+    if (txOffScheduled) {
+        if ((int32_t)(millis() - txOffTime) >= 0) {
+            config.lora.tx_enabled = false;
+            prefs.tx_disabled = 1;
+            saveResiliencePrefs();
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            txOffScheduled = false;
+            LOG_INFO("LoRa TX disabled via NavaCLI");
+        }
+    }
+
+    if (rebootScheduled && responseQueue.empty()) {
+        if ((int32_t)(millis() - rebootTime) >= 0) {
+            LOG_INFO("Executing deferred action (reboot/hibernate)...");
+            rebootAtMsec = millis() + 25; 
+        }
+        return 1000;
+    }
+
+    return 60000;
+}
+
+std::string NavaCLIModule::getRoleName(meshtastic_Config_DeviceConfig_Role role)
+{
+    switch(role) {
+        case meshtastic_Config_DeviceConfig_Role_ROUTER: return "ROUTER";
+        case meshtastic_Config_DeviceConfig_Role_ROUTER_LATE: return "ROUTER_LATE";
+        case meshtastic_Config_DeviceConfig_Role_CLIENT_BASE: return "CLIENT_BASE";
+        case meshtastic_Config_DeviceConfig_Role_CLIENT: return "CLIENT";
+        case meshtastic_Config_DeviceConfig_Role_CLIENT_MUTE: return "CLIENT_MUTE";
+        default: return "OTHER";
+    }
+}

@@ -14,6 +14,9 @@
  * For more information, see: https://meshtastic.org/
  */
 #include "power.h"
+#if defined(ARCH_NRF52)
+#include <nrf_sdm.h>
+#endif
 #include "MessageStore.h"
 #include "NodeDB.h"
 #include "PowerFSM.h"
@@ -39,6 +42,7 @@
 #if defined(ARCH_NRF52)
 #include "Nrf52SaadcLock.h"
 #include "concurrency/LockGuard.h"
+#include <nrf_nvic.h>
 #endif
 
 #if defined(DEBUG_HEAP_MQTT) && !MESHTASTIC_EXCLUDE_MQTT
@@ -172,6 +176,8 @@ class HasBatteryLevel
 
     virtual bool isVbusIn() { return false; }
     virtual bool isCharging() { return false; }
+    virtual void updateOcvCurve(uint16_t cutoff) {}
+    virtual void setChemistryProfile(uint8_t chem) {}
 };
 #endif
 
@@ -523,15 +529,45 @@ class AnalogBatteryLevel : public HasBatteryLevel
         return isVbusIn();
     }
 
+    virtual void updateOcvCurve(uint16_t cutoff) override
+    {
+        if (cutoff < 2400 || cutoff > 3600) return;
+        OCV[NUM_OCV_POINTS - 1] = cutoff;
+        OCV[NUM_OCV_POINTS - 2] = cutoff + 100;
+        OCV[NUM_OCV_POINTS - 3] = cutoff + 200;
+        noBatVolt = (OCV[NUM_OCV_POINTS - 1] - 500) * NUM_CELLS;
+        LOG_INFO("AnalogBatteryLevel OCV cutoff updated to %d mV", cutoff);
+    }
+
+    virtual void setChemistryProfile(uint8_t chem) override
+    {
+        if (chem == 0) { // LIPO
+            uint16_t lipo_ocv[11] = { 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3420, 3300, 3100 };
+            memcpy(OCV, lipo_ocv, sizeof(OCV));
+        } else if (chem == 1) { // NIMH
+            uint16_t nimh_ocv[11] = { 4300, 4100, 4000, 3900, 3800, 3700, 3600, 3500, 3450, 3400, 3400 };
+            memcpy(OCV, nimh_ocv, sizeof(OCV));
+        } else if (chem == 2) { // SODIUM
+            uint16_t sodium_ocv[11] = { 3950, 3800, 3700, 3600, 3500, 3400, 3200, 3000, 2800, 2600, 2500 };
+            memcpy(OCV, sodium_ocv, sizeof(OCV));
+        } else if (chem == 3) { // LIFEPO4
+            uint16_t lifepo4_ocv[11] = { 3650, 3550, 3450, 3380, 3320, 3270, 3220, 3170, 3100, 3000, 2800 };
+            memcpy(OCV, lifepo4_ocv, sizeof(OCV));
+        }
+        chargingVolt = (OCV[0] + 10) * NUM_CELLS;
+        noBatVolt = (OCV[NUM_OCV_POINTS - 1] - 500) * NUM_CELLS;
+        LOG_INFO("AnalogBatteryLevel chemistry profile updated to %d", chem);
+    }
+
   private:
     /// If we see a battery voltage higher than physics allows - assume charger is
     /// pumping in power
 
     /// For heltecs with no battery connected, the measured voltage is 2204, so
     // need to be higher than that, in this case is 2500mV (3000-500)
-    const uint16_t OCV[NUM_OCV_POINTS] = {OCV_ARRAY};
-    const float chargingVolt = (OCV[0] + 10) * NUM_CELLS;
-    const float noBatVolt = (OCV[NUM_OCV_POINTS - 1] - 500) * NUM_CELLS;
+    uint16_t OCV[NUM_OCV_POINTS] = {OCV_ARRAY};
+    float chargingVolt = (OCV[0] + 10) * NUM_CELLS;
+    float noBatVolt = (OCV[NUM_OCV_POINTS - 1] - 500) * NUM_CELLS;
     // Start value from minimum voltage for the filter to not start from 0
     // that could trigger some events.
     // This value is over-written by the first ADC reading, it the voltage seems
@@ -765,7 +801,17 @@ void Power::reboot()
 #if defined(ARCH_ESP32)
     ESP.restart();
 #elif defined(ARCH_NRF52)
+#ifdef FIX_NATIVE_CORE_RESET
+    sd_softdevice_disable();
     NVIC_SystemReset();
+#else
+    extern bool useSoftDevice;
+    if (useSoftDevice) {
+        sd_nvic_SystemReset();
+    } else {
+        NVIC_SystemReset();
+    }
+#endif
 #elif defined(ARCH_RP2040)
     rp2040.reboot();
 #elif defined(ARCH_PORTDUINO)
@@ -968,8 +1014,13 @@ void Power::readPowerStatus()
     if (batteryLevel && powerStatus2.getHasBattery() && !powerStatus2.getHasUSB()) {
         if (batteryLevel->getBattVoltage() < OCV[NUM_OCV_POINTS - 1]) {
             low_voltage_counter++;
+#if defined(PROMICRO_DIY_TCXO) || defined(ARDUINO_NRF52_PROMICRO_DIY_TCXO)
+            LOG_DEBUG("Low voltage counter: %d/4", low_voltage_counter);
+            if (low_voltage_counter > 4) {
+#else
             LOG_DEBUG("Low voltage counter: %d/10", low_voltage_counter);
             if (low_voltage_counter > 10) {
+#endif
                 LOG_INFO("Low voltage detected, trigger deep sleep");
                 powerFSM.trigger(EVENT_LOW_BATTERY);
             }
@@ -1926,3 +1977,38 @@ bool Power::serialBatteryInit()
     return false;
 }
 #endif
+
+uint8_t currentWakeLevel = 3;
+
+void Power::updateOcvCurve(uint16_t cutoff) {
+    // Sincronizar TAMBIEN el array OCV de la clase Power: es el que usa
+    // readPowerStatus() como umbral de corte para el deep sleep por bateria.
+    if (cutoff >= 2400 && cutoff <= 3600) {
+        OCV[NUM_OCV_POINTS - 1] = cutoff;
+        OCV[NUM_OCV_POINTS - 2] = cutoff + 100;
+        OCV[NUM_OCV_POINTS - 3] = cutoff + 200;
+    }
+    if (batteryLevel) {
+        batteryLevel->updateOcvCurve(cutoff);
+    }
+}
+
+void Power::setChemistryProfile(uint8_t chem) {
+    // Sincronizar el OCV de la clase Power segun la quimica
+    if (chem == 0) {
+        uint16_t lipo_ocv[11] = { 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3420, 3300, 3100 };
+        memcpy(OCV, lipo_ocv, sizeof(OCV));
+    } else if (chem == 1) {
+        uint16_t nimh_ocv[11] = { 4300, 4100, 4000, 3900, 3800, 3700, 3600, 3500, 3450, 3400, 3400 };
+        memcpy(OCV, nimh_ocv, sizeof(OCV));
+    } else if (chem == 2) {
+        uint16_t sodium_ocv[11] = { 3950, 3800, 3700, 3600, 3500, 3400, 3200, 3000, 2800, 2600, 2500 };
+        memcpy(OCV, sodium_ocv, sizeof(OCV));
+    } else if (chem == 3) {
+        uint16_t lifepo4_ocv[11] = { 3650, 3550, 3450, 3380, 3320, 3270, 3220, 3170, 3100, 3000, 2800 };
+        memcpy(OCV, lifepo4_ocv, sizeof(OCV));
+    }
+    if (batteryLevel) {
+        batteryLevel->setChemistryProfile(chem);
+    }
+}

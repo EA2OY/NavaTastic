@@ -1,4 +1,8 @@
 #include "configuration.h"
+
+uint32_t rawResetReason = 0;
+extern uint8_t currentWakeLevel;
+
 #include <Adafruit_TinyUSB.h>
 #include <Adafruit_nRFCrypto.h>
 #include <InternalFileSystem.h>
@@ -24,11 +28,17 @@
 #include "main.h"
 #include "meshUtils.h"
 #include "power.h"
+#include "sleep.h"
 #include <power/PowerHAL.h>
 
 #include "Nrf52SaadcLock.h"
 #include "concurrency/LockGuard.h"
 #include <hal/nrf_lpcomp.h>
+#include <hal/nrf_rtc.h>
+
+// Declaración forward: getActiveLpcompThreshold() se usa en cpuDeepSleep()
+// antes de su definición al final del archivo.
+nrf_lpcomp_ref_t getActiveLpcompThreshold();
 
 #ifdef BQ25703A_ADDR
 #include "BQ25713.h"
@@ -66,6 +76,14 @@ static nrfx_wdt_channel_id nrfx_wdt_channel_id_nrf52_main;
 // methods so disabling it may actually crash thing. Proceed with caution.
 
 bool useSoftDevice = true; // Set to false for easier debugging
+
+// Forzado de BLE off por resiliencia (/resilience.bin ble_disabled=1).
+// Lo fija NavaCLIModule al boot antes de que PowerFSM encienda BLE.
+bool bleForceDisabled = false;
+void setBleForceDisabled(bool on)
+{
+    bleForceDisabled = on;
+}
 
 static inline void debugger_break(void)
 {
@@ -374,11 +392,27 @@ void nrf52InitSemiHosting()
 
 void nrf52Setup()
 {
+#ifdef BATTERY_LPCOMP_INPUT
+    NRF_LPCOMP->TASKS_STOP = 1;
+    NRF_LPCOMP->ENABLE = LPCOMP_ENABLE_ENABLE_Disabled;
+    NRF_LPCOMP->INTENCLR = 0xFFFFFFFF; // Clear all interrupt flags
+    NRF_LPCOMP->EVENTS_READY = 0;
+    NRF_LPCOMP->EVENTS_DOWN = 0;
+    NRF_LPCOMP->EVENTS_UP = 0;
+    NRF_LPCOMP->EVENTS_CROSS = 0;
+#endif
+
+#ifdef RADIO_POWER_ENABLE_PIN
+    pinMode(RADIO_POWER_ENABLE_PIN, OUTPUT);
+    digitalWrite(RADIO_POWER_ENABLE_PIN, HIGH);
+#endif
+
 #ifdef ADC_V
     pinMode(ADC_V, INPUT);
 #endif
 
     uint32_t why = NRF_POWER->RESETREAS;
+    rawResetReason = why;
     // per
     // https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.nrf52832.ps.v1.1%2Fpower.html
     LOG_DEBUG("Reset reason: 0x%x", why);
@@ -480,21 +514,49 @@ void cpuDeepSleep(uint32_t msecToWake)
         // FIXME, use non-init RAM per
         // https://devzone.nordicsemi.com/f/nordic-q-a/48919/ram-retention-settings-with-softdevice-enabled
 
+#ifdef RADIO_POWER_ENABLE_PIN
+        pinMode(RADIO_POWER_ENABLE_PIN, OUTPUT);
+        digitalWrite(RADIO_POWER_ENABLE_PIN, LOW);
+#endif
+
+        delay(3000);
+
 #ifdef BATTERY_LPCOMP_INPUT
-        // Wake up if power rises again
-        nrf_lpcomp_config_t c;
-        c.reference = BATTERY_LPCOMP_THRESHOLD;
-        c.detection = NRF_LPCOMP_DETECT_UP;
-        c.hyst = NRF_LPCOMP_HYST_NOHYST;
-        nrf_lpcomp_configure(NRF_LPCOMP, &c);
+#ifdef ADC_CTRL
+        // Keep the battery voltage divider enabled during sleep so LPCOMP reads the divided voltage
+        pinMode(ADC_CTRL, OUTPUT);
+        digitalWrite(ADC_CTRL, ADC_CTRL_ENABLED);
+#endif
+        // Clean re-arm of NRF_LPCOMP registers
+        NRF_LPCOMP->ENABLE = LPCOMP_ENABLE_ENABLE_Disabled;
+
+        // Select input pin (PSEL) and reference threshold (REFSEL)
         nrf_lpcomp_input_select(NRF_LPCOMP, BATTERY_LPCOMP_INPUT);
-        nrf_lpcomp_enable(NRF_LPCOMP);
 
-        battery_adcEnable();
+        nrf_lpcomp_config_t c;
+        c.reference = getActiveLpcompThreshold();
+        c.detection = NRF_LPCOMP_DETECT_UP; // flank up
+        c.hyst = NRF_LPCOMP_HYST_ENABLED;
+        nrf_lpcomp_configure(NRF_LPCOMP, &c);
 
-        nrf_lpcomp_task_trigger(NRF_LPCOMP, NRF_LPCOMP_TASK_START);
-        while (!nrf_lpcomp_event_check(NRF_LPCOMP, NRF_LPCOMP_EVENT_READY))
+        // Explicitly clear all event latches
+        NRF_LPCOMP->EVENTS_READY = 0;
+        NRF_LPCOMP->EVENTS_DOWN = 0;
+        NRF_LPCOMP->EVENTS_UP = 0;
+        NRF_LPCOMP->EVENTS_CROSS = 0;
+
+        // Enable comparator and start task
+        NRF_LPCOMP->ENABLE = LPCOMP_ENABLE_ENABLE_Enabled;
+        NRF_LPCOMP->TASKS_START = 1;
+
+        // Wait for comparator to stabilize
+        while (NRF_LPCOMP->EVENTS_READY == 0)
             ;
+
+        // Clear events once more to prevent warm wakeup triggers
+        NRF_LPCOMP->EVENTS_READY = 0;
+        NRF_LPCOMP->EVENTS_UP = 0;
+        delay(10);
 #endif
 
         auto ok = sd_power_system_off();
@@ -528,4 +590,122 @@ void enterDfuMode()
 #else
     enterUf2Dfu();
 #endif
+}
+
+nrf_lpcomp_ref_t getActiveLpcompThreshold() {
+    // Voltajes de despertar calculados con divisor fisico 0.5 (1M/1M) y VDD 3.3V.
+    // El LPCOMP compara el pin (bateria x divisor) contra la fraccion de VDD.
+    switch (currentWakeLevel) {
+        case 1: return NRF_LPCOMP_REF_SUPPLY_5_16; //  ~2.06V real
+        case 2: return NRF_LPCOMP_REF_SUPPLY_3_8;  //  ~2.48V real
+        case 3: return NRF_LPCOMP_REF_SUPPLY_9_16; //  ~3.71V real (Default, verificado ~3.8V)
+        case 4: return NRF_LPCOMP_REF_SUPPLY_11_16;//  ~4.54V real (solo con bateria alta)
+        case 5: return NRF_LPCOMP_REF_SUPPLY_4_8;  //  ~3.30V real (ideal para LiFePO4)
+        default: return (nrf_lpcomp_ref_t)BATTERY_LPCOMP_THRESHOLD;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Storm / hibernación temporizada (RTC2 + LOWPWR).
+// NO usar sd_power_system_off(): System OFF solo despierta por GPIO/LPCOMP/NFC/reset
+// físico, no por temporizador, y con batería por encima del umbral LPCOMP el nodo
+// quedaría dormido para siempre. Aquí se usa System ON en bajo consumo + RTC2 COMPARE.
+// El contador RTC es de 24 bits a 32768 Hz (~512s máx por compare), así que el
+// objetivo se cubre con bloques de max 500s re-armando el COMPARE en cada wake.
+// Al cumplirse el tiempo total se ejecuta NVIC_SystemReset(): el boot re-inicializa
+// la radio HT-RA62 (RXEN pin 17, apagado por SPI/driver, sin pin de alimentación).
+// ---------------------------------------------------------------------------
+#define STORM_BLOCK_SECS 500u
+#define RTC_FREQ_HZ 32768u
+#define RTC_CC_MAX 0xFFFFFFu
+
+static volatile bool rtc2StormWake = false;
+
+// Enlace C obligatorio: la tabla de vectores (gcc_startup_nrf52840.S) referencia
+// este símbolo sin mangling C++.
+extern "C" void RTC2_IRQHandler(void)
+{
+    if (nrf_rtc_event_check(NRF_RTC2, NRF_RTC_EVENT_COMPARE_0)) {
+        nrf_rtc_event_clear(NRF_RTC2, NRF_RTC_EVENT_COMPARE_0);
+        rtc2StormWake = true;
+    }
+}
+
+void timedSystemSleepSeconds(uint32_t seconds)
+{
+    if (seconds == 0) {
+        return;
+    }
+
+    LOG_INFO("Storm: entering RTC2 timed sleep for %lu seconds", (unsigned long)seconds);
+
+    // 1. Dormir la radio DE VERDAD: notifyDeepSleep dispara RadioInterface::sleep()
+    //    (setStandby + lora.sleep(keepConfig) en SX1262). Debe hacerse ANTES de
+    //    SPI.end(), porque el comando SLEEP viaja por SPI. Sin esto la radio
+    //    quedaba en RX consumiendo ~10mA.
+    notifyDeepSleep.notifyObservers(NULL);
+
+#ifdef HAS_WIRE
+    Wire.end();
+#endif
+    SPI.end();
+#ifdef PIN_SERIAL1_RX
+    if (Serial1)
+        Serial1.end();
+#endif
+    setBluetoothEnable(false);
+
+#ifdef RADIO_POWER_ENABLE_PIN
+    // Apagar la radio E22P (ahorra ~40mA durante la hibernación)
+    pinMode(RADIO_POWER_ENABLE_PIN, OUTPUT);
+    digitalWrite(RADIO_POWER_ENABLE_PIN, LOW);
+#endif
+
+    // Apagar pantalla si existe (draw ~10uA en deep sleep)
+    if (screen) {
+        screen->doDeepSleep();
+    }
+
+    // Configurar RTC2 (LFCLK 32768Hz, prescaler 0)
+    nrf_rtc_prescaler_set(NRF_RTC2, 0);
+    nrf_rtc_task_trigger(NRF_RTC2, NRF_RTC_TASK_CLEAR);
+    nrf_rtc_event_enable(NRF_RTC2, RTC_CHANNEL_INT_MASK(0));
+    nrf_rtc_int_enable(NRF_RTC2, RTC_CHANNEL_INT_MASK(0));
+    NVIC_ClearPendingIRQ(RTC2_IRQn);
+    NVIC_EnableIRQ(RTC2_IRQn);
+
+    uint32_t remaining = seconds;
+    while (remaining > 0) {
+        uint32_t block = (remaining > STORM_BLOCK_SECS) ? STORM_BLOCK_SECS : remaining;
+        uint32_t target = (nrf_rtc_counter_get(NRF_RTC2) + block * RTC_FREQ_HZ) & RTC_CC_MAX;
+
+        nrf_rtc_cc_set(NRF_RTC2, 0, target);
+        nrf_rtc_task_trigger(NRF_RTC2, NRF_RTC_TASK_CLEAR);
+        nrf_rtc_task_trigger(NRF_RTC2, NRF_RTC_TASK_START);
+
+        rtc2StormWake = false;
+
+        // Dormir la CPU hasta el COMPARE del RTC2.
+        // sd_app_evt_wait() es la API correcta con SoftDevice: deja que el stack
+        // BLE/radio gestione el sleep real. __WFE() despertaba la CPU en bucle
+        // por eventos internos del SoftDevice, anulando el ahorro de energía.
+        while (!rtc2StormWake) {
+            sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
+            sd_app_evt_wait();
+            // Los eventos pendientes pueden despertar sin que el RTC haya disparado;
+            // volvemos a dormir hasta que el flag de COMPARE se active.
+        }
+
+        remaining -= block;
+    }
+
+    LOG_INFO("Storm: timed sleep elapsed, rebooting to restore radio");
+
+    // Apagar RTC2 y reiniciar: el boot restaura la radio y periféricos
+    nrf_rtc_task_trigger(NRF_RTC2, NRF_RTC_TASK_STOP);
+    NVIC_DisableIRQ(RTC2_IRQn);
+    NVIC_SystemReset();
+    while (1) {
+        delay(1000);
+    }
 }

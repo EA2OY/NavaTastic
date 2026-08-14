@@ -1,4 +1,7 @@
 #include "RadioLibInterface.h"
+
+float lastRxFrequencyError = 0.0f;
+
 #include "MeshTypes.h"
 #include "NodeDB.h"
 #include "PowerMon.h"

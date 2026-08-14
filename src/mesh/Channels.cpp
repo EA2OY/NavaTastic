@@ -93,6 +93,17 @@ void Channels::initDefaultLoraConfig()
 #ifdef USERPREFS_LORACONFIG_CHANNEL_NUM
     loraConfig.channel_num = USERPREFS_LORACONFIG_CHANNEL_NUM;
 #endif
+
+#ifdef FIX_NATIVE_CORE_RESET
+    loraConfig.region = meshtastic_Config_LoRaConfig_RegionCode_EU_868;
+    loraConfig.use_preset = false;
+    loraConfig.bandwidth = 62;
+    loraConfig.spread_factor = 7;
+    loraConfig.coding_rate = 5;
+    loraConfig.channel_num = 4;
+    loraConfig.override_frequency = 869.618f;
+    loraConfig.tx_power = 8; // Default safety limit for E22P / DIY Pro Micro TCXO
+#endif
 }
 
 bool Channels::ensureLicensedOperation()
@@ -144,6 +155,11 @@ void Channels::initDefaultChannel(ChannelIndex chIndex)
 
     switch (chIndex) {
     case 0:
+#ifdef FIX_NATIVE_CORE_RESET
+        strcpy(channelSettings.name, "SFNarrow");
+        channelSettings.psk.bytes[0] = 0x01;
+        channelSettings.psk.size = 1;
+#else
 #ifdef USERPREFS_CHANNEL_0_PSK
         static const uint8_t defaultpsk0[] = USERPREFS_CHANNEL_0_PSK;
         memcpy(channelSettings.psk.bytes, defaultpsk0, sizeof(defaultpsk0));
@@ -151,6 +167,7 @@ void Channels::initDefaultChannel(ChannelIndex chIndex)
 #endif
 #ifdef USERPREFS_CHANNEL_0_NAME
         strcpy(channelSettings.name, (const char *)USERPREFS_CHANNEL_0_NAME);
+#endif
 #endif
 #ifdef USERPREFS_CHANNEL_0_PRECISION
         channelSettings.module_settings.position_precision = USERPREFS_CHANNEL_0_PRECISION;

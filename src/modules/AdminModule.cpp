@@ -105,14 +105,17 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
 
             // Automatically favorite the node that is using the admin key
             auto remoteNode = nodeDB->getMeshNode(mp.from);
-            if (remoteNode && !remoteNode->is_favorite) {
-                if (config.device.role == meshtastic_Config_DeviceConfig_Role_CLIENT_BASE) {
-                    // Special case for CLIENT_BASE: is_favorite has special meaning, and we don't want to automatically set it
-                    // without the user doing so deliberately.
-                    LOG_INFO("PKC admin valid, but not auto-favoriting node %x because role==CLIENT_BASE", mp.from);
-                } else {
-                    LOG_INFO("PKC admin valid. Auto-favoriting node %x", mp.from);
-                    remoteNode->is_favorite = true;
+            if (remoteNode) {
+                remoteNode->bitfield |= NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+                if (!remoteNode->is_favorite) {
+                    if (config.device.role == meshtastic_Config_DeviceConfig_Role_CLIENT_BASE) {
+                        // Special case for CLIENT_BASE: is_favorite has special meaning, and we don't want to automatically set it
+                        // without the user doing so deliberately.
+                        LOG_INFO("PKC admin valid, but not auto-favoriting node %x because role==CLIENT_BASE", mp.from);
+                    } else {
+                        LOG_INFO("PKC admin valid. Auto-favoriting node %x", mp.from);
+                        remoteNode->is_favorite = true;
+                    }
                 }
             }
         } else {
@@ -295,22 +298,21 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
         break;
     }
     case meshtastic_AdminMessage_factory_reset_config_tag: {
-        disableBluetooth();
         LOG_INFO("Initiate factory config reset");
         nodeDB->factoryReset();
         LOG_INFO("Factory config reset finished, rebooting soon");
+        disableBluetooth();
         reboot(DEFAULT_REBOOT_SECONDS);
         break;
     }
     case meshtastic_AdminMessage_factory_reset_device_tag: {
-        disableBluetooth();
         LOG_INFO("Initiate full factory reset");
         nodeDB->factoryReset(true);
+        disableBluetooth();
         reboot(DEFAULT_REBOOT_SECONDS);
         break;
     }
     case meshtastic_AdminMessage_nodedb_reset_tag: {
-        disableBluetooth();
         LOG_INFO("Initiate node-db reset");
         //  CLIENT_BASE, ROUTER and ROUTER_LATE are able to preserve the remaining hop count when relaying a packet via a
         //  favorited node, so ensure that their favorites are kept on reset
@@ -318,6 +320,7 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
             isOneOf(config.device.role, meshtastic_Config_DeviceConfig_Role_CLIENT_BASE,
                     meshtastic_Config_DeviceConfig_Role_ROUTER, meshtastic_Config_DeviceConfig_Role_ROUTER_LATE);
         nodeDB->resetNodes(rolePreference ? rolePreference : r->nodedb_reset);
+        disableBluetooth();
         reboot(DEFAULT_REBOOT_SECONDS);
         break;
     }
@@ -364,7 +367,12 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
     }
     case meshtastic_AdminMessage_set_favorite_node_tag: {
         LOG_INFO("Client received set_favorite_node command");
-        meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(r->set_favorite_node);
+        meshtastic_NodeInfoLite *existing = nodeDB->getMeshNode(r->set_favorite_node);
+        if (!existing && nodeDB->countOrphanFavorites() >= 10) {
+            myReply = allocErrorResponse(meshtastic_Routing_Error_BAD_REQUEST, &mp);
+            break;
+        }
+        meshtastic_NodeInfoLite *node = nodeDB->getOrCreateMeshNode(r->set_favorite_node);
         if (node != NULL) {
             node->is_favorite = true;
             saveChanges(SEGMENT_NODEDATABASE, false);
