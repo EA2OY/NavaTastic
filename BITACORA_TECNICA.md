@@ -574,3 +574,15 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - Backups norma 0.11: `.bak-20260815-1729` (README + 2 manuales). **REPUBLICADO (15/08)**:
   rama huérfana regenerada (UN commit `b49e79091`) → main; PDFs bilingües subidos al release
   v2.6.1 (borrados los antiguos). L24 aplicada: distribucion\ repoblada + PDFs regenerados.
+
+### DESCARGO AMPLIADO + PUBLICACIÓN FINAL (15/08)
+- **Descargo ampliado** en README (ES/EN) y en el manual de uso (`Manual_uso_NavaTastic_4.2.md`,
+  cabecera ES + apéndice EN): las instalaciones deben cumplir la normativa que les sea de
+  aplicación (nacional, autonómica, local y europea — emplazamiento, permisos de acceso y obra,
+  seguridad, medio ambiente); dónde y cómo se monta el equipo (árboles, estructuras,
+  propiedades ajenas) es responsabilidad exclusiva de quien lo instala; el proyecto queda
+  **desvinculado** de montajes o usos de terceros que no se ajusten a la legislación vigente.
+- **Publicado a GitHub**: rama huérfana regenerada (UN commit) → main; PDFs del release v2.6.1
+  sustituidos por los nuevos (con el descargo). El árbol publicado incluye TODO lo documental
+  (`docs\`: cerebro + subnotas + contexto + manuales). L24 aplicada de nuevo (distribucion\ +
+  PDFs repoblados tras volver a master).

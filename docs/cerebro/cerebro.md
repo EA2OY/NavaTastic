@@ -376,6 +376,13 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   `Manual_NavaTastic.md` y `Manual_uso_NavaTastic_4.2.md` (el ES sigue arriba y es la fuente de
   verdad); PDFs regenerados (98/126 KB) con `generar_pdf.ps1` (norma 0.11: backups
   `.bak-20260815-1729`). Backups: README/manuales `.bak-20260815-1729`.
+- **2026-08-15 (27ª parte) — DESCARGO AMPLIADO + PUBLICACIÓN FINAL DEL DÍA**: README (ES/EN)
+  y `Manual_uso_NavaTastic_4.2.md` (ES + apéndice EN) reciben el **descargo ampliado**: las
+  instalaciones deben cumplir la normativa aplicable (nacional/autonómica/local/europea:
+  emplazamiento, permisos, seguridad, medio ambiente); dónde y cómo se monta es
+  responsabilidad exclusiva del instalador; el proyecto queda **desvinculado** de montajes o
+  usos de terceros que no se ajusten a la legislación. PDFs regenerados. Publicado a GitHub
+  (rama huérfana → main + PDFs del release v2.6.1 sustituidos). Detalle: BITACORA.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

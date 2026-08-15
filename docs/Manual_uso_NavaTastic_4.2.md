@@ -17,6 +17,13 @@ toc-title: "Índice"
 
 Este firmware ha sido diseñado específicamente para nodos de la red **Meshtastic** que operan de forma aislada y autónoma. Su objetivo es garantizar la supervivencia del hardware ante caídas críticas de energía o corrupciones de memoria, permitiendo la recuperación y gestión de forma **100% remota** sin necesidad de intervenciones físicas en el emplazamiento.
 
+> **⚠️ RESPONSABILIDAD DEL MONTAJE Y CUMPLIMIENTO NORMATIVO**: toda instalación con este
+> firmware debe cumplir la normativa que le sea de aplicación (nacional, autonómica, local y
+> europea): emplazamiento, permisos de acceso y obra, seguridad y medio ambiente. Dónde y cómo
+> se monta el equipo (árboles, estructuras, propiedades ajenas...) es decisión y responsabilidad
+> exclusiva de quien lo instala. El proyecto queda **desvinculado** de cualquier montaje o uso de
+> terceros y no asume responsabilidad por usos que no se ajusten a la legislación vigente.
+
 ---
 
 ## 1. Especificaciones de Compatibilidad y Variantes
@@ -243,6 +250,14 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 > version.** The firmware is designed for autonomous, isolated **Meshtastic** network nodes; its
 > goal is hardware survival through critical energy drops or memory corruption, with **100%
 > remote** recovery — no physical intervention needed at the site.
+
+> **⚠️ INSTALLATION RESPONSIBILITY AND REGULATORY COMPLIANCE**: any installation using this
+> firmware must comply with the regulations applicable to it (national, regional, local and
+> European): site, access and works permits, safety and environment. Where and how the
+> equipment is mounted (trees, structures, third-party property...) is the sole decision and
+> responsibility of whoever installs it. The project is **dissociated** from any third-party
+> installation or use and assumes no responsibility for uses that do not comply with current
+> legislation.
 
 ## 1. Compatibility and variants
 

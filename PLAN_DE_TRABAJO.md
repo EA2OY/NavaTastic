@@ -142,6 +142,10 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       ES+EN** (traducción EN al final de ambos documentos; ES = fuente de verdad) y PDFs
       regenerados. Backups `.bak-20260815-1729`. **Republicado a GitHub (15/08)**: main
       actualizada (rama huérfana, UN commit) + PDFs bilingües en el release v2.6.1.
+- [x] **DESCARGO AMPLIADO + PUBLICACIÓN FINAL (15/08)**: README y manual de uso (ES+EN) con
+      descargo normativo ampliado (normativa nacional/autonómica/local/europea del montaje,
+      responsabilidad exclusiva del instalador, proyecto desvinculado de usos de terceros
+      ilegales). PDFs regenerados y publicados (main + release v2.6.1).
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
