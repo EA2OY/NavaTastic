@@ -116,6 +116,19 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 - [x] **DOCS CIERRE SESIÓN 14-15/08**: cerebro 12ª parte + BITACORA (F15 cierre, L7-L12,
       F16a-f) + PLAN (este fichero). Backups docs `.bak-20260815-0024`, código
       `.bak-20260814-2125`.
+- [x] **RONDA AUDITORÍA EXTERNA 15/08 (Claude, pack 14/08) — analizada y resuelta**:
+      2 hallazgos ya obsoletos en el código vivo (§4 TEMP F15 retirada, §5 gate version
+      aplicado), 1 RECHAZADO por medición de laboratorio del operador (§1 Seed 4084 mV:
+      el Seed despierta a ~3,8 V con el mismo `3_8` → divisor efectivo ~0,326 ≠ 0,303;
+      hardware idéntico al 4.2 probado en banco), 1 APLICADO (§2 help `power` movido de
+      [Q] a [E] + "SOLO DM SEGURO" en NavaCLIModule.cpp — cosmético), F16c CERRADO
+      (código correcto `substr(7)`), F17 anotado con explicación candidata (PKI estándar,
+      clave no aprendida), §6 migración 80B por diseño con riesgo 0. Docs actualizados
+      (BITACORA ronda + L27, cerebro 24ª parte, transfer_context §8, subnota 04 nota
+      empírica Seed). Backups `.bak-20260815-1558`. Pendiente opcional: re-medir Seed en
+      banco (fuente regulable) para fijar el valor exacto del aviso (~3800).
+- [ ] Opcional: re-medición Seed en banco → fijar `navaGetLpcompWakeMv` Seed a valor
+      empírico (~3800) si difiere del actual 3670.
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
@@ -171,8 +184,11 @@ TRABAJAR SOBRE EL CÓDIGO (añadir funciones, cambios, compilar):
   (claves, canal, BT, rol), rutas libdeps (R2 relativas, R1 r1promic/r1xiaoki). El banco
   SOLO valida promicro+E22P+R2IG: anotar qué queda sin validar en las otras 11.
 - NO TOCAR sin orden expresa: LPCOMP (main-nrf52.cpp), delay(3000) pre-sueño,
-  delay(500)+force del pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), F16c/d/e.
-- F16b BLE resumeAdvertising y F17 PKI_SEND_FAIL: pendientes anotados (BITACORA).
+  delay(500)+force del pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), F16d/e.
+- F16b BLE resumeAdvertising: pendiente anotado (BITACORA). F17 PKI_SEND_FAIL: pendiente
+  con candidato — explicación del auditor (15/08): comportamiento estándar de Meshtastic
+  (clave pública del destino aún no aprendida, Router.cpp:669); vigilar timing de
+  aprendizaje de claves si reaparece.
 - MÁS ALLÁ (si se pide): regresión Eclipse en campo, opcional progname OTA, Felix.
 
 TRAMPAS CONOCIDAS: reboot automático 7s tras --set (esperar ≥30s); polls --info lentos;

@@ -646,7 +646,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             enqueueResponse(replyDest, replyChannel, usageAndState(topic), true);
         } else {
             enqueueResponse(replyDest, replyChannel,
-                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / power / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg [on|off] / reboot / factory_reset / admin_ls\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
+                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg [on|off] / reboot / factory_reset / admin_ls / power\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
         }
     }
     else if (cmd == "ping") {
@@ -1597,7 +1597,7 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
     else if (topic == "noise")
         return "noise: Piso de ruido instantaneo del chip de radio. Uso: /nava noise";
     else if (topic == "power")
-        return "power: Metricas de energia: ADC interno + INA219/260 (V, +-mA, CARGANDO/DESCARGANDO, mW). Uso: /nava power";
+        return "power: Metricas de energia: ADC interno + INA219/260 (V, +-mA, CARGANDO/DESCARGANDO, mW). SOLO DM SEGURO. Uso: /nava power";
     else if (topic == "bat")
         return "bat: Estado de bateria: quimica activa, voltaje, % OCV y estado TX. Uso: /nava bat";
     else if (topic == "fav")

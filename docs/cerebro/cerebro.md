@@ -331,20 +331,33 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     654321, backup de claves, gestión de claves admin (2 propias + desautorizar la de fábrica
     en slot 0 — el slot 0 vacío se re-inyecta), estado de pruebas por placa, licencia GPL v3
     + cumplimiento (fuente de los binarios en el mismo commit) + disclaimer.
-- **Trampas de la publicaci�n (L24-L26 en BITACORA)**: el checkout entre ramas BORRA del
+- **Trampas de la publicaci�n (L24-L26 en BITACORA)**: el checkout entre ramas BORRA del
     disco los ficheros force-add que la otra rama no trackea (distribucion/workflows) ?
-    repoblar `distribuir.ps1 -Todo` tras cada publicaci�n y regenerar la hu�rfana borr�ndola
-    antes; el token GitHub del operador se comparti� por chat ? REVOCAR y usar uno puntual
-    por sesi�n (o gh CLI).
-- **2026-08-15 (23� parte) � HANDOVER FINAL (cierre de sesi�n)**: sesi�n cerrada y
+    repoblar `distribuir.ps1 -Todo` tras cada publicaci�n y regenerar la hu�rfana borr�ndola
+    antes; el token GitHub del operador se comparti� por chat ? REVOCAR y usar uno puntual
+    por sesi�n (o gh CLI).
+- **2026-08-15 (23� parte) � HANDOVER FINAL (cierre de sesi�n)**: sesi�n cerrada y
   commitada (master `9d45c2bbf`). **SNAPSHOT FINAL**: `_archivo\NavaTastic Eclipse Edition
-  V2 - FINAL 20260815 (HEAD 9d45c2bbf).zip` (5.85 MB, 2205 entradas) � versi�n final y
-  completa (V2.6 + README biling�e + docs GitHub + escudo), reemplaza al intermedio del
+  V2 - FINAL 20260815 (HEAD 9d45c2bbf).zip` (5.85 MB, 2205 entradas) � versi�n final y
+  completa (V2.6 + README biling�e + docs GitHub + escudo), reemplaza al intermedio del
   80e9f7e14. **PROMPT DE RETOMA reescrito** en PLAN_DE_TRABAJO.md (estado V2.6 + GitHub +
-  snapshot FINAL + c�mo trabajar sobre el c�digo + Propia + trampas).
+  snapshot FINAL + c�mo trabajar sobre el c�digo + Propia + trampas).
   `docs\INSTRUCCION_AUDITORIA_CLAUDE.md` actualizado al repo unificado con el material
-  personal excluido (orden del operador). Queda en manos del operador: auditor�a externa
-  del c�digo (Claude, amigo del operador) y prompt de auditor�a de MeshNavarra-Utility.
+  personal excluido (orden del operador). Queda en manos del operador: auditor�a externa
+  del c�digo (Claude, amigo del operador) y prompt de auditor�a de MeshNavarra-Utility.
+- **2026-08-15 (24ª parte) — RONDA AUDITORÍA EXTERNA (Claude, pack 14/08) analizada y resuelta**:
+  la auditoría encontró 1 bug "MEDIO" + 1 "BAJO" + 2 observaciones + 1 confirmación. Contrastada
+  contra el código VIVO: (1) §1 Seed 3670 mV en `navaGetLpcompWakeMv` — **RECHAZADO el fix
+  propuesto (4084)**: el operador verificó en banco (firmware 4.2, mismo `3_8`) que el Seed
+  despierta a **~3,8 V** → divisor efectivo ~0,326, NO 0,303 (la teoría desde ADC_MULTIPLIER 3.3
+  falla ~300 mV; L27 en BITACORA). Hardware idéntico 4.2→actual (variant.h LPCOMP byte-idéntico;
+  única diferencia HYST_NOHYST→ENABLED 50 mV, diseño 4.3/V2). El número del aviso es solo
+  informativo; pendiente opcional re-medición fina en banco (~3800). (2) §2 help listaba `power`
+  en [Q] sin whitelist — **FIX APLICADO** (movido a [E] + "SOLO DM SEGURO"; cosmético). (3) §3
+  F16c confirmado correcto (`substr(7)`) → CERRADO. (4) §4 TEMP F15 y §5 gate version: ya
+  resueltos el 15/08 (verificado). (5) §6 migración 80B: por diseño, riesgo 0. (6) F17: anotada
+  explicación candidata (PKI estándar, clave no aprendida antes del 1er NodeInfo). Backups
+  `.bak-20260815-1558`. Detalle: BITACORA "RONDA AUDITORÍA EXTERNA 15/08".
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

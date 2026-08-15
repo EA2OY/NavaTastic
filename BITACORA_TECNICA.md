@@ -300,8 +300,9 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   tras acreditar/favoritear (solo si cambia) + verificado en banco (PONG antes/después de reboot).
 - **F16b — BLE**: baliza no reaparece tras shutdown() sin power-cycle (revisar
   resumeAdvertising; mitigado: serialEnter apaga BLE con CLI USB — comportamiento normal).
-- **F16c — `fav rm` substr(8)** con "fav rm" de 6 letras se come el 1er carácter del id
-  (fav add/auto OK).
+- **F16c — `fav rm` substr(8)**: **CERRADO (15/08)** — auditoría externa (pack 14/08) confirmó
+  que el código actual usa `substr(7)` correcto ("fav rm"=6 + espacio en 6 → id en 7,
+  NavaCLIModule.cpp:752). El aviso de la 11ª parte quedó obsoleto; nunca hubo bug en el drop actual.
 - **F16d — jitter quick 300-2300ms muerto** (setIntervalFromNow pisado por
   OSThread::run→setInterval; cosmético).
 - **F16e — whitelist canal 1 sin `sleepmsg`** (solo lectura por canal 1; consulta por DM
@@ -497,3 +498,46 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   trampas (F1-F12 + MAX_PATH + .pio heredado + no paralelizar). Material base: diffs reales
   vs prístino (git diff 54e0d8d0a..HEAD, 69 ficheros), anclas localizadas por grep
   (NAVARICO:, USERPREFS_*, FIX_NATIVE_CORE_RESET, funciones), BITACORA F1-F12 y docs/.
+
+## RONDA AUDITORÍA EXTERNA 15/08 (Claude, fichero "auditoria claude 150826 1539.MD") — análisis y veredicto
+
+> La auditoría trabajó sobre un pack del 14/08; contrastada contra el código VIVO (15/08).
+> Resultado por hallazgo:
+
+- **§1 [MEDIO] `navaGetLpcompWakeMv()` Seed reporta 3670 mV (propuesta del auditor: 4084)** —
+  **RECHAZADO por medición de laboratorio del operador**: el Seed probado en banco (firmware 4.2,
+  MISMO umbral `3_8`) despertaba a **~3,8 V** → divisor efectivo ~0,326, no 0,303 como asumía el
+  auditor desde `ADC_MULTIPLIER 3.3`. La medición manda sobre la teoría. Verificado además que el
+  hardware NO cambió entre 4.2 y el repo actual: `variant.h` idéntico en el bloque LPCOMP
+  (`INPUT_7`, `3_8`, `ADC_CTRL BAT_READ` LOW, `ADC_MULTIPLIER 3.3`); `main-nrf52.cpp` usa el mismo
+  `c.reference = 3_8` (vía `getActiveLpcompThreshold()`); única diferencia: `HYST_NOHYST` (4.2)
+  → `HYST_ENABLED` 50 mV (diseño 4.3/V2, anti-rebotes) → despierta ~50 mV más tarde, nunca antes.
+  El 3670 del aviso es SOLO informativo (`navaGetLpcompWakeMv` únicamente se usa en el texto de
+  [Sueño], NavaCLIModule.cpp:347). **Pendiente opcional**: re-medir Seed en banco con fuente
+  regulable y fijar el valor exacto del aviso (~3800) + docs.
+- **§2 [BAJO] help listaba `power` en [Q] (canal 1) sin estar en la whitelist** — **FIX APLICADO
+  (15/08)**: `power` movido de [Q] a [E] en el help (NavaCLIModule.cpp:649) + "SOLO DM SEGURO" en
+  `helpForCommand("power")` (1600). Cosmético; la whitelist real nunca permitió `power` por canal 1.
+- **§3 F16c** — confirmado: código correcto (`substr(7)`) → CERRADO (ver sección CANDIDATOS F16).
+- **§4 instrumentación TEMP F15** — ya retirada el 15/08 (verificado grep: 0 restos en src).
+- **§5 campo `version` nunca validado** — ya aplicado el 15/08: gates
+  `fileSize != sizeof(prefs) || version != 0x4E415653` en loadResiliencePrefs/navaResiliencePeek/
+  navaSetWasInSleep (NavaCLIModule.cpp:71/180/223).
+- **§6 migración 80B V2.0-V2.2** — comportamiento POR DISEÑO (todo fichero de 80 bytes migra a
+  defaults). Riesgo real ≈ 0: ningún nodo de campo corrió V2.0-V2.2 (la distribución -Todo -V2
+  estuvo bloqueada por F14/F15 toda la sesión); solo el nodo de banco, ya reflasheado a V2.3c.
+- **§8 F17 PKI_SEND_FAIL_PUBLIC_KEY** — anotada la explicación del auditor como candidato:
+  comportamiento ESTÁNDAR de Meshtastic (Router.cpp:669 — la clave pública del destino aún no está
+  en la NodeDB local, típico antes del primer intercambio de NodeInfo). Encaja con el síntoma
+  (~uptime 243 s = ciclo de nodeinfos). NO cerrado sin evidencia; si reaparece, mirar el timing de
+  aprendizaje de claves, no el cifrado.
+- **Verificación de paridad/estructura**: `C:\Firmware Navarrico 4.2\Rama 1 General\Seed Studio
+  Node P1 Rama 1` (referencia lab) vs repo actual — bloque LPCOMP de `variant.h` byte-idéntico;
+  `main-nrf52.cpp` 4.2 usaba `c.reference = BATTERY_LPCOMP_THRESHOLD` directo; actual
+  `getActiveLpcompThreshold()` → mismo `BATTERY_LPCOMP_THRESHOLD` bajo `#ifdef SEEED_SOLAR_NODE`.
+- **L27 — el divisor efectivo no se deduce del ADC_MULTIPLIER**: el multiplicador es la calibración
+  del ADC (incluye tolerancias); el divisor REAL del pin LPCOMP solo se conoce midiendo la tensión
+  de despertar en banco. La teoría (multiplier 3.3 → divisor 0.303) falló ~300 mV contra la
+  medición real (~3,8 V). Regla: dato empírico de banco > cálculo teórico.
+- Backups de esta ronda: `.bak-20260815-1558` (NavaCLIModule.cpp, BITACORA, PLAN, cerebro,
+  transfer_context, subnota 04).
