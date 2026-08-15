@@ -7,6 +7,13 @@
 #include <string>
 #include <utility>
 
+// NAVARICO F22: etiqueta de la generacion de firmware, compilada en el binario.
+// Bump manual en CADA release (visible en el commit). Se muestra en /nava status
+// y en el aviso [Boot]; permite saber por radio que version lleva un nodo.
+#ifndef NAVATASTIC_BUILD
+#define NAVATASTIC_BUILD "V3"
+#endif
+
 struct NavaResponse {
     NodeNum dest;
     uint8_t channel;
@@ -77,6 +84,11 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
 
     // Reset de fábrica diferido: se ejecuta en runOnce() cuando la cola de respuestas esté vacía
     bool factoryResetPending = false;
+
+    // V3 (FASE R1): reset completo (conserva claves PKI y bonds BLE) y wipe
+    // (purga total: par PKI nuevo + bonds). Diferidos con el mismo patron que factory_reset.
+    bool fullResetPending = false;
+    bool wipePending = false;
 
     // Storm diferido: temporizador de hibernación ejecutado en runOnce() tras vaciar la cola
     bool stormPending = false;

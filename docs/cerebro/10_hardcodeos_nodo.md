@@ -59,8 +59,8 @@ Inventario verificado 2026-08-11 contra el código real (Promicro R2IP como refe
 | LPCOMP input/threshold | `BATTERY_LPCOMP_INPUT` / `BATTERY_LPCOMP_THRESHOLD` | `variant.h` (cada variante) |
 | Umbral LPCOMP dinámico (Promicro/Faketec) o fijo (`#ifdef` por placa) | `getActiveLpcompThreshold()` | `src/platform/nrf52/main-nrf52.cpp` |
 | Corte batería (OCV clamp) | `OCV_ARRAY` | `variant.h` (cola: 3500 Promicro/E22P; 3400 resto) |
-| Pre-check sueño 3500 mV / 5 lecturas | `USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV` / `_READINGS_COUNT` | `userPrefs.jsonc` |
-| Filtro anti-rebote low_voltage_counter (4 vs 10) | `PROMICRO_DIY_TCXO` → `>4`; resto `>10` | `src/Power.cpp:1018-1022` |
+| Pre-check sueño 3500 mV / 8 lecturas (V3/F18) | `USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV` / `_READINGS_COUNT` | `userPrefs.jsonc` + perfiles |
+| Filtro anti-rebote low_voltage_counter (8 unificado V3/F18) | `USERPREFS_LOW_BATTERY_READINGS_COUNT` (fallback 8; antes `>4` Promicro vs `>10` resto) | `src/Power.cpp` |
 | `delay(3000)` antes de LPCOMP (leer voltaje + programar LPCOMP con éxito; evita bucle wake/sleep) | `cpuDeepSleep()` | `src/platform/nrf52/main-nrf52.cpp:522` |
 | `RADIO_POWER_ENABLE_PIN P0.17` (E22P) | `variant.h` | Promicro, Xiao E22P |
 | `waitUntilPowerLevelSafe` 2.7 V + 0.2 V | default `SAFE_VDD_VOLTAGE_THRESHOLD` | `src/platform/nrf52/main-nrf52.cpp` |

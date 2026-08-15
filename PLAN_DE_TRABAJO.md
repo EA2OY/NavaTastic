@@ -155,39 +155,40 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       (L29). **Faketec HT-RA62 probada por el operador el 14/08** → verificada. README/estado
       de pruebas actualizado. **4 de 6 placas verificadas** (Promicro, Faketec, Xiao×2);
       pendientes: Seed y T114.
-- [ ] **F18 (candidato, espera orden)**: unificar contador de baja a
-      `USERPREFS_LOW_BATTERY_READINGS_COUNT` para las 6 placas (hoy: `>4` Promicro/Faketec vs
-      `>10` resto en Power.cpp; la macro SOLO la usa el pre-check de main.cpp — "medio
-      huérfana"). **Decisión del operador (15/08, confirmada): 8 lecturas para AMBAS**
-      (monitor runtime ≈160 s Y pre-check de arranque): perfiles a `=8` + Power.cpp leyendo
-      la macro; manual/docs a actualizar ("5 lecturas" → "8"). Nota:
-      `USERPREFS_LORACONFIG_TX_POWER` es config muerta (L30); SX1262 = 22 dBm SIEMPRE
-      (decisión del operador, no tocar).
+- [x] **F18 (V3, 15/08) — 8 lecturas para TODAS las placas**: 13 jsonc
+      (12 perfiles + `userPrefs.jsonc`) `USERPREFS_LOW_BATTERY_READINGS_COUNT` `"5"`→`"8"` +
+      Power.cpp unificado contra la macro (`>= 8`, fallback `#ifndef → 8`; eliminado el
+      `#ifdef` asimétrico `>4` Promicro/Faketec vs `>10` resto). El pre-check de main.cpp
+      ya leía la macro → 8 lecturas rápidas (~1,6s) sin tocar código. Monitor runtime
+      ≈160s. Manuales/docs actualizados ("5 lecturas ~100s" → "8 ~160s").
+- [x] **BLOQUE R fase R1 (V3, 15/08) — `/nava full_reset` + `/nava wipe`**: comandos con
+      ACK diferido (patrón factory_reset): full_reset = `FSCom.remove("/resilience.bin")` +
+      `factoryReset(false)` (**conserva par PKI y bonds BLE** → revert remoto sin romper la
+      malla); wipe = remove resilience.bin + `factoryReset(true)` (**par PKI nuevo** +
+      peers + bonds; NodeNum intacto por MAC). DM-PKI automático (fuera de la whitelist del
+      canal 1). Help/manuales ES+EN con AVISO de re-aprendizaje PKI (L11). Escalera:
+      `factory_reset` → `full_reset` → `wipe`. **F20 (R2) NO tocada** — pendiente, solo con
+      R1 desplegado (el wipe es su botón de purga, L31).
+- [x] **F22 (V3, 15/08) — etiqueta de build**: `#define NAVATASTIC_BUILD "V3"` en
+      NavaCLIModule.h (bump manual por release, visible en el commit) + primera línea de
+      `/nava status` (`NAVA V3 | fw <versión>` vía `optstr(APP_VERSION)`) + etiqueta en el
+      aviso [Boot] (en [Sueño]/[Vivo]/[Listo] NO — decisión del operador). Verificado:
+      12/12 envs SUCCESS. Pendiente: test en banco + distribuir -Todo -V2 + release GitHub
+      cuando lo ordene el operador.
 
 ## Posibles ampliaciones (anotadas 15/08, esperan orden)
-- [ ] **BLOQUE R — Resets remotos** (una opción de plan, DOS fases; idea del operador).
-  Riesgo por pieza: F19 BAJO · F21 MEDIO (destructivo: par PKI nuevo → peers re-aprenden,
-  L11) · F20 MEDIO-ALTO (modelo de seguridad + formato del struct):
-  - **Fase R1 = F19 + F21 juntas** (comparten armazón: comandos `/nava`, patrón diferido con
-    ACK, sin cambios de struct ni migración; un solo ciclo de build+banco):
-    - `F19 /nava full_reset`: factory_reset + borrar `/resilience.bin` (semi-persistentes →
-      defaults de perfil) **CONSERVANDO claves PKI** → revertir ajustes remotos sin PC.
-    - `F21 /nava wipe` (purga de compromiso): erase total + **regeneración del par PKI**
-      (equivalente remoto del `nrf erase`). El NodeNum se conserva SOLO (deriva de la MAC del
-      hardware, NodeDB.cpp:1269 — verificado): los peers re-aprenden la pubkey nueva del mismo
-      id (camino H3/updateUser). Escalera: `factory_reset` → `full_reset` → `wipe`.
-  - **Fase R2 = F20 sola** (persistir claves admin en `/resilience.bin` para que sobrevivan a
-    resets de fábrica — hoy se pierden, L10). Es la que toca el MODELO DE SEGURIDAD y el
-    FORMATO del struct (bump de `version` → migración en todos los nodos desplegados) → va
-    última, evaluada con el flujo de compromiso real, y SOLO puede existir con F21 ya hecho.
-    Mitigaciones: solo claves PÚBLICAS; slot 0 SIEMPRE = clave del proyecto; versionado;
-    sincronía con /prefs. Regla: F20 sin F21 NO se hace (el wipe es su botón de purga).
-- [ ] **F22 — etiqueta de build en `/nava status`** (idea del operador): hoy no hay forma de
-      saber por radio qué versión NavaTastic lleva un nodo (V2/V2.6 eran nombres de iteración
-      no compilados). Propuesta: macro `NAVATASTIC_BUILD` (inyectada desde platformio-custom.py,
-      inerte por defecto, bump manual en cada release) + mostrarla en `status`
-      (`NAVA V2.7 | fw 2.7.26 (54e0d8d)`) y opcionalmente en el [Boot] junto a la causa.
-      Coste: NavaCLIModule.h/.cpp + 12 envs + banco. Riesgo bajo.
+- [x] **BLOQUE R — FASE R1 HECHA (V3, 15/08)**: F19 `full_reset` + F21 `wipe` implementados
+  (ver arriba). Riesgo por pieza: F19 BAJO · F21 MEDIO (destructivo: par PKI nuevo → peers
+  re-aprenden, L11).
+- [ ] **BLOQUE R — FASE R2 (pendiente) = F20 sola** (persistir claves admin en
+  `/resilience.bin` para que sobrevivan a resets de fábrica — hoy se pierden, L10). Es la que
+  toca el MODELO DE SEGURIDAD y el FORMATO del struct (bump de `version` → migración en
+  todos los nodos desplegados) → va última, evaluada con el flujo de compromiso real, y SOLO
+  puede existir con F21 ya hecho (el wipe es su botón de purga). Mitigaciones: solo claves
+  PÚBLICAS; slot 0 SIEMPRE = clave del proyecto; versionado; sincronía con /prefs.
+  Regla: F20 sin F21 NO se hace.
+- [ ] **F22 seguimiento**: bump de `NAVATASTIC_BUILD` en cada release futuro (NavaCLIModule.h)
+  + publicación GitHub (release con los 24 binarios + PDFs, flujo de la Guía §9).
 
 ## GUÍA PARA LA SESIÓN DE IMPLEMENTACIÓN (F18 / BLOQUE R / F22)
 

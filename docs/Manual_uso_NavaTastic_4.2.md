@@ -122,7 +122,7 @@ Si el nodo entra en brownout por no haber tapado el panel, **desconectar la corr
 
 ### A. Sistema Anti-Brownout (Protección de Batería)
 
-1. **Monitoreo**: El firmware lee el voltaje de forma continua con filtro anti-falsos-positivos: para dormirse necesita **5 lecturas consecutivas por debajo del umbral crítico (3.4V - 3.5V) separadas ~20s** (~100s en total) — una sola lectura errónea del ADC (RF, temperatura, transitorios) no puede tumbar el nodo; cualquier lectura buena resetea el contador. (En el **arranque** el pre-check usa 5 lecturas rápidas de 200ms como protección anti-brownout.)
+1. **Monitoreo**: El firmware lee el voltaje de forma continua con filtro anti-falsos-positivos: para dormirse necesita **8 lecturas consecutivas por debajo del umbral crítico (3.4V - 3.5V) separadas ~20s** (~160s en total, V3 para las 6 placas) — una sola lectura errónea del ADC (RF, temperatura, transitorios) no puede tumbar el nodo; cualquier lectura buena resetea el contador. (En el **arranque** el pre-check usa 8 lecturas rápidas de 200ms como protección anti-brownout.)
 2. **Secuencia de apagado**: El nodo salva el estado en la memoria no volátil, apaga la radio poniendo el GPIO asignado en estado bajo y configura el comparador de bajo consumo integrado (**LPCOMP**) del microcontrolador nRF52840.
 3. **Consumo mínimo en hibernación**: El sistema entra en un sueño profundo donde el nRF52840 consume apenas **0.4 mA**. El consumo total del nodo (incluyendo un elevador de tensión/booster **MT3608**) se sitúa en un máximo de **1.5 mA** (o **2 mA** si el diseño incluye un ATTINY13a para reseteos cíclicos).
 4. **Colchón de seguridad**: Al cortar el consumo a estos niveles, se preserva un colchón de aproximadamente el **30%** de la capacidad de la batería. Esto evita la degradación química prematura por descarga profunda y otorga un margen de varios meses para que el sistema solar reciba radiación suficiente y recupere el sistema.
@@ -358,9 +358,9 @@ If the node brownouts anyway: disconnect power, cover the panel, repeat from the
 ### A. Anti-brownout system (battery protection)
 
 1. **Monitoring**: continuous voltage reading with an anti-false-positive filter: sleeping needs
-   **5 consecutive readings below the critical threshold (3.4 V–3.5 V) ~20 s apart (~100 s
-   total)** — a single spurious ADC reading (RF, temperature, transients) cannot take the node
-   down; any good reading resets the counter. (At boot, the pre-check uses 5 fast 200 ms
+   **8 consecutive readings below the critical threshold (3.4 V–3.5 V) ~20 s apart (~160 s
+   total; V3, all 6 boards)** — a single spurious ADC reading (RF, temperature, transients) cannot take the node
+   down; any good reading resets the counter. (At boot, the pre-check uses 8 fast 200 ms
    readings as anti-brownout protection.)
 2. **Shutdown sequence**: the node saves state to non-volatile memory, powers the radio down
    (GPIO LOW) and arms the nRF52840's low-power comparator (**LPCOMP**).

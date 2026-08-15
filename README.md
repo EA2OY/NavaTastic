@@ -53,7 +53,7 @@ la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes 
 | `fav add/rm/ls` · `fav auto` | Favoritos (bypass de saltos) y auto-favoriteo | DM |
 | `ign add/rm/ls` | Bloqueo y desbloqueo de nodos | DM |
 | `db_purge` · `db_clear` | Limpieza de la base de nodos | DM |
-| `reboot` · `factory_reset` | Reinicio y reset de fábrica diferidos (el ACK sale antes) | DM |
+| `reboot` · `factory_reset` · `full_reset` · `wipe` | Reinicio y resets diferidos (el ACK sale antes): fábrica (clave PKI nueva) · completo (conserva PKI y bonds) · purga total (par PKI nuevo; los peers re-aprenden) | DM |
 | `storm [1-720]` | Hibernación por temporizador (radio apagada) | DM |
 | `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Difundir texto · alarma · posición · baliza · telemetría | DM |
 | `admin_ls` · `help` | Claves admin configuradas · ayuda de comandos | DM / Abierto |
@@ -135,6 +135,9 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 ## Descargas (firmware compilado)
 
 Última versión: **V2.6.1 (15/08/2026)** — ciclo sueño/despertar definitivo verificado en banco.
+**V3 (código, 15/08)**: etiqueta de build `NAVA V3` en `status`/[Boot], 8 lecturas de batería
+baja (~160s) unificadas para las 6 placas y resets remotos `/nava full_reset` (conserva claves
+PKI) y `/nava wipe` (purga total, par PKI nuevo) — pendiente de publicar como release.
 
 **Descarga los binarios desde [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
 (panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 2 manuales PDF. NIMH = mismos binarios
@@ -330,7 +333,7 @@ predefined messages.
 | `fav add/rm/ls` · `fav auto` | Favorites (hop bypass) and auto-favoriting | DM |
 | `ign add/rm/ls` | Block / unblock nodes | DM |
 | `db_purge` · `db_clear` | Node database cleanup | DM |
-| `reboot` · `factory_reset` | Deferred reboot and factory reset (ACK first) | DM |
+| `reboot` · `factory_reset` · `full_reset` · `wipe` | Deferred reboot and resets (ACK first): factory (new PKI key) · full (keeps PKI + bonds) · wipe (total purge, new PKI pair; peers re-learn) | DM |
 | `storm [1-720]` | Timed hibernation (radio off) | DM |
 | `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Broadcast text · alarm · position · beacon · telemetry | DM |
 | `admin_ls` · `help` | Configured admin keys · command help | DM / Open |
@@ -394,6 +397,9 @@ To **compile with a different default chemistry**: add
 ## Downloads (prebuilt firmware)
 
 Latest release: **V2.6.1 (15/08/2026)** — definitive sleep/wake cycle, bench verified.
+**V3 (code, 15/08)**: `NAVA V3` build tag in `status`/[Boot], unified 8 low-battery readings
+(~160 s) for all 6 boards and remote resets `/nava full_reset` (keeps PKI keys) and
+`/nava wipe` (total purge, new PKI pair) — pending release publication.
 
 **Download the binaries from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
 (right-hand panel — *Assets*): 12 UF2 + 12 OTA + 2 PDF manuals. NIMH = same binaries as LIPO

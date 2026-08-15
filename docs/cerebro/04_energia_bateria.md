@@ -16,18 +16,20 @@
 
 | Aviso | Cuándo | Comportamiento |
 |---|---|---|
-| `[Sueño]` | Monitor runtime confirma V < corte (5 lecturas reales, ~100s) | Avisa + duerme **TODO** (`doDeepSleep`: preflight + radio->sleep + GPS + pantalla + System OFF) → **~1 mA** |
-| `[Vivo]` | Despertar por reset externo con V en [corte−100, corte) | Avisa y **SIGUE OPERANDO** (~100s) — el monitor decide después |
+| `[Sueño]` | Monitor runtime confirma V < corte (8 lecturas reales, ~160s desde V3/F18) | Avisa + duerme **TODO** (`doDeepSleep`: preflight + radio->sleep + GPS + pantalla + System OFF) → **~1 mA** |
+| `[Vivo]` | Despertar por reset externo con V en [corte−100, corte) | Avisa y **SIGUE OPERANDO** (~160s) — el monitor decide después |
 | `[Listo]` | Despertar con V ≥ corte (LPCOMP o reset) | Opera con normalidad |
-| `[Boot]` | Cualquier arranque NO venido del ciclo de sueño, a los **2 min de uptime** | Aviso con causa del reset (RESETREAS: WDT/RESETPIN/SOFT/LOCKUP/LPCOMP/VBUS); el retraso es el anti-bucle |
+| `[Boot]` | Cualquier arranque NO venido del ciclo de sueño, a los **2 min de uptime** | Aviso con causa del reset (RESETREAS: WDT/RESETPIN/SOFT/LOCKUP/LPCOMP/VBUS) + etiqueta de build (`NAVA V3`, F22); el retraso es el anti-bucle |
 
 **Bandas del pre-check al despertar de sueño** (gate = corte OCV, no LPCOMP):
 `V < corte−100` → silencio + re-sueño (brownout) · `[corte−100, corte)` → [Vivo] ·
 `V ≥ corte` → boot normal → [Listo]. El LPCOMP (~3.71V teórico, ~3.7-3.8V real según
 hardware) solo decide el despertar FÍSICO.
 
-**Anti-falsos positivos (el porqué de las 5 lecturas)**: el contador `low_voltage_counter`
-solo cuenta en lecturas NORMALES del monitor (Power cada 20s → 5 lecturas ≈ **100s**). Las
+**Anti-falsos positivos (el porqué de las 8 lecturas, F18/V3)**: el contador `low_voltage_counter`
+solo cuenta en lecturas NORMALES del monitor (Power cada 20s → 8 lecturas ≈ **160s**, umbral
+desde la macro del perfil `USERPREFS_LOW_BATTERY_READINGS_COUNT` — unificadas las 6 placas;
+antes era asimétrico: `>4` Promicro/Faketec vs `>10` resto). Las
 lecturas FORZADAS del pre-check (`readPowerStatus(true)`, force) **no incrementan el
 contador** (fix V2.6: antes pre-cargaban el contador y el nodo dormía ~20s tras arrancar
 con batería baja, saltándose el filtro). En campo, RF/temperatura/transitorios pueden dar
@@ -47,8 +49,11 @@ de estado** antes de System OFF (V2.6: un LED enclavado consumía ~10 mA).
   (dormía a los ~20s tras un arranque con batería baja, en silencio).
 - **V2.4 intermedio (descartado)**: [Vivo] con re-sueño inmediato (~8s) y `cpuDeepSleep`
   directo → dormía "enseguida", LED enclavado, y las SX1262 no apagaban la radio.
-- **V2.6 (actual)**: [Vivo] opera → monitor 100s → [Sueño] → `doDeepSleep` completo +
+- **V2.6 (actual)**: [Vivo] opera → monitor ~100s → [Sueño] → `doDeepSleep` completo +
   LED off → ~1 mA. = comportamiento de Eclipse + los avisos encima.
+- **V3 (15/08, F18)**: igual que V2.6 con el contador unificado a **8 lecturas (~160s)**
+  para las 6 placas (umbral del perfil `USERPREFS_LOW_BATTERY_READINGS_COUNT`; Power.cpp
+  ya no usa `#ifdef` asimétrico `>4`/`>10`).
 
 ## PORQUÉ DE TODA LA RESILIENCIA ENERGÉTICA (brownout de ascenso solar)
 **Problema documentado (Nordic nRF52 y también ESP32)**: si la batería se sobredescarga el nodo se apaga; al día siguiente el regulador solar empieza a ascender su tensión y se genera un estado **inestable en el MCU que lo deja bloqueado**: no responde ni al botón de reset, solo lo saca un corte limpio de corriente. Es el escenario que motiva todas las medidas de NavTastic:
@@ -58,7 +63,7 @@ de estado** antes de System OFF (V2.6: un LED enclavado consumía ~10 mA).
 - LPCOMP `3_8`/`2_8` (despertar por tensión con histéresis) evita arrancar a tensión inestable y volver a bloquearse.
 
 ## Pre-check de batería (main.cpp)
-Mide 5 lecturas espaciadas 200ms; si ≥4-5 por debajo de `USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV` → `cpuDeepSleep(portMAX_DELAY)` antes de inicializar radio/flash (evita brownout de arranque).
+Mide 8 lecturas espaciadas 200ms (V3/F18: `USERPREFS_LOW_BATTERY_READINGS_COUNT=8`); si están por debajo de `USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV` → `cpuDeepSleep(portMAX_DELAY)` antes de inicializar radio/flash (evita brownout de arranque).
 
 ## LPCOMP (main-nrf52.cpp, `cpuDeepSleep()`)
 - Histéresis `NRF_LPCOMP_HYST_ENABLED` (50mV), divisor mantenido (`ADC_CTRL`), umbral dinámico `getActiveLpcompThreshold()`.

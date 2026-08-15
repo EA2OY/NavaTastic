@@ -668,3 +668,45 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   PKI vía blank de security.private_key o factoryReset completo; NodeNum estable por MAC),
   F22 (macro vía platformio-custom.py). Estado: 4/6 placas verificadas; GitHub v2.6.1
   publicado; commits del día en master (ver git log).
+
+### V3 (15/08, sesión de IMPLEMENTACIÓN) — F18 + BLOQUE R fase R1 + F22
+- **FASE 1 validada con el operador** (plan en lenguaje fácil + 5 preguntas trasladadas al
+  agente de la sesión anterior): F22 = `#define` manual en NavaCLIModule.h (NO env-var: la
+  vía platformio-custom.py tiene fallo silencioso si se olvida la variable; los NAVARICO_*
+  de entorno existen solo por paridad) · etiqueta inicial **V3** · ambos comandos en help
+  [E] + helpForCommand + manuales ES/EN con AVISO de re-aprendizaje PKI en wipe · etiqueta
+  en [Boot] SÍ, en [Sueño]/[Vivo]/[Listo] NO · wipe = `eraseBleBonds=true` + `FSCom.remove
+  ("/resilience.bin")` explícito (el factory reset no lo borra, por diseño) · ACK + 3s +
+  reboot idéntico a factory_reset.
+- **F18 (8 lecturas, ~160s)**: los 13 jsonc (12 perfiles + userPrefs.jsonc raíz)
+  `USERPREFS_LOW_BATTERY_READINGS_COUNT` `"5"`→`"8"`. Power.cpp: eliminado el `#ifdef`
+  asimétrico (`>4` PROMICRO_DIY_TCXO / `>10` resto) → comparación única
+  `low_voltage_counter >= USERPREFS_LOW_BATTERY_READINGS_COUNT` con fallback
+  `#ifndef → 8` a nivel de fichero (cubre envs sin perfil, p. ej. native). LOG `%d/%d`.
+  El pre-check de main.cpp ya leía la macro → queda a 8 sin tocar código (8×200ms ≈ 1,6s).
+- **BLOQUE R fase R1**: comandos `/nava full_reset` (ACK → diferido → `FSCom.remove
+  ("/resilience.bin")` + `nodeDB->factoryReset(false)` → **conserva par PKI y bonds BLE**,
+  `installDefaultConfig(preserveKey=true)`) y `/nava wipe` (ACK → diferido → remove
+  resilience.bin + `nodeDB->factoryReset(true)` → **par PKI nuevo** (private_key.size=0 →
+  regen al boot) + peers borrados (`installDefaultNodeDatabase`) + bonds BLE). Flags
+  `fullResetPending`/`wipePending` en NavaCLIModule.h; ejecución en el bloque diferido de
+  runOnce junto a factoryResetPending. **DM-PKI automático**: fuera de la whitelist del
+  canal 1 → `ERR: SOLO DM SEGURO` por canal. NodeNum intacto (deriva de la MAC). Escalera:
+  `factory_reset` → `full_reset` → `wipe`. F20 (claves admin en resilience.bin) NO tocada
+  (fase R2).
+- **F22**: `#define NAVATASTIC_BUILD "V3"` en NavaCLIModule.h (bump manual por release,
+  visible en el commit) + primera línea de `/nava status` (`NAVA V3 | fw 2.7.26.31cd4cc` vía
+  `optstr(APP_VERSION)`) + etiqueta en el [Boot].
+- **L32 — dos errores de compilación al primer intento, ambos de la sesión** (corregidos):
+  (1) usé `APP_VERSION` directamente en `snprintf` — es un **token crudo** (`-DAPP_VERSION=
+  2.7.26.54e0d8d` sin comillas): `error: too many decimal points in number`. El código
+  upstream SIEMPRE lo consume con `optstr(APP_VERSION)`/`xstr()` (stringify). (2) typo
+  `navarricoResetReasonName` → la definición es `navaricoResetReasonName` (una r; NavaCLIModule
+  .cpp:299). Detección: build del env banco antes de la ronda completa.
+- **Verificación**: `navarrico_promicro_e22p_r2ig` SUCCESS (banco) → grep (13/13 jsonc a 8,
+  0 restos `>5`, 0 restos `low_voltage_counter >`) → **12/12 envs SUCCESS** (lotes paralelos
+  de envs DISTINTOS). Pendiente: test en banco (full_reset conserva clave → DM sigue OK sin
+  re-aprender; wipe → peers fallan PKI hasta `--remove-node` + NodeInfo nuevo; F18 → ~160s
+  operando antes de [Sueño]) + distribuir -Todo -V2 + PDFs + commit.
+- Backups: `.bak-20260815-2109` (19 ficheros: Power.cpp, NavaCLIModule.h/.cpp, 13 jsonc, 2
+  manuales).

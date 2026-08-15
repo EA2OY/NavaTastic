@@ -38,7 +38,7 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 ## 📊 1. Diagnóstico y Telemetría (Permitidos en Canal Abierto y DM)
 
 - **`/nava ping`** — Respuesta de latencia con uptime y piso de ruido. Ej: `PONG: RN1 | SNR: 3.5 dB | Bat: 4120 mV | UP: 32d 4h | RUIDO: -120 dBm`. Rate-limit: 1 respuesta cada 10s por nodo.
-- **`/nava status`** — Salud de memoria: nodos RAM/80, favoritos **Manual/Auto reales** (persisten tras reinicio), huérfanos, estado Auto-Fav, tiempo activo y línea de energía (ADC + INA si presente).
+- **`/nava status`** — Salud de memoria: etiqueta de build NavaTastic (`NAVA V3 | fw 2.7.26…`), nodos RAM/80, favoritos **Manual/Auto reales** (persisten tras reinicio), huérfanos, estado Auto-Fav, tiempo activo y línea de energía (ADC + INA si presente).
 - **`/nava env`** — Batería, heap, temperatura CPU nRF52 y sensor ambiental I2C.
 - **`/nava channel`** — Uso de espectro (airtime % y TX %).
 - **`/nava peers`** — Vecinos directos a 0 saltos (ID, rol, SNR, tiempo desde último contacto).
@@ -80,7 +80,9 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 - **`/nava db_purge`** — Expulsa nodos temporales conservando favoritos y admins.
 - **`/nava db_clear`** — Vacía la base de nodos (nuclear). **Importante**: `db_clear` borra también tu propia entrada del repetidor; el DM PKI solo se descifra con tu entrada en su base de datos. Para re-acreditar: **fuerza desde tu mando el reenvío de tu propio NodeInfo (broadcast, NO DM)** antes de enviar cualquier `/nava`. Sin ese paso, el repetidor no responderá hasta el próximo NodeInfo periódico de tu mando (hasta 72 h).
 - **`/nava reboot`** — Reinicio diferido a 3s (el ACK sale antes).
-- **`/nava factory_reset`** — Reset de fábrica de emergencia restaurando canales de rescate (el ACK sale antes de ejecutarse).
+- **`/nava factory_reset`** — Reset de fábrica de emergencia restaurando canales de rescate (el ACK sale antes de ejecutarse). **Regenera el par PKI** (los peers fallan DM hasta re-aprender; L11).
+- **`/nava full_reset`** — Reset completo: configuración + semi-persistentes (`/resilience.bin`) a defaults **conservando el par PKI y los bonds BLE** → revert remoto sin PC y sin romper la malla (el ACK sale antes de ejecutarse).
+- **`/nava wipe`** — Purga de compromiso: erase total + **par PKI NUEVO** + bonds BLE borrados (equivalente remoto del `nrf erase`). **AVISO**: los peers fallarán el DM PKI hasta re-aprender la clave nueva (quitar la entrada stale con `--remove-node` y forzar NodeInfo del nodo). El NodeNum NO cambia (deriva de la MAC). Escalera de resets: `factory_reset` → `full_reset` → `wipe`.
 
 ## 🔋 6. Energía y Resiliencia (SOLO DM PRIVADO CIFRADO)
 
@@ -111,13 +113,14 @@ El nodo puede anunciar **por el canal Navadmin (slot 1)** su ciclo de batería (
 NO afecta al comportamiento energético, solo a los avisos). Contenido: `ADC X mV | CPU X.X C`
 (solo sensores internos del nRF52 — los sensores I2C no están disponibles en estos momentos).
 **Verificado en banco 15/08/2026** (ciclo completo: [Vivo] → operación ~100s → [Sueño] → dormido
-~1 mA → LPCOMP ~3.7-3.8V → [Listo] → [Boot] a los 2 min):
+~1 mA → LPCOMP ~3.7-3.8V → [Listo] → [Boot] a los 2 min). **V3**: el monitor runtime usa **8
+lecturas (~160s)** para todas las placas.
 
 - **`/nava sleepmsg [on|off]`** — Activa/desactiva los avisos. **Sin argumento**: estado actual. Persiste en `/resilience.bin` (sobrevive a factory reset). Reparado en V2.3 (el gate nunca se activaba por comando).
-- **`[Sueño]`** — Antes de dormir por batería baja: nombre, id, ADC + temperatura del chip y tensión de despertar por LPCOMP. Se dispara tras **5 lecturas bajas del monitor (~100s)** — el filtro evita dormirse por lecturas ADC puntuales erróneas (RF/temperatura). Después duerme **TODO** (radio, GPS, pantalla, LED) → ~1 mA.
-- **`[Vivo]`** — Despertado por reset externo (p. ej. ATtiny13A) con batería en la **banda [corte−100 mV, corte)** (E22P: 3400-3500; SX1262: 3300-3400): aviso "sigo vivo, al límite de carga" y el nodo **sigue operando con normalidad** — el monitor decidirá dormir tras sus 5 lecturas si la baja persiste.
+- **`[Sueño]`** — Antes de dormir por batería baja: nombre, id, ADC + temperatura del chip y tensión de despertar por LPCOMP. Se dispara tras **8 lecturas bajas del monitor (~160s)** — el filtro evita dormirse por lecturas ADC puntuales erróneas (RF/temperatura). Después duerme **TODO** (radio, GPS, pantalla, LED) → ~1 mA.
+- **`[Vivo]`** — Despertado por reset externo (p. ej. ATtiny13A) con batería en la **banda [corte−100 mV, corte)** (E22P: 3400-3500; SX1262: 3300-3400): aviso "sigo vivo, al límite de carga" y el nodo **sigue operando con normalidad** — el monitor decidirá dormir tras sus 8 lecturas si la baja persiste.
 - **`[Listo]`** — Despertar con **V ≥ corte OCV** (por LPCOMP solar o reset externo): "despierto, cargando, listo para trabajar" — el nodo sigue operando con normalidad.
-- **`[Boot]` (V2.4)** — Aviso de arranque **diferido 2 minutos** (anti-bucle: un nodo en ciclo de reinicios nunca llega a enviarlo). Solo en arranques que NO vienen del ciclo de sueño: power-on, reset externo, **watchdog**, brownout, flasheo, `/nava reboot`. Incluye la **causa del reset** (registro RESETREAS: `WDT` = watchdog del firmware, `RESETPIN` = ATtiny/botón, `SOFT` = reboot/storm/flash, `LOCKUP`, `LPCOMP`, `VBUS`). Todos gated por `sleepmsg`.
+- **`[Boot]` (V2.4)** — Aviso de arranque **diferido 2 minutos** (anti-bucle: un nodo en ciclo de reinicios nunca llega a enviarlo). Solo en arranques que NO vienen del ciclo de sueño: power-on, reset externo, **watchdog**, brownout, flasheo, `/nava reboot`. Incluye la **causa del reset** (registro RESETREAS: `WDT` = watchdog del firmware, `RESETPIN` = ATtiny/botón, `SOFT` = reboot/storm/flash, `LOCKUP`, `LPCOMP`, `VBUS`) y la **etiqueta de build** (`NAVA V3`). Todos gated por `sleepmsg`.
 - Regla de silencio: si la batería está por debajo de corte−100 mV NO se envía nada — re-sueño directo (protección anti-brownout).
 - **Para recibirlos**: el observador/mando debe tener materializado el canal Navadmin (PSK pública `{0x01}`, slot 1) y estar en la misma frecuencia/parametros LoRa.
 
@@ -166,8 +169,8 @@ NO afecta al comportamiento energético, solo a los avisos). Contenido: `ADC X m
   - `handleReceived()` — autenticación: DM exige PKI; nodo no en DB -> responde una vez `NODO NO REGISTRADO EN NODEDB`; nodo conocido no-admin -> una vez `NO AUTORIZADO COMO ADMINISTRADOR` (rate-limit con `std::set<NodeNum> unauthorizedReplied`); canal 1 solo admins.
   - `executeCommand()` — normaliza a minúsculas ANTES del filtro de canal; whitelist canal 1; despacha comandos (con guards de longitud en `substr()`).
   - `helpForCommand(topic)` — ayuda por comando en español.
-  - `runOnce()` — drena `responseQueue` (fragmentos de 190 chars, retardo 12s entre fragmentos), envía [Vivo]/[Listo] en el primer tick, ejecuta `txoff`/`reboot`/`factory_reset`/`storm` diferidos.
-- **Flags internos**: `rebootScheduled`, `factoryResetPending`, `stormPending`/`stormSeconds`, `txOffScheduled`.
+  - `runOnce()` — drena `responseQueue` (fragmentos de 190 chars, retardo 12s entre fragmentos), envía [Vivo]/[Listo] en el primer tick, ejecuta `txoff`/`reboot`/`factory_reset`/`full_reset`/`wipe`/`storm` diferidos.
+- **Flags internos**: `rebootScheduled`, `factoryResetPending`, `fullResetPending`, `wipePending`, `stormPending`/`stormSeconds`, `txOffScheduled`.
 - **Persistencia**: `ResiliencePrefs` en `/resilience.bin` (química, vbat, vwake, tx, ble, auto-fav, `sleepMsgs`, rol —ambas ramas—, marcador `version` 84 B). **F15**: se recrea el fichero antes de escribir (el `FILE_O_WRITE` de InternalFS no trunca) y se migran ficheros antiguos/corruptos.
 - **Avisos por canal**: los mensajes [Sueño]/[Vivo]/[Listo] se encolan SIEMPRE con `NODENUM_BROADCAST` (nunca `to=0`: no es broadcast y nadie lo entrega — fix Frente A 15/08).
 
@@ -200,7 +203,7 @@ NO afecta al comportamiento energético, solo a los avisos). Contenido: `ADC X m
 ## 1. Diagnostics & telemetry (open channel and DM)
 
 - **`/nava ping`** — Latency reply with uptime and noise floor. Rate-limit: 1 reply every 10 s per node.
-- **`/nava status`** — Memory health: nodes RAM/80, **real Manual/Auto favorites** (persist across
+- **`/nava status`** — Memory health: NavaTastic build tag (`NAVA V3 | fw 2.7.26…`), nodes RAM/80, **real Manual/Auto favorites** (persist across
   reboots), orphans, auto-fav state, uptime and energy line (ADC + INA when present).
 - **`/nava env`** — Battery, heap, nRF52 CPU temperature and I2C environmental sensor.
 - **`/nava channel`** — Spectrum usage (airtime % and TX %).
@@ -249,7 +252,9 @@ NO afecta al comportamiento energético, solo a los avisos). Contenido: `ADC X m
   DM)** before sending any `/nava` — otherwise the repeater stays silent until your next periodic
   NodeInfo (up to 72 h).
 - **`/nava reboot`** — Deferred reboot at 3 s (ACK goes out first).
-- **`/nava factory_reset`** — Emergency factory reset restoring rescue channels (ACK first).
+- **`/nava factory_reset`** — Emergency factory reset restoring rescue channels (ACK first). **Regenerates the PKI keypair** (peers fail DM until they re-learn; L11).
+- **`/nava full_reset`** — Full reset: config + semi-persistent (`/resilience.bin`) to defaults **keeping the PKI keypair and BLE bonds** → remote revert without a PC and without breaking the mesh (ACK first).
+- **`/nava wipe`** — Compromise purge: total erase + **NEW PKI keypair** + BLE bonds cleared (remote equivalent of `nrf erase`). **WARNING**: peers will fail PKI DM until they re-learn the new key (remove the stale entry with `--remove-node` and force the node's NodeInfo). The NodeNum does NOT change (derived from the MAC). Reset ladder: `factory_reset` → `full_reset` → `wipe`.
 
 ## 6. Energy & resilience (ENCRYPTED DM ONLY)
 
@@ -289,22 +294,22 @@ The node can announce its battery cycle **on the Navadmin channel (slot 1)** (ON
 does NOT affect energy behavior, only the notices). Content: `ADC X mV | CPU X.X C` (internal
 nRF52 sensors only — I2C sensors are unavailable at those moments). **Bench-verified 15/08/2026**
 (full cycle: [Vivo] → ~100 s operation → [Sueño] → ~1 mA sleep → LPCOMP ~3.7-3.8 V → [Listo] →
-[Boot] at 2 min):
+[Boot] at 2 min). **V3**: the runtime monitor uses **8 readings (~160 s)** on all boards.
 
 - **`/nava sleepmsg [on|off]`** — Enables/disables notices. Persists in `/resilience.bin`.
   Fixed in V2.3 (the gate never activated by command before).
 - **`[Sueño]`** — Before low-battery sleep: name, id, ADC + chip temperature and LPCOMP wake
-  voltage. Fires after **5 low monitor readings (~100 s)** — the filter prevents sleeping on
+  voltage. Fires after **8 low monitor readings (~160 s)** — the filter prevents sleeping on
   spurious ADC readings (RF/temperature). Then sleeps EVERYTHING (radio, GPS, screen, LED) → ~1 mA.
 - **`[Vivo]`** — Woken by external reset (e.g. ATtiny13A) with battery in the band
   **[cutoff−100 mV, cutoff)** (E22P: 3400-3500; SX1262: 3300-3400): "alive, at the charge limit"
-  and the node **keeps operating normally** — the monitor decides after its 5 readings.
+  and the node **keeps operating normally** — the monitor decides after its 8 readings.
 - **`[Listo]`** — Wake with **V ≥ OCV cutoff** (solar LPCOMP or external reset): "awake, charging,
   ready" — normal operation continues.
 - **`[Boot]` (V2.4)** — Startup notice **delayed 2 minutes** (anti-loop: a node in a reset cycle
   never sends it). Only on boots NOT coming from the sleep cycle: power-on, external reset,
   **watchdog**, brownout, flash, `/nava reboot`. Includes the **reset cause** (RESETREAS: `WDT`,
-  `RESETPIN`, `SOFT`, `LOCKUP`, `LPCOMP`, `VBUS`). All gated by `sleepmsg`.
+  `RESETPIN`, `SOFT`, `LOCKUP`, `LPCOMP`, `VBUS`) and the **build tag** (`NAVA V3`). All gated by `sleepmsg`.
 - Silence rule: below cutoff−100 mV nothing is sent — direct re-sleep (anti-brownout protection).
 - **To receive them**: the observer/control node must have the Navadmin channel materialized
   (public PSK `{0x01}`, slot 1) and use the same frequency/LoRa parameters.
@@ -351,6 +356,6 @@ nRF52 sensors only — I2C sensors are unavailable at those moments). **Bench-ve
 > the source of truth. Class `NavaCLIModule` (SinglePortModule + OSThread): `wantPacket()` (DM or
 > channel 1), `handleReceived()` (PKI auth, one-time replies to non-admins), `executeCommand()`
 > (lowercases before the channel whitelist), `helpForCommand()`, `runOnce()` (drains the fragment
-> queue, deferred txoff/reboot/factory_reset/storm). Persistence: `ResiliencePrefs` in
+> queue, deferred txoff/reboot/factory_reset/full_reset/wipe/storm). Persistence: `ResiliencePrefs` in
 > `/resilience.bin` (84 B with version marker; legacy/corrupt files auto-migrate). The
 > [Sueño]/[Vivo]/[Listo] notices always enqueue with `NODENUM_BROADCAST` (never `to=0`).

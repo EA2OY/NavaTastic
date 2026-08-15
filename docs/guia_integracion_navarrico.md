@@ -73,7 +73,7 @@ Documento **2 de 3** del proyecto Navarrico. Esta guía detalla el **paso a paso
             NavaCLIModule::navaSetWasInSleep(true);
             if (NavaCLIModule::peekSleepMsgsEnabled() && navaFromSleep &&
                 lastLowMv >= (int)lowBattSleepMv - 100) {
-                // banda [corte-100, corte): anunciar [Vivo] y OPERAR (~100s); el
+                // banda [corte-100, corte): anunciar [Vivo] y OPERAR (~160s); el
                 // monitor runtime decidira dormir si la baja persiste
                 NavaCLIModule::navaSetVivoPending();
             } else {
@@ -87,7 +87,9 @@ Documento **2 de 3** del proyecto Navarrico. Esta guía detalla el **paso a paso
 
 **V2.6 (claves del comportamiento, verificado en banco)**: el despertar con V ≥ corte opera normal
 ([Listo]); con V en [corte−100, corte) anuncia [Vivo] y **sigue operando** — el monitor runtime
-(`Power.cpp`, contador `low_voltage_counter` SOLO con `!force`, 5 lecturas a ~20s ≈ 100s) decide
+(`Power.cpp`, contador `low_voltage_counter` SOLO con `!force`, 8 lecturas a ~20s ≈ 160s desde
+V3 — F18: umbral desde la macro del perfil `USERPREFS_LOW_BATTERY_READINGS_COUNT` para las 6
+placas) decide
 dormir ([Sueño] → `doDeepSleep`). `readPowerStatus(force=true)` NO incrementa el contador (si lo
 hiciera, el pre-check lo pre-cargaría y el nodo dormiría ~20s tras arrancar con batería baja,
 saltándose el filtro anti-falsos-positivos).

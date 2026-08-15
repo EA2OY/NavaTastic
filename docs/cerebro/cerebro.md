@@ -432,6 +432,20 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   para no re-derivar todo. Estado: V2.6 verificada, 4/6 placas verificadas (Promicro, Faketec,
   Xiao×2; pendientes Seed y T114), GitHub v2.6.1 publicado. Pendientes de implementar: F18,
   Bloque R (R1 → R2), F22; anotados: F16b/d/e, F17.
+- **2026-08-15 (32ª parte) — SESIÓN DE IMPLEMENTACIÓN: F18 + BLOQUE R fase R1 + F22 (V3)**:
+  FASE 1 validada por el operador (plan en lenguaje fácil + 5 respuestas del agente anterior).
+  **F18**: contador de baja unificado a **8 lecturas (~160s)** para las 6 placas — 13 jsonc
+  (`READINGS_COUNT` `"5"`→`"8"`) + Power.cpp comparando contra la macro (fallback `#ifndef
+  → 8`; fuera el `#ifdef` `>4`/`>10`); el pre-check ya leía la macro (8×200ms ≈ 1,6s).
+  **BLOQUE R R1**: `/nava full_reset` (ACK → diferido → remove `/resilience.bin` +
+  `factoryReset(false)` → **conserva par PKI y bonds**) y `/nava wipe` (→ `factoryReset(true)`
+  → **par PKI nuevo** + peers + bonds; NodeNum intacto por MAC); DM-PKI automático (fuera de
+  whitelist canal 1); flags diferidos en runOnce; help/manuales con AVISO de re-aprendizaje
+  PKI. F20 NO tocada (fase R2). **F22**: `#define NAVATASTIC_BUILD "V3"` (bump manual por
+  release) + línea `NAVA V3 | fw …` en `status` + etiqueta en [Boot]. **L32**: dos errores
+  propios de la sesión corregidos (usar `optstr(APP_VERSION)` — el `-D` es token crudo;
+  typo `navarrico`→`navarico` en ResetReasonName). **12/12 envs SUCCESS**. Detalle:
+  BITACORA "V3". Backups `.bak-20260815-2109`.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

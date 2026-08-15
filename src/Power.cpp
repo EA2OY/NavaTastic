@@ -35,6 +35,13 @@
 #include "input/LinuxInputImpl.h"
 #endif
 
+// NAVARICO F18: contador de lecturas bajas unificado para TODAS las placas (8, ~160s).
+// La macro la inyecta el perfil (USERPREFS_LOW_BATTERY_READINGS_COUNT); el fallback
+// cubre envs sin perfil navarrico (p. ej. tests native).
+#ifndef USERPREFS_LOW_BATTERY_READINGS_COUNT
+#define USERPREFS_LOW_BATTERY_READINGS_COUNT 8
+#endif
+
 // Working USB detection for powered/charging states on the RAK platform
 #ifdef NRF_APM
 #include "nrfx_power.h"
@@ -1012,21 +1019,17 @@ void Power::readPowerStatus(bool force)
     // is 2.0 to 2.5V, current OCV min is set to 3100 that is large enough.
     //
     // V2.6: el contador SOLO cuenta en lecturas normales del monitor (force=false).
-    // Las lecturas forzadas del pre-check de arranque (force=true, 5 seguidas en
-    // ~1.5s) no deben pre-cargar el contador: el nodo despertado con bateria baja
-    // debe OPERAR el ciclo completo de 5 lecturas (~100s) antes de dormir, como en
-    // Eclipse (el ADC puede dar lecturas puntuales erroneas en campo).
+    // Las lecturas forzadas del pre-check de arranque (force=true) no deben pre-cargar
+    // el contador: el nodo despertado con bateria baja debe OPERAR el ciclo completo
+    // de USERPREFS_LOW_BATTERY_READINGS_COUNT lecturas (8, ~160s) antes de dormir,
+    // como en Eclipse (el ADC puede dar lecturas puntuales erroneas en campo).
 
     if (!force && batteryLevel && powerStatus2.getHasBattery() && !powerStatus2.getHasUSB()) {
         if (batteryLevel->getBattVoltage() < OCV[NUM_OCV_POINTS - 1]) {
             low_voltage_counter++;
-#if defined(PROMICRO_DIY_TCXO) || defined(ARDUINO_NRF52_PROMICRO_DIY_TCXO)
-            LOG_DEBUG("Low voltage counter: %d/4", low_voltage_counter);
-            if (low_voltage_counter > 4) {
-#else
-            LOG_DEBUG("Low voltage counter: %d/10", low_voltage_counter);
-            if (low_voltage_counter > 10) {
-#endif
+            // NAVARICO F18: umbral unico desde el perfil (8 lecturas ~160s) para las 6 placas
+            LOG_DEBUG("Low voltage counter: %d/%d", low_voltage_counter, USERPREFS_LOW_BATTERY_READINGS_COUNT);
+            if (low_voltage_counter >= USERPREFS_LOW_BATTERY_READINGS_COUNT) {
                 LOG_INFO("Low voltage detected, trigger deep sleep");
                 // V2: con mensajes de sueno activos, NavaCLI envia [Sueno] al canal
                 // Navadmin y se duerme al drenar la cola; si no, flujo PowerFSM normal.

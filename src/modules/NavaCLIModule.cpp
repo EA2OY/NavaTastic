@@ -646,7 +646,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             enqueueResponse(replyDest, replyChannel, usageAndState(topic), true);
         } else {
             enqueueResponse(replyDest, replyChannel,
-                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg [on|off] / reboot / factory_reset / admin_ls / power\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
+                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg [on|off] / reboot / factory_reset / full_reset / wipe\n[E] admin_ls / power\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
         }
     }
     else if (cmd == "ping") {
@@ -688,6 +688,23 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         // Diferido: se ejecuta en runOnce() cuando la cola de respuestas esté vacía,
         // garantizando que el ACK llegue al aire antes de borrar la configuración.
         factoryResetPending = true;
+        rebootScheduled = true;
+        rebootTime = millis() + 3000;
+    }
+    else if (cmd == "full_reset") {
+        // NAVARICO V3 (FASE R1): reset completo = perfil + semi-persistentes (/resilience.bin)
+        // a defaults CONSERVANDO el par PKI y los bonds BLE -> revert remoto sin romper la malla.
+        enqueueResponse(replyDest, replyChannel, "OK: RESET COMPLETO PROGRAMADO (PKI conservado)", true);
+        fullResetPending = true;
+        rebootScheduled = true;
+        rebootTime = millis() + 3000;
+    }
+    else if (cmd == "wipe") {
+        // NAVARICO V3 (FASE R1): purga de compromiso = erase total + par PKI NUEVO.
+        // El NodeNum se conserva (deriva de la MAC); los peers deberan re-aprender la
+        // pubkey nueva (H3/updateUser) o fallaran el DM PKI hasta entonces (L11).
+        enqueueResponse(replyDest, replyChannel, "OK: WIPE PROGRAMADO (par PKI nuevo, peers re-aprenderan)", true);
+        wipePending = true;
         rebootScheduled = true;
         rebootTime = millis() + 3000;
     }
@@ -896,8 +913,10 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
                 }
             }
         }
-        char buf[256];
-        snprintf(buf, sizeof(buf), "Nodos RAM: %d/80\nFavs huerfanas: %d\nFavs (Manual): %d\nFavs (Auto): %d\nAuto-Fav: %s\nTiempo activo: %lu s\n%s", 
+        char buf[280];
+        // NAVARICO F22: primera linea = etiqueta de build NavaTastic + version Meshtastic
+        snprintf(buf, sizeof(buf), "NAVA %s | fw %s\nNodos RAM: %d/80\nFavs huerfanas: %d\nFavs (Manual): %d\nFavs (Auto): %d\nAuto-Fav: %s\nTiempo activo: %lu s\n%s", 
+                 NAVATASTIC_BUILD, optstr(APP_VERSION),
                  nodeDB->getNumMeshNodes(), nodeDB->countOrphanFavorites(), manualFavs, autoFavs, navaAutoFavoriteEnabled ? "ON" : "OFF", (unsigned long)(millis()/1000), buildEnergyLine().c_str());
         enqueueResponse(replyDest, replyChannel, buf, true);
     }
@@ -1469,9 +1488,10 @@ int32_t NavaCLIModule::runOnce()
             }
             if ((int32_t)(millis() - bootNoticeAt) >= 0) {
                 bootNoticeSent = true;
-                char buf[220];
-                snprintf(buf, sizeof(buf), "[Boot] %s id%08x | %s | causa: 0x%08X (%s)",
-                         owner.long_name, (unsigned int)nodeDB->getNodeNum(),
+                char buf[240];
+                // NAVARICO F22: la etiqueta NAVA tambien en [Boot] (que lleva el nodo tras cada reinicio)
+                snprintf(buf, sizeof(buf), "[Boot] %s id%08x | NAVA %s | %s | causa: 0x%08X (%s)",
+                         owner.long_name, (unsigned int)nodeDB->getNodeNum(), NAVATASTIC_BUILD,
                          buildEnergyLine().c_str(), (unsigned int)rawResetReason,
                          navaricoResetReasonName(rawResetReason));
                 enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
@@ -1522,6 +1542,20 @@ int32_t NavaCLIModule::runOnce()
             if (factoryResetPending) {
                 LOG_INFO("Executing deferred factory reset...");
                 factoryResetPending = false;
+                nodeDB->factoryReset(true);
+            }
+            // NAVARICO V3 (FASE R1): borrar /resilience.bin SIEMPRE (el factory reset no lo
+            // toca por diseno). full_reset conserva el par PKI; wipe lo regenera.
+            if (fullResetPending) {
+                LOG_INFO("Executing deferred full reset (PKI preserved)...");
+                fullResetPending = false;
+                FSCom.remove("/resilience.bin");
+                nodeDB->factoryReset(false);
+            }
+            if (wipePending) {
+                LOG_INFO("Executing deferred wipe (new PKI keypair)...");
+                wipePending = false;
+                FSCom.remove("/resilience.bin");
                 nodeDB->factoryReset(true);
             }
             LOG_INFO("Executing deferred action (reboot/hibernate)...");
@@ -1653,6 +1687,10 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
         return "reboot: Programa un reinicio limpio del nodo a los 3 segundos. Uso: /nava reboot";
     else if (topic == "factory_reset")
         return "factory_reset: Formateo remoto de emergencia; restaura valores de rescate. Uso: /nava factory_reset";
+    else if (topic == "full_reset")
+        return "full_reset: Reset completo (config + semi-persistentes a defaults) conservando claves PKI y bonds BLE. Uso: /nava full_reset";
+    else if (topic == "wipe")
+        return "wipe: Purga total: regenera el par PKI (los peers fallan DM hasta re-aprender la clave nueva). Uso: /nava wipe";
     else if (topic == "admin_ls")
         return "admin_ls: Muestra las 3 claves criptograficas de admin en base64. Uso: /nava admin_ls";
     else if (topic == "sleepmsg")
