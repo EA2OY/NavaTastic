@@ -152,7 +152,9 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       app). Documentado en manual de uso ES+EN y README ES+EN; PDFs regenerados.
 - [x] **XIAO×2 VERIFICADAS (15/08, operador)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P
       funcionan bien (ciclo + avisos). El "fallo" del Xiao+E22P era el pico del E22P en TX
-      (L29). README/estado de pruebas actualizado. 3 de 6 placas verificadas.
+      (L29). **Faketec HT-RA62 probada por el operador el 14/08** → verificada. README/estado
+      de pruebas actualizado. **4 de 6 placas verificadas** (Promicro, Faketec, Xiao×2);
+      pendientes: Seed y T114.
 - [ ] **F18 (candidato, espera orden)**: unificar contador de baja a
       `USERPREFS_LOW_BATTERY_READINGS_COUNT` (5, ≈100s) para las 6 placas (hoy: >4 Promicro/
       Faketec vs >10 resto). Nota: `USERPREFS_LORACONFIG_TX_POWER` es config muerta (L30);

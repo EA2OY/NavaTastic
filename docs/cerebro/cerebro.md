@@ -408,7 +408,8 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
        [Sueño] ANTES de dormir) y el pre-check de arranque tiene 3 bandas; LPCOMP/hyst/
        delay(3000) idénticos.
   - **Decisión del operador**: SX1262 SIEMPRE a 22 dBm (no alinear con el 8 del E22P); con
-    SX1262 no hace falta bajar potencia en banco. Detalle: BITACORA.
+    SX1262 no hace falta bajar potencia en banco. **Faketec HT-RA62 probada por el operador el
+    14/08 → verificada** (4 de 6 placas verificadas; pendientes Seed y T114). Detalle: BITACORA.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

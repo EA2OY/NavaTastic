@@ -130,7 +130,7 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 | **Xiao Kit i2c + E22P** | **Verificado en banco (15/08)**: ciclo + avisos OK (en banco, TX bajo: picos de corriente del E22P) |
 | **Seeed Solar Node P1** | **Semi-testeada** — pendiente de ciclo completo de resiliencia en la placa |
 | **Heltec T114** | **PENDIENTE**: testear el ciclo de dormir/despertar de resiliencia del firmware |
-| Faketec HT-RA62 | Pendiente de verificación en banco |
+| **Faketec HT-RA62** | **Verificada por el operador (14/08)** |
 
 ## Descargas (firmware compilado)
 
@@ -389,7 +389,7 @@ To **compile with a different default chemistry**: add
 | **Xiao Kit i2c + E22P** | **Bench verified (15/08)**: full cycle + notices OK (bench: low TX — E22P current spikes) |
 | **Seeed Solar Node P1** | **Semi-tested** — full resilience cycle on the board still pending |
 | **Heltec T114** | **PENDING**: test the firmware sleep/wake resilience cycle |
-| Faketec HT-RA62 | Pending bench verification |
+| **Faketec HT-RA62** | **Operator-verified (14/08)** |
 
 ## Downloads (prebuilt firmware)
 

@@ -205,6 +205,7 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
     ciclo V2.6 completo ([Sueño] → dormir → LPCOMP ~3,8 V → [Listo] + avisos). El fallo
     inicial del Xiao+E22P era el **pico de consumo del E22P en TX** (L29, mismo Frente A del
     Promicro); con TX bajo en banco, OK. SX1262: 22 dBm siempre (decisión del operador).
+    **Faketec HT-RA62 probada por el operador el 14/08 → verificada.**
   - **Hallazgos anotados (NO tocados)**: contador de baja asimétrico (`>4` Promicro/Faketec vs
     `>10` Seed/T114/Xiao×2 ≈ 100s vs 220s — candidato F18; el perfil READINGS_COUNT=5 se
     ignora); `USERPREFS_LORACONFIG_TX_POWER` = config muerta (L30; el default real es

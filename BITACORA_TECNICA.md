@@ -603,6 +603,8 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   fuente justa (con SX1262 NO hace falta: decisión del operador — SX1262 SIEMPRE 22 dBm).
 - **Verificado por el operador (15/08)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P
   funcionan bien (tabla del README actualizada). 3ª y 4ª placas verificadas (Promicro, Xiao×2).
+  **Faketec HT-RA62 probada por el operador el 14/08 → verificada** (4 de 6; pendientes Seed
+  y T114).
 - **Candidato F18 (NO tocado, espera orden)**: contador de baja ASIMÉTRICO — `>4` (~100s) solo
   con `PROMICRO_DIY_TCXO`; Seed/T114/Xiao×2 usan `>10` (~220s) (Power.cpp:1023-1029); el perfil
   `USERPREFS_LOW_BATTERY_READINGS_COUNT=5` lo ignora el código. Fix propuesto: unificar a la
