@@ -312,6 +312,23 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   la entrada stale del test node en el observador (clave nueva) + ejecutar el test del
   sueño observando por COM9.
 
+### PUBLICACIÓN GITHUB (15/08) — EA2OY/NavaTastic + MeshNavarra-Utility
+- **Flujo**: rama huérfana `github-public` = UN commit del árbol saneado → push -f a `main`.
+  El historial local (con claves Propia del 14/08) NO sube. Se excluye `.github/workflows`
+  (CI upstream) y se desactivan Actions por API (`{"enabled":false}` en
+  `PUT /repos/EA2OY/NavaTastic/actions/permissions` — sin `allowed_actions` cuando enabled=false).
+- **Release v2.6**: assets por API (24 binarios + 2 PDFs = 26); las descargas del README
+  apuntan a Releases, no a carpetas. `distribucion/` y `docs/pdf` se suben con `git add -f`.
+- **README bilingüe ES/EN**: comandos /nava, integración con **MeshNavarra-Utility** (repo
+  hermano del operador), divisor ADC, químicas, PIN BT 654321, backup y gestión de claves
+  admin, estado de pruebas, licencia+disclaimer.
+- **L24 — checkout de rama borra ficheros force-add**: `distribucion/` y `.github/workflows`
+  se pierden del disco al alternar master ↔ huérfana (cada rama "borra" lo que la otra no
+  trackea). Regla: repoblar con `distribuir.ps1 -Todo` tras cada publicación.
+- **L25 — workflows upstream en un fork sin secretos = correos de error**: quitarlos de la
+  rama pública y desactivar Actions.
+- **L26 — token GitHub compartido por chat**: revocar tras la sesión; usar token puntual o gh CLI.
+
 ### V2.6 (15/08): ciclo sueño/despertar DEFINITIVO — verificado en banco ("EUREKA" del operador)
 - **Correcciones sobre V2.4** (el diseño intermedio dormía mal): (1) [Vivo] ya NO re-duerme:
   anuncia y el nodo OPERA; el monitor runtime decide (5 lecturas reales ~100s). (2) Fix

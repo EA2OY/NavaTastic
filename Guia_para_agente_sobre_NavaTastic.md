@@ -225,3 +225,23 @@ Está gitignored y no forma parte del código.
 - `Manual_NavaTastic.md` (docs/) — manual de comandos `/nava`.
 - `profiles/README.md` — perfiles.
 - Este fichero es la guía de retoma para agentes.
+
+## 9. Publicación a GitHub (EA2OY/NavaTastic) — flujo obligatorio
+
+> El repo público es https://github.com/EA2OY/NavaTastic (solo General, sin claves Propia).
+> Proyecto hermano: https://github.com/EA2OY/MeshNavarra-Utility (app del operador).
+
+1. **Nunca subir el historial local** (contiene claves Propia en commits del 14/08). Publicar
+   SIEMPRE una rama huérfana con UN solo commit del árbol saneado:
+   `git branch -D github-public` → `git checkout --orphan github-public` →
+   `git add -A` → `git add -f distribucion docs/pdf` → **borrar** `.github\workflows\*.yml`
+   del disco → `git commit` → `git push -f <url-token> github-public:main` →
+   `git checkout master` → **`distribuir.ps1 -Todo`** (el cambio de rama borra los ficheros
+   force-add del disco — L24).
+2. **Actions desactivadas** en el repo (los workflows upstream envían correos de error).
+   Si se recreara el repo: quitar workflows + `PUT /repos/EA2OY/NavaTastic/actions/permissions`
+   con `{"enabled":false}`.
+3. **Binarios**: subirlos como assets de un Release (API `uploads.github.com`), no como
+   enlaces a carpetas. El README ya apunta a Releases.
+4. **Credenciales**: usar un token puntual del operador (revocar al terminar) o `gh` CLI con
+   login. Nunca commitear el token.

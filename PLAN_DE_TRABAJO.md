@@ -38,7 +38,7 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       01-12 y PROMPTs. Adendas "REPO UNIFICADO" en los 5 docs de contexto
       (transfer_context, guia_integracion, 2 manuales, GUIA_AGENTE_NAVTASTIC).
       El 4.3 queda SOLO LECTURA (archivo histórico).
-- [x] **GitHub (15/08)**: https://github.com/EA2OY/NavaTastic — rama `main` con UN solo commit (árbol saneado + binarios `distribucion/` + PDFs + README). El historial local (con claves) NO se sube: rama pública huérfana regenerada en cada publicación.
+- [x] **GitHub (15/08)**: https://github.com/EA2OY/NavaTastic — rama `main` con UN solo commit (árbol saneado + binarios `distribucion/` + PDFs + README bilingüe ES/EN con tabla de comandos `/nava`). **Release v2.6** con 26 assets (12 UF2 + 12 OTA + 2 PDFs). Actions desactivadas y workflows upstream fuera de la rama pública. **Proyecto hermano**: https://github.com/EA2OY/MeshNavarra-Utility (la app envía los comandos como mensajes predefinidos — enlazado desde el README). Flujo de publicación y trampas L24-L26 en BITACORA/cerebro 22ª parte.
 - [x] **Propia (R2IP/R1IP, 15/08)**: 12 envs `R2IP_*/R1IP_*` (extends General) +
       `build_propia.ps1` + opción `custom_meshtastic_propia_keys` — claves y PIN BT se piden
       al compilar (variables de entorno) y **NO se almacenan** (verificado grep 0 restos).

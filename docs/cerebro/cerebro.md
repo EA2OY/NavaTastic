@@ -313,6 +313,29 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   scripts + docs/cerebro, SIN .pio/.git/binarios/distribucion/PDFs/baks — mismo criterio que
   el baseline del 14/08). Rollback de este punto: `git checkout 80e9f7e14` o descomprimir el
   zip sobre la raíz. Pendiente: 12 envs + `distribuir.ps1 -Todo -V2` + commit de cierre.
+- **2026-08-15 (22ª parte) — GITHUB PUBLICADO (EA2OY/NavaTastic) + README completo + RELEASE v2.6**:
+  - **Publicación**: rama `main` de https://github.com/EA2OY/NavaTastic = UN solo commit raíz
+    (rama huérfana `github-public` regenerada en cada publicación). El historial local (con
+    claves Propia de commits del 14/08) NO sube nunca. Ficheros gitignored (`.bak-*`,
+    `_archivo/`, `docs/pdf`, `distribucion/`) se suben solo los elegidos con `git add -f`
+    (distribucion + PDFs) y `.github/workflows` (CI upstream) se EXCLUYE de la rama pública +
+    **Actions desactivadas** vía API (`PUT .../actions/permissions` enabled:false) — los
+    workflows de releases upstream disparaban correos de error al crear el release.
+  - **Release v2.6** (tag v2.6, id 370958405): 26 assets (12 UF2 + 12 OTA + 2 PDFs) subidos
+    por API (`uploads.github.com`). Las descargas del README apuntan a Releases (panel derecho),
+    no a las carpetas.
+  - **README bilingüe (ES/EN)**: qué aporta, tabla completa de comandos `/nava` con accesos,
+    sección NavaTastic + **MeshNavarra-Utility** (proyecto hermano del operador:
+    https://github.com/EA2OY/MeshNavarra-Utility — la app envía los comandos como mensajes
+    predefinidos, sin escribir), divisor ADC 1M+1M + tip/LPCOMP, químicas de batería, PIN BT
+    654321, backup de claves, gestión de claves admin (2 propias + desautorizar la de fábrica
+    en slot 0 — el slot 0 vacío se re-inyecta), estado de pruebas por placa, licencia GPL v3
+    + cumplimiento (fuente de los binarios en el mismo commit) + disclaimer.
+  - **Trampas de la publicación (L24-L26 en BITACORA)**: el checkout entre ramas BORRA del
+    disco los ficheros force-add que la otra rama no trackea (distribucion/workflows) →
+    repoblar `distribuir.ps1 -Todo` tras cada publicación y regenerar la huérfana borrándola
+    antes; el token GitHub del operador se compartió por chat → REVOCAR y usar uno puntual
+    por sesión (o gh CLI).
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner
