@@ -84,15 +84,11 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 
 Última versión: **V2.6 (15/08/2026)** — ciclo sueño/despertar definitivo verificado en banco.
 
-Estructura en [`distribucion/`](distribucion/): `Rama 2 Routers` / `Rama 1 Clientes` ×
-`LIPO` (todas) / `NIMH` (solo Faketec y XiaoKitI2c) × `UF2` / `OTA`.
-
-| | Rama 2 Routers | Rama 1 Clientes |
-|---|---|---|
-| **UF2 (LIPO)** | [descargar](distribucion/Rama%202%20Routers/LIPO/UF2/) | [descargar](distribucion/Rama%201%20Clientes/LIPO/UF2/) |
-| **OTA (LIPO)** | [descargar](distribucion/Rama%202%20Routers/LIPO/OTA/) | [descargar](distribucion/Rama%201%20Clientes/LIPO/OTA/) |
-| **UF2 (NIMH)** | [descargar](distribucion/Rama%202%20Routers/NIMH/UF2/) | [descargar](distribucion/Rama%201%20Clientes/NIMH/UF2/) |
-| **OTA (NIMH)** | [descargar](distribucion/Rama%202%20Routers/NIMH/OTA/) | [descargar](distribucion/Rama%201%20Clientes/NIMH/OTA/) |
+**Descarga los binarios desde [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
+(panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 2 manuales PDF. NIMH = mismos binarios
+que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables en
+[`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
+`UF2`/`OTA`).
 
 ### Manuales (PDF)
 
@@ -265,17 +261,13 @@ To **compile with a different default chemistry**: add
 
 ## Downloads (prebuilt firmware)
 
-Latest release: **V2.6 (15/08/2026)** � definitive sleep/wake cycle, bench verified.
+Latest release: **V2.6 (15/08/2026)** — definitive sleep/wake cycle, bench verified.
 
-Layout in [`distribucion/`](distribucion/): `Rama 2 Routers` / `Rama 1 Clientes` �
-`LIPO` (all) / `NIMH` (Faketec and XiaoKitI2c only) � `UF2` / `OTA`.
-
-| | Rama 2 Routers | Rama 1 Clientes |
-|---|---|---|
-| **UF2 (LIPO)** | [download](distribucion/Rama%202%20Routers/LIPO/UF2/) | [download](distribucion/Rama%201%20Clientes/LIPO/UF2/) |
-| **OTA (LIPO)** | [download](distribucion/Rama%202%20Routers/LIPO/OTA/) | [download](distribucion/Rama%201%20Clientes/LIPO/OTA/) |
-| **UF2 (NIMH)** | [download](distribucion/Rama%202%20Routers/NIMH/UF2/) | [download](distribucion/Rama%201%20Clientes/NIMH/UF2/) |
-| **OTA (NIMH)** | [download](distribucion/Rama%202%20Routers/NIMH/OTA/) | [download](distribucion/Rama%201%20Clientes/NIMH/OTA/) |
+**Download the binaries from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
+(right-hand panel — *Assets*): 12 UF2 + 12 OTA + 2 PDF manuals. NIMH = same binaries as LIPO
+(Faketec and XiaoKitI2c only). The same files are browsable under
+[`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
+`UF2`/`OTA`).
 
 ### Manuals (PDF, Spanish)
 
