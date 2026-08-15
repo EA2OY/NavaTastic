@@ -68,6 +68,9 @@ adapta con los comandos `set_chem` / `set_vbat` / `set_vwake` ya en el nodo.
 Diferencias declaradas por env/perfil (nunca editando cÃ³digo): potencia TX, curvas OCV y
 LPCOMP por placa, rol por rama, claves admin y Bluetooth por perfil (`profiles/*.jsonc`).
 
+**Bluetooth**: los nodos emiten con **PIN fijo `654321`** (modo FIXED_PIN; la app lo pide al
+emparejar). Los builds Propia usan un PIN propio del operador.
+
 ### Estado de pruebas (banco)
 
 | Placa | Estado |
@@ -185,10 +188,10 @@ El firmware sale con una clave admin **de fÃ¡brica** (la del proyecto). Para tu 
 
 # NavaTastic (English)
 
-Firmware **NavaTastic** — a [Meshtastic](https://meshtastic.org) v2.7.26 fork (base `54e0d8d`)
+Firmware **NavaTastic** ï¿½ a [Meshtastic](https://meshtastic.org) v2.7.26 fork (base `54e0d8d`)
 for **solar-powered infrastructure repeaters** on the **SFNarrow** LoRa preset (EU_868,
 national preset used in Spain). A single repository produces **12 different firmwares**
-(6 boards/radios × 2 branches: Routers / Clients).
+(6 boards/radios ï¿½ 2 branches: Routers / Clients).
 
 ## What NavaTastic adds on top of Meshtastic
 
@@ -215,6 +218,9 @@ national preset used in Spain). A single repository produces **12 different firm
 Differences are declared per env/profile (never by editing code): TX power, OCV curves and
 LPCOMP per board, role per branch, admin keys and Bluetooth per profile (`profiles/*.jsonc`).
 
+**Bluetooth**: nodes broadcast with a **fixed PIN `654321`** (FIXED_PIN mode; the app asks for
+it when pairing). Propia builds use the operator's own PIN.
+
 ### Hardware requirement: ADC divider 1M+1M (ratio 2.0)
 
 For battery measurement and low-voltage protection to work, **NRF52 boards
@@ -224,7 +230,7 @@ For battery measurement and low-voltage protection to work, **NRF52 boards
 > **Different divider on your board?** Adjust it before compiling in
 > `variants/nrf52840/diy/nrf52_promicro_diy_tcxo/variant.h` (macro `ADC_MULTIPLIER`, value
 > `VBAT_DIVIDER_COMP`). **Important**: the same divider feeds the **LPCOMP** comparator, which
-> decides the **low-battery resilience wake-up** — the `set_vwake` levels are calibrated for a
+> decides the **low-battery resilience wake-up** ï¿½ the `set_vwake` levels are calibrated for a
 > 2.0 divider; with a different divider the node will wake at a different voltage (recalibrate
 > `getActiveLpcompThreshold()` in `src/platform/nrf52/main-nrf52.cpp`).
 
@@ -253,16 +259,16 @@ To **compile with a different default chemistry**: add
 | Board | Status |
 |---|---|
 | **Promicro + E22P (R2IG)** | **Fully verified** (15/08): sleep/wake cycle, notices, ~1 mA sleep, LPCOMP wake, [Boot] |
-| **Seeed Solar Node P1** | **Semi-tested** — full resilience cycle on the board still pending |
+| **Seeed Solar Node P1** | **Semi-tested** ï¿½ full resilience cycle on the board still pending |
 | **Heltec T114** | **PENDING**: test the firmware sleep/wake resilience cycle |
 | Faketec HT-RA62, Xiao Kit, Xiao + E22P | Pending bench verification |
 
 ## Downloads (prebuilt firmware)
 
-Latest release: **V2.6 (15/08/2026)** — definitive sleep/wake cycle, bench verified.
+Latest release: **V2.6 (15/08/2026)** ï¿½ definitive sleep/wake cycle, bench verified.
 
-Layout in [`distribucion/`](distribucion/): `Rama 2 Routers` / `Rama 1 Clientes` ×
-`LIPO` (all) / `NIMH` (Faketec and XiaoKitI2c only) × `UF2` / `OTA`.
+Layout in [`distribucion/`](distribucion/): `Rama 2 Routers` / `Rama 1 Clientes` ï¿½
+`LIPO` (all) / `NIMH` (Faketec and XiaoKitI2c only) ï¿½ `UF2` / `OTA`.
 
 | | Rama 2 Routers | Rama 1 Clientes |
 |---|---|---|
@@ -278,8 +284,8 @@ Layout in [`distribucion/`](distribucion/): `Rama 2 Routers` / `Rama 1 Clientes`
 
 ## Flashing
 
-- **nRF52 (all boards)**: put the node in DFU mode (double-press reset) — a **NICENANO** drive
-  appears — copy the `.uf2` into it. Alternative: `pio run -e <env> -t upload
+- **nRF52 (all boards)**: put the node in DFU mode (double-press reset) ï¿½ a **NICENANO** drive
+  appears ï¿½ copy the `.uf2` into it. Alternative: `pio run -e <env> -t upload
   --upload-port COMx`.
 - **After flashing a factory-new node**: perform **one factory reset** to materialize the
   Navadmin channel (notices and open-channel queries depend on it).
@@ -288,7 +294,7 @@ Layout in [`distribucion/`](distribucion/): `Rama 2 Routers` / `Rama 1 Clientes`
   from the Meshtastic app first** if you want to restore them: the reset **erases the node
   keys**, and an `nrf erase` regenerates them (other nodes will need to re-learn your new key
   for encrypted DM).
-- **Bench testing**: the E22P TX is unstable over USB (current spikes) — use **1 dBm TX**; the
+- **Bench testing**: the E22P TX is unstable over USB (current spikes) ï¿½ use **1 dBm TX**; the
   low-battery detection requires powering **without USB**.
 
 ## Building
@@ -301,12 +307,12 @@ pio run                                    # all 12 (default_envs)
 ```
 
 See also `Guia_para_agente_sobre_NavaTastic.md` (full mechanics),
-`docs/transfer_context.md` (technical memory) and `docs/cerebro/` (design docs) — Spanish.
+`docs/transfer_context.md` (technical memory) and `docs/cerebro/` (design docs) ï¿½ Spanish.
 
 ## Private branch (own keys)
 
 The **Propia** builds (`r2ip`/`r1ip`) use your own admin keys and Bluetooth PIN, which are
-**not stored in this repository** — they are asked at build time:
+**not stored in this repository** ï¿½ they are asked at build time:
 
 ```powershell
 .\build_propia.ps1 -EnvName navarrico_promicro_e22p_r2ip
@@ -324,20 +330,20 @@ The firmware ships with a **factory admin key** (the project's key). For your ow
 
 1. **Add TWO of your own remote-management keys** (from your control devices) via the
    Meshtastic app ? *Radio config ? Security ? Admin key* (3 slots available).
-2. **Verify they work**: from each control device send a `/nava` command over DM — it must
+2. **Verify they work**: from each control device send a `/nava` command over DM ï¿½ it must
    respond (the repeater accredits that device as admin and saves it to disk).
 3. **De-authorize the factory key** once yours are verified: put **one of your keys in slot 0**
    (replacing the factory key). Note: if slot 0 is left **empty**, the firmware **re-injects
-   the factory key on every boot** (anti-lockout auto-recovery) — leaving it empty does NOT
+   the factory key on every boot** (anti-lockout auto-recovery) ï¿½ leaving it empty does NOT
    de-authorize it; you must overwrite it with your own.
 
 ## License
 
-- **Firmware (code in this repository)**: **GPL v3** — inherited from
+- **Firmware (code in this repository)**: **GPL v3** ï¿½ inherited from
   [meshtastic/firmware](https://github.com/meshtastic/firmware), of which NavaTastic is a fork.
   See [LICENSE](LICENSE). NavaTastic changes are published under the same license.
 - **GPL compliance**: the binaries distributed under [`distribucion/`](distribucion/) have
-  their full source code in **this same repository, at the same commit** — anyone downloading
+  their full source code in **this same repository, at the same commit** ï¿½ anyone downloading
   a binary can get its source here, as GPL v3 requires. Meshtastic copyright notices are kept
   in all sources.
 - **Hardware**: board designs (when published) will be licensed separately (e.g. **CERN-OHL**,

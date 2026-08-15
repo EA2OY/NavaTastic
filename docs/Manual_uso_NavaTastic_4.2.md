@@ -62,6 +62,8 @@ La única intervención opcional del operador es:
 - **Ajustar el nombre** del nodo (para identificarlo en la malla).
 - **Activar la lectura de sensores de telemetría** de energía (INA219) y de clima (BMP280 + AHT20 / BME680), si la placa los incorpora.
 
+**Conexión Bluetooth**: el nodo emite con **PIN fijo `654321`** (modo FIXED_PIN de Meshtastic) — la app lo pide al emparejar. (Los builds Propia usan un PIN propio del operador.)
+
 Todo lo demás (canales, región, administración remota, protección de batería) está preconfigurado en compilación.
 
 > **⚙️ Despliegue (nodos nuevos o reflasheados)**: el flasheo conserva los `/prefs` antiguos. Si el nodo es nuevo de fábrica (o viene de un firmware sin el canal Navadmin), hacer **un factory reset tras flashear** para materializar el canal Navadmin (slot 1). Sin ese canal, los avisos [Sueño]/[Vivo]/[Listo] y los comandos de consulta por canal abierto no llegarán.
