@@ -1,4 +1,10 @@
+<div align="center">
+
+<img src="escudo_navatastic.png" alt="Escudo Meshtastic Navarra" width="180"/>
+
 # NavaTastic
+
+</div>
 
 Firmware **NavaTastic** — fork de [Meshtastic](https://meshtastic.org) v2.7.26 (base `54e0d8d`)
 para **repetidores solares de infraestructura** en malla LoRa **SFNarrow** (preset de uso
