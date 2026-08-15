@@ -596,15 +596,12 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   Backups `.bak-20260815-1812` (README + manual de uso).
 
 ### XIAO×2 VERIFICADAS (15/08) + HALLAZGOS DE CÓDIGO (candidatos)
-- **Incidente Xiao Kit i2c + E22P**: "no hacía el ciclo de dormir ni mandaba [Sueño]".
-  Diagnóstico + confirmación del operador: **pico de consumo del E22P en TX** que tumbaba el
-  nodo (mismo Frente A del Promicro); con TX bajo, ciclo completo y avisos OK. **L29 — el pico
-  E22P aplica a TODAS las placas con E22P, no solo al Promicro**; regla de banco = TX bajo con
-  fuente justa (con SX1262 NO hace falta: decisión del operador — SX1262 SIEMPRE 22 dBm).
-- **Verificado por el operador (15/08)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P
-  funcionan bien (tabla del README actualizada). 3ª y 4ª placas verificadas (Promicro, Xiao×2).
-  **Faketec HT-RA62 probada por el operador el 14/08 → verificada** (4 de 6; pendientes Seed
-  y T114).
+- **L29 — el pico del E22P en TX aplica a TODAS las placas E22P** (confirmado por el operador
+  con el Xiao+E22P; regla de banco de TX bajo ya documentada en L14/L18/README). Con SX1262 NO
+  hace falta bajar potencia (decisión del operador: SX1262 SIEMPRE 22 dBm).
+- **Verificado por el operador**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P (15/08) y
+  **Faketec HT-RA62 (14/08)** — 4 de 6 placas verificadas (pendientes Seed y T114). Tabla del
+  README actualizada.
 - **Candidato F18 (NO tocado, espera orden)**: contador de baja ASIMÉTRICO — `>4` (~100s) solo
   con `PROMICRO_DIY_TCXO`; Seed/T114/Xiao×2 usan `>10` (~220s) (Power.cpp:1023-1029); el perfil
   `USERPREFS_LOW_BATTERY_READINGS_COUNT=5` lo ignora el código. Fix propuesto: unificar a la

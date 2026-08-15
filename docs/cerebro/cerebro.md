@@ -390,11 +390,11 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   **guardar/enviar** → la clave pública correcta **se regenera sola**. Si no se queda
   aplicada, repetir (bug conocido de la app de Meshtastic). PDFs regenerados. Backups
   `.bak-20260815-1812`.
-- **2026-08-15 (29ª parte) — XIAO×2 VERIFICADAS EN BANCO + hallazgos de código anotados**:
-  - **Incidente cerrado**: Xiao Kit i2c + E22P "no dormía ni mandaba [Sueño]" → **pico de consumo
-    del E22P en TX** (mismo Frente A del Promicro) que tumbaba el nodo; con TX bajo, ciclo
-    completo OK y avisos OK. **Confirmadas por el operador: Xiao Kit i2c (SX1262) y Xiao Kit
-    i2c + E22P funcionan bien** (tabla de estado del README actualizada).
+- **2026-08-15 (29ª parte) — 4 DE 6 PLACAS VERIFICADAS + hallazgos de código anotados**:
+  - **Verificadas por el operador**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P (15/08) y
+    Faketec HT-RA62 (14/08). El "fallo" del Xiao+E22P era el pico del E22P en TX — **L29:
+    aplica a TODAS las placas E22P** (regla de banco ya documentada en L14/L18/README);
+    SX1262 = 22 dBm siempre (decisión del operador). Pendientes: Seed y T114.
   - **Hallazgos de código (anotados, NO tocados)**:
     1. Contador de baja ASIMÉTRICO: `>4` (≈100s) solo Promicro/Faketec vs `>10` (≈220s) en
        Seed/T114/Xiao×2 (Power.cpp); el perfil `USERPREFS_LOW_BATTERY_READINGS_COUNT=5` lo

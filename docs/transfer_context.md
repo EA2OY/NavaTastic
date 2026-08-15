@@ -200,12 +200,10 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
 
 ## 8. Historial de Auditoría (Resumen)
 
-*   **Ronda 2026-08-15 (Xiao×2 verificadas + hallazgos de código)**:
-  - **Verificado en banco (operador)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P hacen el
-    ciclo V2.6 completo ([Sueño] → dormir → LPCOMP ~3,8 V → [Listo] + avisos). El fallo
-    inicial del Xiao+E22P era el **pico de consumo del E22P en TX** (L29, mismo Frente A del
-    Promicro); con TX bajo en banco, OK. SX1262: 22 dBm siempre (decisión del operador).
-    **Faketec HT-RA62 probada por el operador el 14/08 → verificada.**
+*   **Ronda 2026-08-15 (4/6 placas verificadas + hallazgos de código)**:
+  - **Verificado en banco (operador)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P (15/08) y
+    Faketec HT-RA62 (14/08). **L29**: el pico del E22P en TX aplica a TODAS las placas E22P
+    (regla de banco ya documentada en L14/L18); SX1262 = 22 dBm siempre (decisión del operador).
   - **Hallazgos anotados (NO tocados)**: contador de baja asimétrico (`>4` Promicro/Faketec vs
     `>10` Seed/T114/Xiao×2 ≈ 100s vs 220s — candidato F18; el perfil READINGS_COUNT=5 se
     ignora); `USERPREFS_LORACONFIG_TX_POWER` = config muerta (L30; el default real es
