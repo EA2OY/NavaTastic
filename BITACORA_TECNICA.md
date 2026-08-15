@@ -571,5 +571,6 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Manuales bilingües**: traducción EN completa al FINAL de ambos manuales (el ES permanece
   arriba y es la fuente de verdad; el protocolo de rescate incluye la clave privada del Master
   Node por decisión del operador). PDFs regenerados con `generar_pdf.ps1` (98/126 KB).
-- Backups norma 0.11: `.bak-20260815-1729` (README + 2 manuales). Pendiente de decidir:
-  republicar a GitHub (main + assets PDF nuevos).
+- Backups norma 0.11: `.bak-20260815-1729` (README + 2 manuales). **REPUBLICADO (15/08)**:
+  rama huérfana regenerada (UN commit `b49e79091`) → main; PDFs bilingües subidos al release
+  v2.6.1 (borrados los antiguos). L24 aplicada: distribucion\ repoblada + PDFs regenerados.

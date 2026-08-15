@@ -140,8 +140,8 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       el nodo a la clave de su dueño) + instrucciones VS Code para cambiar la clave
       pre-hardcodeada (`profiles/*.jsonc` → `USERPREFS_USE_ADMIN_KEY_0`). Manuales **bilingües
       ES+EN** (traducción EN al final de ambos documentos; ES = fuente de verdad) y PDFs
-      regenerados. Backups `.bak-20260815-1729`. Pendiente: republicar a GitHub (README + PDFs
-      nuevos en el release).
+      regenerados. Backups `.bak-20260815-1729`. **Republicado a GitHub (15/08)**: main
+      actualizada (rama huérfana, UN commit) + PDFs bilingües en el release v2.6.1.
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
