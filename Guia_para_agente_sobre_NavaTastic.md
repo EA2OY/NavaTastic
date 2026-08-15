@@ -185,9 +185,15 @@ Para claves/canales/rol → perfil jsonc. Para añadir una rama (Propia) → per
 
 ## 6. Verificación y regresión
 
-- **PARIDAD 12/12 VERIFICADA (14/08/2026)**: `verificar_paridad.ps1` compila los 12 envs en
-  modo paridad (BUILD_EPOCH 12/08, APP_VERSION 2.7.26.54e0d8d, marca temporal y rutas de libdeps
-  de cada referencia) y compara MD5 contra `Desktop\NavaTastic 4.3 120826` → **12/12 byte-idénticos**.
+- **PARIDAD 12/12 VERIFICADA (14/08/2026, del BASELINE)**: `verificar_paridad.ps1` compila los 12
+  envs en modo paridad (BUILD_EPOCH 12/08, APP_VERSION 2.7.26.54e0d8d, marca temporal y rutas de
+  libdeps de cada referencia) y compara MD5 contra `Desktop\NavaTastic 4.3 120826` → **12/12
+  byte-idénticos**. ⚠️ **La paridad vale para el código del BASELINE (14/08)**: los builds V2/V2.3/
+  V2.6 posteriores divergen a propósito (mensajes de sueño, [Boot], F15/F16...). Para reproducir
+  Eclipse byte a byte hay que volver al commit baseline (`git checkout 80e9f7e14~...` o el snapshot
+  `_archivo\NavaTastic 4.3 Eclipse Edition - Unificado.zip` / el V2 de 15/08) y ejecutar
+  `verificar_paridad.ps1`. La paridad ES la prueba de que la unificación reproduce los binarios
+  originales; la V2 se construye sobre esa base.
 - Detalles de la receta, fallos y fixes: `BITACORA_TECNICA.md`.
 - Los `.zip` OTA pueden diferir en el nombre interno del env (manifest/entry): el firmware
   (`.uf2`/`.bin`) es byte-idéntico. Comparar siempre el `.uf2`.
@@ -196,6 +202,12 @@ Para claves/canales/rol → perfil jsonc. Para añadir una rama (Propia) → per
 - MAX_PATH (error #13 del pasado): resuelto de raíz (raíz corta); no usar rutas profundas.
   Ojo: el workaround histórico (r1promic/r1xiaoki) dejó rutas embebidas distintas en R1 —
   ya absorbido en `custom_meshtastic_libdeps_map`.
+- **Flash nRF52**: `pio run -e <env> -t upload --upload-port COM<x>` (touch 1200bps + nrfutil,
+  protocolo del board); alternativamente, con el bootloader en modo DFU (doble reset) aparece la
+  unidad **NICENANO** y se copia el `.uf2` a mano. NO hay unidad UF2 con el touch de 1200bps.
+- **Pruebas en banco**: con USB, TX a 1 dBm en el E22P (picos de corriente); la detección de
+  batería baja exige SIN USB (alimentar solo por fuente); los avisos NO se ecoan en la API del
+  propio emisor (verificar con un nodo observador).
 
 ---
 
