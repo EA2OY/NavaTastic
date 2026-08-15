@@ -93,9 +93,9 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       opera ~100s (5 lecturas monitor) → [Sueño] → doDeepSleep completo → **~1 mA** (LED
       apagado, radio sleep para las 6 placas) → LPCOMP ~3.73V → [Listo] → [Boot] 2 min con
       causa. Fixes: contador solo con !force, dormir por doDeepSleep, LED off pre-System OFF,
-      avisos ADC+CPU. = Eclipse V1 + avisos. Docs al día (cerebro 20ª, subnota 04, contexto,
-      manuales+PDF). **Pendiente**: snapshot V2 (orden del operador) + 12 envs + distribuir
-      -Todo -V2 + commit local.
+      avisos ADC+CPU. = Eclipse V1 + avisos. Docs al día (cerebro 20ª-21ª, subnota 04,
+      contexto, manuales+PDFs). **Commit `80e9f7e14` + SNAPSHOT V2 en `_archivo\`**.
+      Pendiente: 12 envs + distribuir -Todo -V2 + commit de cierre.
 - [x] **4.5 CICLO SUEÑO/DESPERTAR VERIFICADO EN BANCO (15/08)**: test node solo en fuente (usb=0):
       ~3.4V → [Sueno] (INA -51 mA DESCARGANDO) → dormido (HBs en silencio) → subir a 4V → LPCOMP
       ~3710 despierta → precheck wasInSleep=1 → [Listo] (ADC 3772) → HBs de vuelta. **FRENTE A

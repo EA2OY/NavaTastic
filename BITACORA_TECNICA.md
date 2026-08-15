@@ -327,6 +327,9 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **L19** lecturas forzadas NO pre-cargan el contador de baja. **L20** dormir por
   `doDeepSleep`, `cpuDeepSleep` directo solo en el pre-check (radio nunca inicializada).
   **L21** GPIO enclavados en System OFF: apagar LED justo antes de `sd_power_system_off`.
+- **SNAPSHOT V2 (15/08)**: commit local `80e9f7e14` + `_archivo\NavaTastic Eclipse Edition V2 -
+  Unificado 20260815 (HEAD 80e9f7e14).zip` (5.26 MB, 2204 entradas, `git archive` del árbol
+  limpio). Rollback: `git checkout 80e9f7e14`. Pendiente: 12 envs + distribuir -Todo -V2.
 - **L22** el nodo NO ecoa sus propios avisos a la API local (sendToMesh sin ccToPhone):
   verificar SIEMPRE con observador externo. **L23** factory reset devuelve SFN 869.618
   (útil tras auditorías con frecuencia privada). Backups `.bak-20260815-0301/0315/0352/

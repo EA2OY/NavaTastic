@@ -306,6 +306,13 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   en banco: [Vivo] → opera 100s → [Sueño] → dormido **~1 mA** → LPCOMP ~3.7-3.8V → [Listo]; [Boot]
   a los 2 min con causa. **Comportamiento = Eclipse V1 + avisos encima** (referencia histórica en
   subnota 04, sección nueva). Backups `.bak-20260815-0301/0315/0352/0418/0517`.
+- **2026-08-15 (21ª parte) — SNAPSHOT V2 + COMMIT DEL HITO**: commit local `80e9f7e14` (V2.6,
+  12 ficheros, +249/−63: código main/NavaCLI/Power/main-nrf52 + docs completas). **Snapshot
+  `_archivo\NavaTastic Eclipse Edition V2 - Unificado 20260815 (HEAD 80e9f7e14).zip`** (5.26 MB,
+  2204 entradas, árbol limpio del commit vía `git archive`: fuentes + config + perfiles +
+  scripts + docs/cerebro, SIN .pio/.git/binarios/distribucion/PDFs/baks — mismo criterio que
+  el baseline del 14/08). Rollback de este punto: `git checkout 80e9f7e14` o descomprimir el
+  zip sobre la raíz. Pendiente: 12 envs + `distribuir.ps1 -Todo -V2` + commit de cierre.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner
