@@ -68,6 +68,15 @@ adapta con los comandos `set_chem` / `set_vbat` / `set_vwake` ya en el nodo.
 Diferencias declaradas por env/perfil (nunca editando código): potencia TX, curvas OCV y
 LPCOMP por placa, rol por rama, claves admin y Bluetooth por perfil (`profiles/*.jsonc`).
 
+### Estado de pruebas (banco)
+
+| Placa | Estado |
+|---|---|
+| **Promicro + E22P (R2IG)** | **Verificado completo** (15/08): ciclo dormir/despertar, avisos, consumo ~1 mA, despertar LPCOMP, [Boot] |
+| **Seeed Solar Node P1** | **Semi-testeada** — pendiente de ciclo completo de resiliencia en la placa |
+| **Heltec T114** | **PENDIENTE**: testear el ciclo de dormir/despertar de resiliencia del firmware |
+| Faketec HT-RA62, Xiao Kit, Xiao + E22P | Pendientes de verificación en banco |
+
 ## Descargas (firmware compilado)
 
 Última versión: **V2.6 (15/08/2026)** — ciclo sueño/despertar definitivo verificado en banco.
