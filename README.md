@@ -94,6 +94,11 @@ Estructura en [`distribucion/`](distribucion/): `Rama 2 Routers` / `Rama 1 Clien
   --upload-port COMx`.
 - **Tras flashear un nodo nuevo de fábrica**: hacer **un factory reset** para materializar
   el canal Navadmin (los avisos y la consulta por canal abierto dependen de él).
+- **Copia de seguridad de claves**: el flasheo por sí solo **conserva** los `/prefs` del nodo
+  (claves, canales, nombre). Si vas a hacer un **factory reset** (o un `nrf erase`), **exporta
+  antes la configuración y las claves del nodo desde la app de Meshtastic** si quieres poder
+  restaurarlas: el reset **borra las claves del nodo**, y tras un `nrf erase` se regeneran
+  (los demás nodos tendrán que reaprender tu clave nueva para el DM cifrado).
 - **Pruebas en banco**: el E22P es inestable en TX con USB (picos de corriente) — usar
   **TX 1 dBm**; la detección de batería baja exige alimentar **sin USB**.
 
