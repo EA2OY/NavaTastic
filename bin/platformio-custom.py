@@ -244,7 +244,7 @@ if nav_propia_on:
         if not val:
             print("NAVARICO ERROR: build Propia requiere la variable de entorno " + var)
             print("  Define NAVARICO_PROPIA_KEY_0 y NAVARICO_PROPIA_KEY_1 (hex entre llaves,")
-            print("  p. ej. '{ 0x12, 0x48, ... }') y NAVARICO_PROPIA_BT (PIN de 6 digitos).")
+            print("  p. ej. '{ 0xaa, 0xbb, ... }') y NAVARICO_PROPIA_BT (PIN de 6 digitos).")
             print("  O usa build_propia.ps1, que las pide de forma interactiva SIN guardarlas.")
             sys.exit(1)
         return val
