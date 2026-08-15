@@ -1,39 +1,97 @@
-<div align="center" markdown="1">
+# NavaTastic
 
-<img src=".github/meshtastic_logo.png" alt="Meshtastic Logo" width="80"/>
-<h1>Meshtastic Firmware</h1>
+Firmware **NavaTastic** — fork de [Meshtastic](https://meshtastic.org) v2.7.26 (base `54e0d8d`)
+para **repetidores solares de infraestructura** en malla LoRa **SFNarrow** (preset de uso
+nacional en España, EU_868). Un solo repositorio genera **12 firmwares** distintos.
 
-![GitHub release downloads](https://img.shields.io/github/downloads/meshtastic/firmware/total)
-[![CI](https://img.shields.io/github/actions/workflow/status/meshtastic/firmware/main_matrix.yml?branch=master&label=actions&logo=github&color=yellow)](https://github.com/meshtastic/firmware/actions/workflows/ci.yml)
-[![CLA assistant](https://cla-assistant.io/readme/badge/meshtastic/firmware)](https://cla-assistant.io/meshtastic/firmware)
-[![Fiscal Contributors](https://opencollective.com/meshtastic/tiers/badge.svg?label=Fiscal%20Contributors&color=deeppink)](https://opencollective.com/meshtastic/)
-[![Vercel](https://img.shields.io/static/v1?label=Powered%20by&message=Vercel&style=flat&logo=vercel&color=000000)](https://vercel.com?utm_source=meshtastic&utm_campaign=oss)
+```
+6 placas/radios × 2 ramas (Routers / Clientes)
+```
 
-<a href="https://trendshift.io/repositories/5524" target="_blank"><img src="https://trendshift.io/api/badge/repositories/5524" alt="meshtastic%2Ffirmware | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+---
 
-</div>
+## Qué aporta NavaTastic sobre Meshtastic
 
-</div>
+| Bloque | Qué hace |
+|---|---|
+| **Resiliencia solar** | Anti-brownout de arranque, despertar por LPCOMP con histéresis, hibernación *storm*, químicas de batería (`lipo/nimh/sodium/lifepo4` según placa), corte y despertar configurables |
+| **Avisos de ciclo de batería** | `[Sueño]` / `[Vivo]` / `[Listo]` / `[Boot]` por el canal Navadmin: el nodo avisa antes de dormir (~1 mA), al despertar por solar/reset, y de cada reinicio con su **causa** (watchdog, ATtiny, soft, brownout...) |
+| **NavaCLI `/nava`** | ~45 comandos de administración remota: telemetría, energía, favoritos, bloqueos, rol semi-permanente, mantenimiento. DM cifrado PKI para acciones críticas; canal Navadmin de solo-lectura |
+| **Protección de Flash** | Base de nodos con guardado filtrado, auto-favoritos de routers directos, desalojo híbrido, historial sin escritura |
+| **Seguridad** | Acreditación admin por PKI persistente tras reboot, auto-recuperación de claves, límite de favoritos huérfanos |
+| **Rol semi-permanente** | `set_role` persiste en `/resilience.bin` y **sobrevive al factory reset** |
 
-<div align="center">
-	<a href="https://meshtastic.org">Website</a>
-	-
-	<a href="https://meshtastic.org/docs/">Documentation</a>
-</div>
+## Los 12 builds
 
-## Overview
+| Placa | Radio | Rama 2 (Routers) | Rama 1 (Clientes) |
+|---|---|---|---|
+| Promicro nRF52840 + E22P | E22P (12 dBm) | `navarrico_promicro_e22p_r2ig` | `navarrico_promicro_e22p_r1ig` |
+| Promicro/Faketec + HT-RA62 | SX1262 (22 dBm) | `navarrico_faketec_sx1262_r2ig` | `navarrico_faketec_sx1262_r1ig` |
+| Seeed Solar Node P1 | SX1262 (22 dBm) | `navarrico_seed_sx1262_r2ig` | `navarrico_seed_sx1262_r1ig` |
+| Heltec T114 | SX1262 (22 dBm) | `navarrico_t114_sx1262_r2ig` | `navarrico_t114_sx1262_r1ig` |
+| Xiao nRF52840 Kit | SX1262 (22 dBm) | `navarrico_xiao_kit_sx1262_r2ig` | `navarrico_xiao_kit_sx1262_r1ig` |
+| Xiao nRF52840 Kit + E22P | E22P (12 dBm) | `navarrico_xiao_e22p_r2ig` | `navarrico_xiao_e22p_r1ig` |
 
-This repository contains the official device firmware for Meshtastic, an open-source LoRa mesh networking project designed for long-range, low-power communication without relying on internet or cellular infrastructure. The firmware supports various hardware platforms, including ESP32, nRF52, RP2040/RP2350, and Linux-based devices.
+Diferencias declaradas por env/perfil (nunca editando código): potencia TX, curvas OCV y
+LPCOMP por placa, rol por rama, claves admin y Bluetooth por perfil (`profiles/*.jsonc`).
 
-Meshtastic enables text messaging, location sharing, and telemetry over a decentralized mesh network, making it ideal for outdoor adventures, emergency preparedness, and remote operations.
+## Descargas (firmware compilado)
 
-### Get Started
+Última versión: **V2.6 (15/08/2026)** — ciclo sueño/despertar definitivo verificado en banco.
 
-- 🔧 **[Building Instructions](https://meshtastic.org/docs/development/firmware/build)** – Learn how to compile the firmware from source.
-- ⚡ **[Flashing Instructions](https://meshtastic.org/docs/getting-started/flashing-firmware/)** – Install or update the firmware on your device.
+Estructura en [`distribucion/`](distribucion/): `Rama 2 Routers` / `Rama 1 Clientes` ×
+`LIPO` (todas) / `NIMH` (solo Faketec y XiaoKitI2c) × `UF2` / `OTA`.
 
-Join our community and help improve Meshtastic! 🚀
+| | Rama 2 Routers | Rama 1 Clientes |
+|---|---|---|
+| **UF2 (LIPO)** | [descargar](distribucion/Rama%202%20Routers/LIPO/UF2/) | [descargar](distribucion/Rama%201%20Clientes/LIPO/UF2/) |
+| **OTA (LIPO)** | [descargar](distribucion/Rama%202%20Routers/LIPO/OTA/) | [descargar](distribucion/Rama%201%20Clientes/LIPO/OTA/) |
+| **UF2 (NIMH)** | [descargar](distribucion/Rama%202%20Routers/NIMH/UF2/) | [descargar](distribucion/Rama%201%20Clientes/NIMH/UF2/) |
+| **OTA (NIMH)** | [descargar](distribucion/Rama%202%20Routers/NIMH/OTA/) | [descargar](distribucion/Rama%201%20Clientes/NIMH/OTA/) |
 
-## Stats
+### Manuales (PDF)
 
-![Alt](https://repobeats.axiom.co/api/embed/8025e56c482ec63541593cc5bd322c19d5c0bdcf.svg "Repobeats analytics image")
+- [Manual de administración remota `/nava` (PDF)](docs/pdf/Manual_NavaTastic.pdf) — comandos completos
+- [Manual de uso del firmware (PDF)](docs/pdf/Manual_uso_NavaTastic_4.2.pdf) — montaje, requisitos de hardware, protocolo de rescate
+
+## Flashear
+
+- **nRF52 (todas las placas)**: con el nodo en modo DFU (doble clic en reset) aparece una
+  unidad **NICENANO** → copiar el `.uf2`. Alternativa: `pio run -e <env> -t upload
+  --upload-port COMx`.
+- **Tras flashear un nodo nuevo de fábrica**: hacer **un factory reset** para materializar
+  el canal Navadmin (los avisos y la consulta por canal abierto dependen de él).
+- **Pruebas en banco**: el E22P es inestable en TX con USB (picos de corriente) — usar
+  **TX 1 dBm**; la detección de batería baja exige alimentar **sin USB**.
+
+## Compilar
+
+Requisitos: PlatformIO (`pio`). Desde la raíz del repo:
+
+```bash
+pio run -e navarrico_promicro_e22p_r2ig   # un env
+pio run                                    # los 12 (default_envs)
+```
+
+Ver también: `Guia_para_agente_sobre_NavaTastic.md` (mecánica completa),
+`docs/transfer_context.md` (memoria técnica) y `docs/cerebro/` (documentación de diseño).
+
+## Rama propia (claves privadas)
+
+Los builds **Propia** (`r2ip`/`r1ip`) usan claves admin y PIN Bluetooth propios que **no se
+almacenan en este repositorio**: se piden al compilar.
+
+```powershell
+.\build_propia.ps1 -EnvName navarrico_promicro_e22p_r2ip
+```
+
+## Seguridad
+
+- El canal Navadmin usa la **PSK pública** de Meshtastic (`{0x01}`, slot 1): cualquiera puede
+  escuchar. Solo admite consultas de lectura; los comandos críticos van por **DM cifrado PKI**.
+- Las claves admin que lleva el firmware son **públicas** (el binario nunca contiene privadas).
+
+## Licencia
+
+Código bajo la licencia de Meshtastic (GPL v3) — ver [LICENSE](LICENSE). Proyecto derivado de
+[meshtastic/firmware](https://github.com/meshtastic/firmware).
