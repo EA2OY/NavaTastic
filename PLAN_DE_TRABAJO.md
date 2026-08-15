@@ -158,10 +158,11 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 - [ ] **F18 (candidato, espera orden)**: unificar contador de baja a
       `USERPREFS_LOW_BATTERY_READINGS_COUNT` para las 6 placas (hoy: `>4` Promicro/Faketec vs
       `>10` resto en Power.cpp; la macro SOLO la usa el pre-check de main.cpp — "medio
-      huérfana"). **Decisión del operador (15/08): 8 lecturas para TODAS** (≈160 s):
-      perfiles a `=8` + Power.cpp leyendo la macro (también el pre-check queda a 8; manual/
-      docs a actualizar). Nota: `USERPREFS_LORACONFIG_TX_POWER` es config muerta (L30);
-      SX1262 = 22 dBm SIEMPRE (decisión del operador, no tocar).
+      huérfana"). **Decisión del operador (15/08, confirmada): 8 lecturas para AMBAS**
+      (monitor runtime ≈160 s Y pre-check de arranque): perfiles a `=8` + Power.cpp leyendo
+      la macro; manual/docs a actualizar ("5 lecturas" → "8"). Nota:
+      `USERPREFS_LORACONFIG_TX_POWER` es config muerta (L30); SX1262 = 22 dBm SIEMPRE
+      (decisión del operador, no tocar).
 
 ## Posibles ampliaciones (anotadas 15/08, esperan orden)
 - [ ] **BLOQUE R — Resets remotos** (una opción de plan, DOS fases; idea del operador).
