@@ -799,6 +799,13 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **L24 aplicada**: tras volver a master se repobló `distribucion\` (`distribuir.ps1 -Todo
   -V2`) y se regeneraron los 2 PDFs. README actualizado ("Última versión" = Eclipse V3) en
   master y en la rama pública.
+- **README re-publicado (16/08, 2ª ronda)**: tras la auditoría del operador se matizó la
+  semántica de rescate con F20 (la clave de rescate se inyecta automáticamente SOLO sin estado
+  previo: fallo completo/wipe/nrf erase o nodo que nunca desautorizó; desautorización en slot 0
+  persistente entre resets; quitar clave en la app NO purga → keys_clear/wipe) + tabla de
+  comandos (full_reset conserva claves admin, wipe borra las persistidas) + estado de pruebas
+  (Faketec 7/7). Rama huérfana regenerada (UN commit `13cf0b8cd`) → push -f a main. L24
+  aplicada de nuevo (distribucion\ + PDFs repoblados).
 
 ### NOMENCLATURA DE VERSIONES (16/08, decisión del operador)- **Changelog público (manual de uso) = 3 hitos**: **4.3.0** (NavaTastic + control remoto sin
   PC), **4.3.1 = "NavaTastic Eclipse"** (12/08, distribuida a colegas), **4.3.2 = "NavaTastic
