@@ -242,6 +242,14 @@ guarda bien la clave privada correspondiente a la tuya.
 - Un repetidor solar es un dispositivo que se instala en altura, con baterías y alimentación
   solar: el montaje, el dimensionado de batería/panel y el mantenimiento son responsabilidad
   del instalador. Respeta las advertencias del manual de uso.
+- **Cumplimiento normativo del montaje**: toda instalación con este firmware debe cumplir la
+  normativa que le sea de aplicación (nacional, autonómica, local y europea): emplazamiento,
+  permisos de acceso y obra, seguridad y medio ambiente. Dónde y cómo se monta el equipo
+  (árboles, estructuras, propiedades ajenas...) es decisión y responsabilidad exclusiva de
+  quien lo instala.
+- El proyecto queda **desvinculado** de cualquier montaje o uso de terceros: no mantiene
+  relación alguna con instalaciones ajenas y no asume responsabilidad por usos que no se
+  ajusten a la legislación vigente.
 - **Uso del espectro radioeléctrico**: los builds están configurados para la banda EU_868 con
   el preset LoRa SFNarrow. Verifica que el uso de la frecuencia y la potencia cumplen la
   normativa de tu país antes de transmitir.
@@ -484,6 +492,14 @@ private key matching your own well backed up.
 - A solar repeater is a device installed at height, with batteries and solar power: mounting,
   battery/panel sizing and maintenance are the installer's responsibility. Follow the user
   manual warnings.
+- **Regulatory compliance of the installation**: any installation using this firmware must
+  comply with the regulations applicable to it (national, regional, local and European):
+  site, access and works permits, safety and environment. Where and how the equipment is
+  mounted (trees, structures, third-party property...) is the sole decision and responsibility
+  of whoever installs it.
+- The project is **dissociated** from any third-party installation or use: it holds no
+  relationship with third-party deployments and assumes no responsibility for uses that do
+  not comply with current legislation.
 - **Radio spectrum use**: the builds are configured for the EU_868 band with the SFNarrow
   LoRa preset. Check that the frequency and power comply with your country's regulations
   before transmitting.
