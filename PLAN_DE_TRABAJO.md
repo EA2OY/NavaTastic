@@ -38,7 +38,7 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       01-12 y PROMPTs. Adendas "REPO UNIFICADO" en los 5 docs de contexto
       (transfer_context, guia_integracion, 2 manuales, GUIA_AGENTE_NAVTASTIC).
       El 4.3 queda SOLO LECTURA (archivo histórico).
-- [ ] GitHub (otra sesión): repo público solo General, docs saneadas de claves Propia
+- [x] **GitHub (15/08)**: https://github.com/EA2OY/NavaTastic — rama `main` con UN solo commit (árbol saneado + binarios `distribucion/` + PDFs + README). El historial local (con claves) NO se sube: rama pública huérfana regenerada en cada publicación.
 - [x] **Propia (R2IP/R1IP, 15/08)**: 12 envs `R2IP_*/R1IP_*` (extends General) +
       `build_propia.ps1` + opción `custom_meshtastic_propia_keys` — claves y PIN BT se piden
       al compilar (variables de entorno) y **NO se almacenan** (verificado grep 0 restos).
