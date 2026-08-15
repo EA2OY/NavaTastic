@@ -180,13 +180,17 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 - [x] **BLOQUE R — FASE R1 HECHA (V3, 15/08)**: F19 `full_reset` + F21 `wipe` implementados
   (ver arriba). Riesgo por pieza: F19 BAJO · F21 MEDIO (destructivo: par PKI nuevo → peers
   re-aprenden, L11).
-- [ ] **BLOQUE R — FASE R2 (pendiente) = F20 sola** (persistir claves admin en
-  `/resilience.bin` para que sobrevivan a resets de fábrica — hoy se pierden, L10). Es la que
-  toca el MODELO DE SEGURIDAD y el FORMATO del struct (bump de `version` → migración en
-  todos los nodos desplegados) → va última, evaluada con el flujo de compromiso real, y SOLO
-  puede existir con F21 ya hecho (el wipe es su botón de purga). Mitigaciones: solo claves
-  PÚBLICAS; slot 0 SIEMPRE = clave del proyecto; versionado; sincronía con /prefs.
-  Regla: F20 sin F21 NO se hace.
+- [ ] **BLOQUE R — FASE R2 (F20) IMPLEMENTADA (V3, 15/08) — pendiente banco + docs**:
+      claves admin PUBLICAS del usuario persistidas en `/resilience.bin` (campos
+      `keySlot1/2/0Own`, marcador NAV3 0x4E415633, struct 180 B). Regla final de slot 0
+      (ENMIENDA del operador): "slot 0 = estado previo del usuario" — `keySlot0Own` se
+      restaura EN el slot 0; si no existe, queda la del proyecto. Auto-recuperación de
+      NodeDB INTACTA (solo configs vacías). Sincronización merge desde
+      AdminModule::handleSetConfig (vaciar en la app NO purga; purgar = keys_clear/wipe).
+      Comandos `/nava keys_ls` + `/nava keys_clear` (ACK diferido, sin reboot).
+      Build Faketec SUCCESS; pendiente: banco del operador → 12 envs → distribuir -Todo
+      -V2 → pasada de docs completa (cerebro 33ª, manuales ES+EN + PDFs, README).
+      Regla: F20 solo existe con F21 (wipe) desplegado — cumple (R1 hecho antes).
 - [ ] **F22 seguimiento**: bump de `NAVATASTIC_BUILD` en cada release futuro (NavaCLIModule.h)
   + publicación GitHub (release con los 24 binarios + PDFs, flujo de la Guía §9).
 

@@ -25,6 +25,8 @@
 #include "Default.h"
 #include "MeshRadio.h"
 #include "TypeConversions.h"
+// NAVARICO F20: gancho de sincronizacion de claves admin hacia /resilience.bin
+#include "modules/NavaCLIModule.h"
 
 #if !MESHTASTIC_EXCLUDE_MQTT
 #include "mqtt/MQTT.h"
@@ -911,6 +913,13 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
             const char *warning = "You must provide at least one admin public key to enable managed mode";
             LOG_WARN(warning);
             sendWarning(warning);
+        }
+
+        // NAVARICO F20: sincronizar las claves admin (slots 0-2) hacia /resilience.bin.
+        // Merge: un slot entrante no vacio se persiste (slot 0 = proyecto -> limpia la
+        // override); un slot vacio NUNCA borra lo persistido (purgar = keys_clear/wipe).
+        if (navaCLIModule) {
+            navaCLIModule->syncAdminKeysFromConfig();
         }
 
         if (config.security.debug_log_api_enabled == c.payload_variant.security.debug_log_api_enabled &&

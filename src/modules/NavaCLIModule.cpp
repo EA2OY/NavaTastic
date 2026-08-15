@@ -65,14 +65,25 @@ void NavaCLIModule::loadResiliencePrefs() {
             f.read((uint8_t*)&prefs, sizeof(prefs));
             f.close();
             if (prefs.magic == 0x52455349) {
-                // Migrar ficheros de versiones previas, sin marcador V2, de tamano
-                // distinto al esperado (FS corrupto: FILE_O_WRITE no trunca) o con
-                // campos fuera de rango. Los campos legacy VALIDOS se preservan.
-                if (fileSize != sizeof(prefs) || prefs.version != 0x4E415653 || prefs.chemistry > 3 ||
+                // NAVARICO F20: fichero de version previa (84B "NAVS") o de tamano
+                // distinto (FS corrupto: FILE_O_WRITE no trunca) -> migrar.
+                bool legacy = (fileSize != sizeof(prefs) || prefs.version != NAVS_RESILIENCE_VERSION);
+                // F15: campos legacy fuera de rango -> sanear (preservando los validos).
+                bool fieldsBad = (prefs.chemistry > 3 ||
                     prefs.vbat_cutoff < 2400 || prefs.vbat_cutoff > 3600 || prefs.vwake_level < 1 || prefs.vwake_level > 5 ||
                     prefs.tx_disabled > 1 || prefs.ble_disabled > 1 || prefs.auto_fav > 1 ||
                     (prefs.role > meshtastic_Config_DeviceConfig_Role_ROUTER && prefs.role != 0xFF) ||
-                    prefs.autoFavCount > 16 || prefs.sleepMsgs > 1 || prefs.wasInSleep > 1) {
+                    prefs.autoFavCount > 16 || prefs.sleepMsgs > 1 || prefs.wasInSleep > 1);
+                if (legacy) {
+                    // F20: campos nuevos a cero + adoptar las claves de usuario que ya
+                    // estan en la config (una sola vez por fichero migrado; el dedupe
+                    // descarta las del proyecto).
+                    memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
+                    memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
+                    memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
+                    adoptPersistedAdminKeys();
+                }
+                if (legacy || fieldsBad) {
                     prefs.auto_fav = 1;
                     prefs.role = 0xFF; // sin rol fijado (fichero de version previa o corrupto)
                     prefs.autoFavCount = 0;
@@ -103,7 +114,7 @@ void NavaCLIModule::loadResiliencePrefs() {
                     }
                     if (prefs.tx_disabled > 1) prefs.tx_disabled = 0;
                     if (prefs.ble_disabled > 1) prefs.ble_disabled = 0;
-                    prefs.version = 0x4E415653; // NAVARICO: F15 - marcador de formato
+                    prefs.version = NAVS_RESILIENCE_VERSION; // NAVARICO: marcador de formato
                     saveResiliencePrefs();
                 }
                 navaAutoFavoriteEnabled = (prefs.auto_fav != 0);
@@ -155,7 +166,13 @@ void NavaCLIModule::loadResiliencePrefs() {
     prefs.sleepMsgs = 1;
     prefs.wasInSleep = 0;
     prefs.reserved = 0;
-    prefs.version = 0x4E415653; // NAVARICO: F15 - marcador de formato
+    prefs.version = NAVS_RESILIENCE_VERSION; // NAVARICO: marcador de formato
+    // NAVARICO F20: campos nuevos a cero + adopcion (tras wipe el config solo tiene
+    // claves del proyecto -> el dedupe no adopta nada; cubre FS perdido con /prefs vivo).
+    memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
+    memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
+    memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
+    adoptPersistedAdminKeys();
     navaAutoFavoriteEnabled = true;
     setBleForceDisabled(false);
     saveResiliencePrefs();
@@ -177,7 +194,7 @@ static bool navaResiliencePeek(uint8_t &sleepMsgsOut, uint8_t &wasInSleepOut)
             }
             f.close();
             if (tmp.magic == 0x52455349) {
-                if (fileSize != sizeof(tmp) || tmp.version != 0x4E415653) {
+                if (fileSize != sizeof(tmp) || tmp.version != NAVS_RESILIENCE_VERSION) {
                     // NAVARICO: F15 - fichero de version previa, corrupto o sin
                     // marcador V2: defaults, igual que la migracion de loadResiliencePrefs
                     sleepMsgsOut = 1;
@@ -220,7 +237,7 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
                 f.read((uint8_t *)&tmp, fileSize);
                 if (tmp.magic == 0x52455349) {
                     exists = true;
-                    if (fileSize != sizeof(tmp) || tmp.version != 0x4E415653) {
+                    if (fileSize != sizeof(tmp) || tmp.version != NAVS_RESILIENCE_VERSION) {
                         // V2: migrar fichero previo o sin marcador (defaults de los campos nuevos)
                         tmp.autoFavCount = 0;
                         memset(tmp.autoFavIds, 0, sizeof(tmp.autoFavIds));
@@ -228,7 +245,7 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
                         tmp.reserved = 0;
                         // NAVARICO: F15 - el byte 11 era padding en R2IG previo: rol sin fijar
                         tmp.role = 0xFF;
-                        tmp.version = 0x4E415653;
+                        tmp.version = NAVS_RESILIENCE_VERSION;
                         if (tmp.chemistry > 3) tmp.chemistry = 0;
                         if (tmp.vbat_cutoff < 2400 || tmp.vbat_cutoff > 3600) tmp.vbat_cutoff = 3500;
                         if (tmp.vwake_level < 1 || tmp.vwake_level > 5) tmp.vwake_level = 3;
@@ -260,7 +277,7 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
         memset(tmp.autoFavIds, 0, sizeof(tmp.autoFavIds));
         tmp.wasInSleep = 0;
         tmp.reserved = 0;
-        tmp.version = 0x4E415653; // NAVARICO: F15 - marcador de formato
+        tmp.version = NAVS_RESILIENCE_VERSION; // NAVARICO: F15 - marcador de formato
     }
     tmp.wasInSleep = on ? 1 : 0;
     // NAVARICO: F15 - el FILE_O_WRITE de InternalFS NO trunca: recrear el fichero
@@ -291,6 +308,143 @@ void NavaCLIModule::saveResiliencePrefs() {
     if (f) {
         f.write((uint8_t*)&prefs, sizeof(prefs));
         f.close();
+    }
+}
+
+// --- NAVARICO F20: claves admin PUBLICAS persistidas en /resilience.bin ---
+
+bool NavaCLIModule::navaKeyIsEmpty(const uint8_t *key)
+{
+    for (uint8_t i = 0; i < 32; i++) {
+        if (key[i] != 0) return false;
+    }
+    return true;
+}
+
+bool NavaCLIModule::navaKeyIsProjectKey(const uint8_t *key)
+{
+    // Dedupe contra las claves del proyecto del perfil. Los builds General solo
+    // definen K0; Propia define K0+K1. Nunca persistir la clave del proyecto como
+    // "clave de usuario" ni restaurarla por encima del estado previo.
+#ifdef USERPREFS_USE_ADMIN_KEY_0
+    {
+        static const uint8_t k0[] = USERPREFS_USE_ADMIN_KEY_0;
+        if (memcmp(key, k0, 32) == 0) return true;
+    }
+#endif
+#ifdef USERPREFS_USE_ADMIN_KEY_1
+    {
+        static const uint8_t k1[] = USERPREFS_USE_ADMIN_KEY_1;
+        if (memcmp(key, k1, 32) == 0) return true;
+    }
+#endif
+#ifdef USERPREFS_USE_ADMIN_KEY_2
+    {
+        static const uint8_t k2[] = USERPREFS_USE_ADMIN_KEY_2;
+        if (memcmp(key, k2, 32) == 0) return true;
+    }
+#endif
+    return false;
+}
+
+void NavaCLIModule::adoptPersistedAdminKeys()
+{
+    // F20: copiar hacia la persistencia (solo campos VACIOS) las claves de usuario que
+    // ya estan en la config. Corre en la migracion legacy y en el fichero nuevo (tras
+    // wipe el config solo tiene la del proyecto -> el dedupe no adopta nada).
+    const meshtastic_Config_SecurityConfig &sec = config.security;
+    if (navaKeyIsEmpty(prefs.keySlot0Own) && sec.admin_key[0].size == 32 &&
+        !navaKeyIsEmpty(sec.admin_key[0].bytes) && !navaKeyIsProjectKey(sec.admin_key[0].bytes)) {
+        memcpy(prefs.keySlot0Own, sec.admin_key[0].bytes, 32);
+    }
+    if (navaKeyIsEmpty(prefs.keySlot1) && sec.admin_key[1].size == 32 &&
+        !navaKeyIsEmpty(sec.admin_key[1].bytes) && !navaKeyIsProjectKey(sec.admin_key[1].bytes)) {
+        memcpy(prefs.keySlot1, sec.admin_key[1].bytes, 32);
+    }
+    if (navaKeyIsEmpty(prefs.keySlot2) && sec.admin_key[2].size == 32 &&
+        !navaKeyIsEmpty(sec.admin_key[2].bytes) && !navaKeyIsProjectKey(sec.admin_key[2].bytes)) {
+        memcpy(prefs.keySlot2, sec.admin_key[2].bytes, 32);
+    }
+}
+
+void NavaCLIModule::applyPersistedAdminKeys()
+{
+    // F20: primer tick del boot, DESPUES de NodeDB::init (config cargada y
+    // auto-recuperacion ya aplicada). Regla final: slot 0 = estado previo del usuario
+    // (keySlot0Own se restaura EN el slot 0, desplazando la del proyecto); slots 1-2
+    // se restauran SOLO si estan vacios. Guarda el config solo si algo cambio.
+    bool changed = false;
+    if (!navaKeyIsEmpty(prefs.keySlot0Own)) {
+        if (config.security.admin_key[0].size != 32 ||
+            memcmp(config.security.admin_key[0].bytes, prefs.keySlot0Own, 32) != 0) {
+            memcpy(config.security.admin_key[0].bytes, prefs.keySlot0Own, 32);
+            config.security.admin_key[0].size = 32;
+            changed = true;
+        }
+    }
+    if (config.security.admin_key[1].size != 32 || navaKeyIsEmpty(config.security.admin_key[1].bytes)) {
+        if (!navaKeyIsEmpty(prefs.keySlot1)) {
+            memcpy(config.security.admin_key[1].bytes, prefs.keySlot1, 32);
+            config.security.admin_key[1].size = 32;
+            changed = true;
+        }
+    }
+    if (config.security.admin_key[2].size != 32 || navaKeyIsEmpty(config.security.admin_key[2].bytes)) {
+        if (!navaKeyIsEmpty(prefs.keySlot2)) {
+            memcpy(config.security.admin_key[2].bytes, prefs.keySlot2, 32);
+            config.security.admin_key[2].size = 32;
+            changed = true;
+        }
+    }
+    if (changed) {
+        uint8_t cnt = 0;
+        for (uint8_t i = 0; i < 3; i++) {
+            if (config.security.admin_key[i].size == 32 && !navaKeyIsEmpty(config.security.admin_key[i].bytes)) {
+                cnt = i + 1;
+            }
+        }
+        if (cnt < 1) cnt = 1;
+        config.security.admin_key_count = cnt;
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        LOG_INFO("F20: claves admin restauradas desde resilience.bin (count=%u)", (unsigned)cnt);
+    }
+}
+
+void NavaCLIModule::syncAdminKeysFromConfig()
+{
+    // F20: merge desde la config (set_config de seguridad de la app/CLI).
+    // - slot 0 entrante NO vacio: == clave del proyecto -> limpiar keySlot0Own
+    //   (el usuario re-autoriza el rescate); otra -> guardarla como keySlot0Own.
+    // - slots 1-2 entrantes NO vacios y != proyecto -> persistir; vacios -> NO borrar
+    //   (purgar = /nava keys_clear o wipe). Escribe el fichero solo si algo cambio.
+    bool changed = false;
+    const meshtastic_Config_SecurityConfig &sec = config.security;
+    if (sec.admin_key[0].size == 32 && !navaKeyIsEmpty(sec.admin_key[0].bytes)) {
+        if (navaKeyIsProjectKey(sec.admin_key[0].bytes)) {
+            if (!navaKeyIsEmpty(prefs.keySlot0Own)) {
+                memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
+                changed = true;
+            }
+        } else if (memcmp(prefs.keySlot0Own, sec.admin_key[0].bytes, 32) != 0) {
+            memcpy(prefs.keySlot0Own, sec.admin_key[0].bytes, 32);
+            changed = true;
+        }
+    }
+    if (sec.admin_key[1].size == 32 && !navaKeyIsEmpty(sec.admin_key[1].bytes) && !navaKeyIsProjectKey(sec.admin_key[1].bytes)) {
+        if (memcmp(prefs.keySlot1, sec.admin_key[1].bytes, 32) != 0) {
+            memcpy(prefs.keySlot1, sec.admin_key[1].bytes, 32);
+            changed = true;
+        }
+    }
+    if (sec.admin_key[2].size == 32 && !navaKeyIsEmpty(sec.admin_key[2].bytes) && !navaKeyIsProjectKey(sec.admin_key[2].bytes)) {
+        if (memcmp(prefs.keySlot2, sec.admin_key[2].bytes, 32) != 0) {
+            memcpy(prefs.keySlot2, sec.admin_key[2].bytes, 32);
+            changed = true;
+        }
+    }
+    if (changed) {
+        saveResiliencePrefs();
+        LOG_INFO("F20: claves admin persistidas actualizadas");
     }
 }
 
@@ -646,7 +800,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             enqueueResponse(replyDest, replyChannel, usageAndState(topic), true);
         } else {
             enqueueResponse(replyDest, replyChannel,
-                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg [on|off] / reboot / factory_reset / full_reset / wipe\n[E] admin_ls / power\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
+                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg [on|off] / reboot / factory_reset / full_reset / wipe\n[E] admin_ls / keys_ls / keys_clear / power\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
         }
     }
     else if (cmd == "ping") {
@@ -1431,6 +1585,22 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         }
         enqueueResponse(replyDest, replyChannel, reply, true);
     }
+    else if (cmd == "keys_ls") {
+        // NAVARICO F20: claves admin persistidas en /resilience.bin (las que volveran
+        // tras un factory/full reset). Mismo formato base64 que admin_ls.
+        std::string reply = "CLAVES PERSISTIDAS:\n";
+        reply += std::string("S0: ") + (navaKeyIsEmpty(prefs.keySlot0Own) ? "VACIA" : base64Encode(prefs.keySlot0Own, 32)) + "\n";
+        reply += std::string("S1: ") + (navaKeyIsEmpty(prefs.keySlot1) ? "VACIA" : base64Encode(prefs.keySlot1, 32)) + "\n";
+        reply += std::string("S2: ") + (navaKeyIsEmpty(prefs.keySlot2) ? "VACIA" : base64Encode(prefs.keySlot2, 32)) + "\n";
+        enqueueResponse(replyDest, replyChannel, reply, true);
+    }
+    else if (cmd == "keys_clear") {
+        // NAVARICO F20: borrado diferido de las claves persistidas (patron ANEXO:
+        // ACK primero, ejecucion en runOnce con la cola vacia, sin reboot).
+        enqueueResponse(replyDest, replyChannel, "OK: BORRADO DE CLAVES PERSISTIDAS PROGRAMADO", true);
+        keysClearPending = true;
+        keysClearTime = millis() + 3000;
+    }
     else {
         enqueueResponse(replyDest, replyChannel, "ERR: COMANDO DESCONOCIDO", true);
     }
@@ -1445,6 +1615,8 @@ int32_t NavaCLIModule::runOnce()
     // V2: primer tick tras el boot: mensajes [Vivo]/[Listo] segun como se desperto
     if (!firstRunDone) {
         firstRunDone = true;
+        // NAVARICO F20: restaurar las claves admin persistidas (DESPUES de NodeDB::init)
+        applyPersistedAdminKeys();
         if (wokeFromSleep || vivoPending) {
             if (vivoPending && prefs.sleepMsgs) {
                 // V2.6: despertado por reset externo con bateria en la banda [corte-100,
@@ -1561,6 +1733,21 @@ int32_t NavaCLIModule::runOnce()
             LOG_INFO("Executing deferred action (reboot/hibernate)...");
             rebootAtMsec = millis() + 25; 
         }
+        return 1000;
+    }
+
+    // NAVARICO F20: borrado diferido de las claves persistidas (/nava keys_clear).
+    // Patron del ANEXO: el ACK ya salio; se ejecuta con la cola vacia tras ~3s y
+    // SIN reboot (solo edita /resilience.bin; el config en RAM no se toca).
+    if (keysClearPending && responseQueue.empty() && (int32_t)(millis() - keysClearTime) >= 0) {
+        keysClearPending = false;
+        memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
+        memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
+        memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
+        saveResiliencePrefs();
+        LOG_INFO("F20: claves admin persistidas borradas (keys_clear)");
+    }
+    if (keysClearPending) {
         return 1000;
     }
 
@@ -1693,6 +1880,10 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
         return "wipe: Purga total: regenera el par PKI (los peers fallan DM hasta re-aprender la clave nueva). Uso: /nava wipe";
     else if (topic == "admin_ls")
         return "admin_ls: Muestra las 3 claves criptograficas de admin en base64. Uso: /nava admin_ls";
+    else if (topic == "keys_ls")
+        return "keys_ls: Muestra las claves admin persistidas (sobreviven a factory/full reset) en base64. Uso: /nava keys_ls";
+    else if (topic == "keys_clear")
+        return "keys_clear: Borra las claves admin persistidas (no toca la config actual ni reinicia). Uso: /nava keys_clear";
     else if (topic == "sleepmsg")
         return "sleepmsg: Activa/desactiva los avisos de sueno/vivo/listo al canal Navadmin. Uso: /nava sleepmsg [on|off]";
     else if (topic == "help")

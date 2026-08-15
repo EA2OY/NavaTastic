@@ -710,3 +710,38 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   operando antes de [Sueño]) + distribuir -Todo -V2 + PDFs + commit.
 - Backups: `.bak-20260815-2109` (19 ficheros: Power.cpp, NavaCLIModule.h/.cpp, 13 jsonc, 2
   manuales).
+
+### F20 (15/08, FASE R2) — claves admin persistidas en /resilience.bin (IMPLEMENTADO, pendiente banco+docs)
+- **Diseño final (validado por operador + sesión anterior, con ENMIENDA de la regla de slot 0)**:
+  - Struct `ResiliencePrefs` += `keySlot1[32]`, `keySlot2[32]`, `keySlot0Own[32]` (84→180 B);
+    marcador `version` bump a `NAVS_RESILIENCE_VERSION 0x4E415633` ("NAV3"); los 8 literales
+    `0x4E415653` sustituidos (queda 1 solo en comentario explicativo).
+  - **Regla final de slot 0**: "slot 0 = estado previo del usuario" — `keySlot0Own` (clave propia
+    que el dueño puso en slot 0 desautorizando la de fábrica) se restaura EN el slot 0 desplazando
+    a la del proyecto; si no existe, slot 0 queda con la del proyecto (como estaba). La
+    auto-recuperación de NodeDB (local_sum==0) sigue cubriendo solo configs vacías (wipe/nrf
+    erase) — INTACTA, NodeDB.cpp no se toca.
+  - **Migración legacy (84 B "NAVS")**: campos legacy preservados, campos de claves a cero +
+    **adopción** (copia de las claves de usuario ya presentes en el config, con dedupe contra
+    las claves del proyecto vía macros USERPREFS_USE_ADMIN_KEY_0/1/2 — General solo define K0).
+    La adopción también corre en el fichero inexistente (tras wipe no adopta nada: config solo
+    proyecto). No-op en boot normal.
+  - **Restauración**: primer tick de runOnce (`applyPersistedAdminKeys`, DESPUÉS de
+    NodeDB::init): slot 0 ← keySlot0Own; slots 1-2 ← solo si vacíos; recomputa
+    `admin_key_count`; `saveToDisk(SEGMENT_CONFIG)` SOLO si cambió.
+  - **Sincronización**: gancho en `AdminModule::handleSetConfig` caso security (tras aplicar
+    config, `if (navaCLIModule)`): merge — slot entrante NO vacío se persiste; vacío NUNCA
+    borra lo persistido; slot 0 entrante == clave del proyecto → limpia keySlot0Own
+    (re-autorización del rescate). Purga real: `keys_clear`/wipe/nrf erase.
+  - **Comandos nuevos (DM-PKI, fuera de whitelist canal 1)**: `/nava keys_ls` (persistidas en
+    base64) y `/nava keys_clear` (ACK diferido → runOnce con cola vacía tras 3 s → cero SOLO
+    los 3 campos → sin reboot; patrón ANEXO). Help [E] + helpForCommand actualizados.
+  - **Edge conocido (documentado)**: si el primer boot tras flashear V3 duerme por batería
+    baja en el pre-check, la migración la hace `navaSetWasInSleep` (config aún no cargada) →
+    adopción diferida al siguiente sync de seguridad. Sin pérdida de claves.
+  - **Verificación**: `navarrico_faketec_sx1262_r2ig` SUCCESS (208 s). UF2:
+    `.pio\build\navarrico_faketec_sx1262_r2ig\firmware-navarrico_faketec_sx1262_r2ig-2.7.26.e1c3179.uf2`
+    (MD5 FED443632EFD127EA4CEE6752009ADE7). Pendiente: banco (operador) → 12 envs →
+    distribuir -Todo -V2 → pasada de docs completa (cerebro 33ª, BITACORA, PLAN,
+    transfer_context, guia_integracion, subnotas 02/03/05, manuales ES+EN + PDFs, README).
+  - Backups: `.bak-20260815-2301` (NavaCLIModule.h/.cpp, AdminModule.cpp, 2 manuales).

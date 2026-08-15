@@ -14,6 +14,11 @@
 #define NAVATASTIC_BUILD "V3"
 #endif
 
+// NAVARICO F20: marcador de formato del struct ResiliencePrefs. Bump V3 (0x4E415633,
+// "NAV3"): se anaden las claves admin persistidas. Los ficheros 84 B (0x4E415653,
+// "NAVS") migran con defaults en los campos nuevos.
+#define NAVS_RESILIENCE_VERSION 0x4E415633
+
 struct NavaResponse {
     NodeNum dest;
     uint8_t channel;
@@ -44,7 +49,14 @@ struct ResiliencePrefs {
     uint8_t sleepMsgs;       // V2: 1=mensajes sueño/vivo/listo ON (default), 0=OFF (/nava sleepmsg)
     uint8_t wasInSleep;      // V2: 1=dormido por bateria (se setea antes de cpuDeepSleep, se lee al boot para Listo/Vivo)
     uint8_t reserved;        // V2: reservado
-    uint32_t version;        // V2.3: marcador de formato 0x4E415653 ("NAVS"); ficheros <=80B (Eclipse/V2.0) migran con defaults
+    uint32_t version;        // Marcador de formato NAVS_RESILIENCE_VERSION ("NAV3"); ficheros <=84B ("NAVS" de V2.x) migran con defaults
+    // NAVARICO F20 (V3): claves admin PUBLICAS del usuario persistidas para que sobrevivan
+    // a los resets de fabrica. keySlot0Own = clave propia que el usuario puso en slot 0
+    // (desautorizando la de fabrica): se restaura EN el slot 0 (regla "slot 0 = estado
+    // previo del usuario"); keySlot1/keySlot2 se restauran en sus slots si estan vacios.
+    uint8_t keySlot1[32];
+    uint8_t keySlot2[32];
+    uint8_t keySlot0Own[32];
 };
 
 class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
@@ -62,6 +74,12 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     // V2: el monitor de bateria (Power.cpp) delega el sueño aqui para mandar el
     // mensaje [Sueño] antes de dormir. Devuelve true si tomo el control.
     bool handleLowBatteryEvent();
+
+    // NAVARICO F20: sincronizar las claves admin del usuario (slots 0-2 de la config)
+    // hacia /resilience.bin. Lo llama AdminModule tras cada set_config de seguridad.
+    // Merge: un slot entrante no vacio se persiste (slot 0 = proyecto -> limpia
+    // keySlot0Own); un slot vacio NUNCA borra lo persistido (purgar = keys_clear/wipe).
+    void syncAdminKeysFromConfig();
 
   protected:
     virtual ProcessMessage handleReceived(const meshtastic_MeshPacket &mp) override;
@@ -113,6 +131,20 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     ResiliencePrefs prefs;
     void loadResiliencePrefs();
     void saveResiliencePrefs();
+
+    // NAVARICO F20: restauracion al primer tick del boot (DESPUES de NodeDB::init):
+    // keySlot0Own -> slot 0 (desplaza la del proyecto); keySlot1/2 -> slots vacios.
+    // Guarda el config SOLO si algo cambio. Adopcion = copiar claves de usuario del
+    // config hacia la persistencia cuando esta vacia (migracion legacy / fichero perdido).
+    void applyPersistedAdminKeys();
+    void adoptPersistedAdminKeys();
+    static bool navaKeyIsEmpty(const uint8_t *key);
+    static bool navaKeyIsProjectKey(const uint8_t *key);
+
+    // NAVARICO F20: borrado diferido de las claves persistidas (/nava keys_clear):
+    // ACK encolado -> ejecucion en runOnce con la cola vacia tras ~3s (patron ANEXO).
+    bool keysClearPending = false;
+    uint32_t keysClearTime = 0;
 
     // V2: helpers del listado persistente de auto-favoritos (status real tras reinicio)
     bool isAutoFav(uint32_t nodeNum) const;
