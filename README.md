@@ -55,6 +55,16 @@ la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes 
 *Canal abierto (Navadmin) = solo consulta; configuración y acciones críticas = DM cifrado PKI.
 Todo comando responde ayuda con `/nava <comando> ?`.*
 
+### NavaTastic + MeshNavarra: hechos para funcionar juntos
+
+El firmware **NavaTastic** y la aplicación **[MeshNavarra-Utility](https://github.com/EA2OY/MeshNavarra-Utility)**
+(proyecto hermano, mismo GitHub) son dos proyectos que funcionan **en conjunto y se
+complementan**: la app envía los comandos `/nava` como **mensajes predefinidos**, así que toda
+la tabla de arriba se maneja **con un par de toques, sin escribir nada**. Para sacar el
+**pleno partido** al repetidor solar — consultar su estado, ajustar la energía, reiniciar o
+rescatar nodos de toda la flota desde el móvil, sin PC — úsalos juntos: NavaTastic pone la
+potencia en el nodo; MeshNavarra pone la comodidad en tu mano.
+
 ## Requisito de hardware: divisor ADC 1M+1M (factor 2.0)
 
 Para que la medición de batería y la protección de bajo voltaje funcionen, las placas
@@ -284,6 +294,15 @@ predefined messages.
 
 *Open channel (Navadmin) = read-only queries; configuration and critical actions = PKI-encrypted
 DM. Every command answers help with `/nava <command> ?`.*
+
+### NavaTastic + MeshNavarra: built to work together
+
+The **NavaTastic** firmware and the **MeshNavarra** app are two projects that **work together
+and complement each other**: the app sends the `/nava` commands as **predefined messages**, so
+the whole table above is handled **with a couple of taps, no typing**. To get the **full
+value** out of the solar repeater — check status, tune energy, reboot or rescue nodes across
+the fleet from your phone, no PC — use them together: NavaTastic puts the power in the node;
+MeshNavarra puts the convenience in your hand.
 
 ## Hardware requirement: ADC divider 1M+1M (ratio 2.0)
 
