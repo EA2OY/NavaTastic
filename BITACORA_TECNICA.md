@@ -785,8 +785,22 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   02/03/05, manuales ES+EN con keys_ls/keys_clear/regla de claves/merge, README ES+EN, Guia) +
   PDFs regenerados. Backups docs `.bak-20260816-0100`.
 
-### NOMENCLATURA DE VERSIONES (16/08, decisión del operador)
-- **Changelog público (manual de uso) = 3 hitos**: **4.3.0** (NavaTastic + control remoto sin
+### PUBLICACIÓN GITHUB — "NavaTastic Eclipse V3" v4.3.2 (16/08, con assets actualizados)
+- **Push**: rama huérfana `github-public` regenerada (UN commit `aca051dd4`, árbol saneado sin
+  `.github/workflows` upstream) → `push -f ...github-public:main` (main actualizada).
+- **Release v4.3.2** (id 371184462, tag v4.3.2, target main, name "NavaTastic Eclipse V3
+  (4.3.2)"): **26 assets subidos por API** (`uploads.github.com`) — 12 UF2 + 12 OTA
+  (nombres históricos de `distribucion\`; NIMH = mismos binarios que LIPO) + 2 PDFs
+  (bilingües, regenerados 16/08). Releases v2.6/v2.6.1 anteriores conservados.
+- **Body del release**: novedades ES/EN (etiqueta NAVA V3, avisos sueño/despertar, 8
+  lecturas, full_reset/wipe, claves admin persistidas banco 7/7, tip `/nava help`).
+- **Credencial**: la del Administrador de credenciales de Windows (usuario EA2OY); el token
+  se usó en memoria y se eliminó el fichero temporal. **Recomendado rotar/revocar (L26)**.
+- **L24 aplicada**: tras volver a master se repobló `distribucion\` (`distribuir.ps1 -Todo
+  -V2`) y se regeneraron los 2 PDFs. README actualizado ("Última versión" = Eclipse V3) en
+  master y en la rama pública.
+
+### NOMENCLATURA DE VERSIONES (16/08, decisión del operador)- **Changelog público (manual de uso) = 3 hitos**: **4.3.0** (NavaTastic + control remoto sin
   PC), **4.3.1 = "NavaTastic Eclipse"** (12/08, distribuida a colegas), **4.3.2 = "NavaTastic
   Eclipse V3"** (actual). Mapeo oficial: **"NavaTastic Eclipse V3" = 4.3.2 = etiqueta
   compilada `NAVA V3`** — no recompilar por esto. La carpeta destino del Desktop
