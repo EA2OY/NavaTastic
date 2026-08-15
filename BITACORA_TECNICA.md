@@ -620,31 +620,26 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - Backups `.bak-20260815-2025` (README, cerebro, BITACORA, PLAN, subnota 04, transfer_context).
 
 ### POSIBLES AMPLIACIONES (anotadas 15/08, esperan orden del operador)
-- **F19 — `/nava full_reset`**: hoy NO existe un erase total por radio (el `nrf erase` es por
-  PC: UF2 + comando USB serie). Hueco real: los semi-persistentes de `/resilience.bin`
-  (set_role/set_chem/set_vbat/set_vwake/sleepmsg/txoff/ble/fav auto) NO tienen revert remoto
-  (sobreviven al factory reset por diseño). Propuesta: comando = factory_reset + borrar
-  `/resilience.bin`, **conservando claves PKI** (el erase de claves se queda por PC — evita el
-  re-aprendizaje de L11 y el riesgo de identidad nueva en la malla). DM-PKI + diferido con ACK.
-- **F20 — claves admin en `/resilience.bin` (idea a EVALUAR, implicaciones)**:
-  - **Motivo**: hoy el factory reset borra las admin_key añadidas por app (L10) — tras un
-    reset remoto el operador debe re-acreditar sus mandos a mano. Persistirlas en
-    resilience.bin las haría sobrevivir.
-  - **Riesgo principal (seguridad)**: el factory reset perdería su función de PURGA — si un
-    admin/mando se compromete, reseteando el nodo ya no lo expulsas (volvería su clave). El
-    último recurso pasaría a ser `nrf erase` (PC).
-  - **Mitigaciones si se hiciera**: solo claves PÚBLICAS (no hay secreto en juego; ya viajan
-    en NodeInfo); slot 0 SIEMPRE = clave del proyecto (nunca pisable por resilience — conserva
-    el canal de rescate garantizado); struct versionado (gates F15); resolver la doble fuente
-    de verdad con /prefs (quién gana al sincronizar).
-  - **L31 — factory reset = herramienta de purga**: cualquier diseño que haga sobrevivir
-    acreditaciones a un factory reset debilita su uso como "expulsar a un admin comprometido".
-    Evaluar siempre esa pérdida antes de persistir claves admin fuera de /prefs.
-- **F21 — `/nava wipe` (purga de compromiso, LIGADO a F20 — decisión del operador: "mejor
-  perder las claves que otra cosa")**: erase total remoto = equivalente a `nrf erase`:
-  `/prefs` + `/resilience.bin` + regeneración del par PKI; el nodo vuelve con identidad/keys
-  nuevos y re-emite NodeInfo (los peers re-aprenden, camino H3/updateUser). Escalera:
-  `factory_reset` → `full_reset` (F19) → `wipe` (F21). Notas de riesgo: (1) si el wipe se
-  interrumpe a medias, los gates de arranque ya autocuran (F15); (2) un admin comprometido
-  también puede lanzarlo (denegación) — igual que hoy con factory_reset, no es peor; (3) a
-  decidir si conserva el NodeNum (menos disrupción) o lo regenera (identidad limpia).
+- **BLOQUE R — Resets remotos** (agrupadas 15/08 por decisión del operador; FASE R1 = F19+F21
+  juntas, FASE R2 = F20 sola):
+  - **F19 — `/nava full_reset`**: factory_reset + borrar `/resilience.bin` (semi-persistentes
+    → defaults), **conservando claves PKI** → revert remoto sin PC y sin romper la malla.
+  - **F21 — `/nava wipe`** (purga de compromiso): erase total + **regeneración del par PKI**
+    (equivalente remoto de `nrf erase`). **El NodeNum se conserva SOLO**: deriva de la MAC del
+    hardware (`pickNewNodeNum`, NodeDB.cpp:1269-1291 — verificado 15/08), no vive en flash →
+    un erase/wipe re-deriva el MISMO id; los peers re-aprenden la pubkey nueva del mismo id
+    (camino H3/updateUser). Excepciones: colisión con peer de MAC distinta → aleatorio; cambio
+    de módulo de radio/MCU → identidad nueva.
+  - **F20 — claves admin en `/resilience.bin`** (FASE R2, la última): hoy el factory reset las
+    borra (L10) y solo vuelve la del proyecto; persistirlas las haría sobrevivir. **Riesgo
+    principal (L31)**: el factory reset pierde su función de PURGA → por eso R2 solo puede
+    existir con F21 ya desplegado. Mitigaciones: solo claves PÚBLICAS; slot 0 SIEMPRE =
+    clave del proyecto (no pisable); struct versionado (gates F15); resolver doble fuente de
+    verdad con /prefs.
+  - **Por qué en 2 fases**: F19/F21 comparten armazón (comandos + ACK diferido, sin cambios
+    de struct) y son de riesgo bajo/medio; F20 toca el modelo de seguridad y el FORMATO del
+    struct (bump `version` → migración en todos los nodos desplegados) → aislada, evaluada con
+    el flujo de compromiso real. Escalera final: `factory_reset` → `full_reset` → `wipe`.
+- **L31 — factory reset = herramienta de purga**: cualquier diseño que haga sobrevivir
+  acreditaciones a un factory reset debilita su uso como "expulsar a un admin comprometido".
+  Evaluar siempre esa pérdida antes de persistir claves admin fuera de /prefs.

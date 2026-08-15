@@ -161,24 +161,21 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       SX1262 = 22 dBm SIEMPRE (decisión del operador, no tocar).
 
 ## Posibles ampliaciones (anotadas 15/08, esperan orden)
-- [ ] **F19 — `/nava full_reset`** (idea del operador): factory_reset + borrar también
-      `/resilience.bin` (semi-persistentes → defaults de perfil) **CONSERVANDO las claves
-      PKI** → revertir ajustes remotos sin PC y sin romper la malla (el erase total de claves
-      se queda como procedimiento por PC, `nrf erase`). DM-PKI + patrón diferido (ACK antes),
-      como factory_reset.
-- [ ] **F20 — claves admin en `/resilience.bin`** (idea a EVALUAR): hoy el factory reset
-      borra las admin_key añadidas por app (L10) — solo vuelve la del proyecto (auto-
-      recuperación). Persistirlas en resilience.bin permitiría que sobrevivan a resets de
-      fábrica remotos, PERO con evaluación de riesgo pendiente (BITACORA): el factory reset
-      perdería su función de purga de admins comprometidos; solo claves PÚBLICAS; slot 0
-      SIEMPRE = clave del proyecto (no pisable); versionado del struct; sincronía con /prefs.
-- [ ] **F21 — `/nava wipe` (purga de compromiso, LIGADO a F20)**: erase total remoto
-      equivalente al `nrf erase` por PC: /prefs + /resilience.bin + regeneración del par PKI
-      (y a decidir: conservar o no el NodeNum). Escalera de escalado propuesta:
-      `factory_reset` (config, conserva claves+resilience) → `full_reset` F19 (+resilience,
-      conserva claves) → `wipe` F21 (todo + claves nuevas = "nodo recién flasheado"). Regla:
-      **F20 no se implementa sin F21** (necesita el botón de purga). ACK diferido antes de
-      ejecutar; idempotente (gates de arranque ya curan estados parciales, F15).
+- [ ] **BLOQUE R — Resets remotos** (una opción de plan, DOS fases; idea del operador):
+  - **Fase R1 = F19 + F21 juntas** (comparten armazón: comandos `/nava`, patrón diferido con
+    ACK, sin cambios de struct ni migración; un solo ciclo de build+banco):
+    - `F19 /nava full_reset`: factory_reset + borrar `/resilience.bin` (semi-persistentes →
+      defaults de perfil) **CONSERVANDO claves PKI** → revertir ajustes remotos sin PC.
+    - `F21 /nava wipe` (purga de compromiso): erase total + **regeneración del par PKI**
+      (equivalente remoto del `nrf erase`). El NodeNum se conserva SOLO (deriva de la MAC del
+      hardware, NodeDB.cpp:1269 — verificado): los peers re-aprenden la pubkey nueva del mismo
+      id (camino H3/updateUser). Escalera: `factory_reset` → `full_reset` → `wipe`.
+  - **Fase R2 = F20 sola** (persistir claves admin en `/resilience.bin` para que sobrevivan a
+    resets de fábrica — hoy se pierden, L10). Es la que toca el MODELO DE SEGURIDAD y el
+    FORMATO del struct (bump de `version` → migración en todos los nodos desplegados) → va
+    última, evaluada con el flujo de compromiso real, y SOLO puede existir con F21 ya hecho.
+    Mitigaciones: solo claves PÚBLICAS; slot 0 SIEMPRE = clave del proyecto; versionado;
+    sincronía con /prefs. Regla: F20 sin F21 NO se hace (el wipe es su botón de purga).
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
