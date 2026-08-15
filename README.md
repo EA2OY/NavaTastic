@@ -25,6 +25,7 @@ nacional en España, EU_868). Un solo repositorio genera **12 firmwares** distin
 | **NavaCLI `/nava`** | ~45 comandos de administración remota: telemetría, energía, favoritos, bloqueos, rol semi-permanente, mantenimiento. DM cifrado PKI para acciones críticas; canal Navadmin de solo-lectura |
 | **Protección de Flash** | Base de nodos con guardado filtrado, auto-favoritos de routers directos, desalojo híbrido, historial sin escritura |
 | **Seguridad** | Acreditación admin por PKI persistente tras reboot, auto-recuperación de claves, límite de favoritos huérfanos |
+| **Claves admin persistentes** | Las claves de administración del usuario se guardan en el nodo y **vuelven solas tras un factory/full reset** (`keys_ls`/`keys_clear`); tras un fallo completo (`wipe`/`nrf erase`) se re-inyecta la clave de rescate del proyecto |
 | **Rol semi-permanente** | `set_role` persiste en `/resilience.bin` y **sobrevive al factory reset** |
 
 ## NavaCLI: gestiona todo desde el móvil, sin PC
@@ -53,7 +54,7 @@ la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes 
 | `fav add/rm/ls` · `fav auto` | Favoritos (bypass de saltos) y auto-favoriteo | DM |
 | `ign add/rm/ls` | Bloqueo y desbloqueo de nodos | DM |
 | `db_purge` · `db_clear` | Limpieza de la base de nodos | DM |
-| `reboot` · `factory_reset` · `full_reset` · `wipe` | Reinicio y resets diferidos (el ACK sale antes): fábrica (clave PKI nueva) · completo (conserva PKI y bonds) · purga total (par PKI nuevo; los peers re-aprenden) | DM |
+| `reboot` · `factory_reset` · `full_reset` · `wipe` | Reinicio y resets diferidos (el ACK sale antes): fábrica (par PKI nuevo; claves admin vuelven) · completo (conserva PKI, bonds y claves admin) · purga total (par PKI nuevo + claves admin borradas; solo queda la de rescate) | DM |
 | `storm [1-720]` | Hibernación por temporizador (radio apagada) | DM |
 | `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Difundir texto · alarma · posición · baliza · telemetría | DM |
 | `admin_ls` · `keys_ls` · `keys_clear` · `help` | Claves admin configuradas · claves **persistidas** (sobreviven a resets) · borrar la copia persistida · ayuda | DM / Abierto* |
@@ -133,7 +134,7 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 | **Xiao Kit i2c + E22P** | **Verificado en banco (15/08)**: ciclo + avisos OK (en banco, TX bajo: picos de corriente del E22P) |
 | **Seeed Solar Node P1** | **Semi-testeada** — pendiente de ciclo completo de resiliencia en la placa |
 | **Heltec T114** | **PENDIENTE**: testear el ciclo de dormir/despertar de resiliencia del firmware |
-| **Faketec HT-RA62** | **Verificada por el operador (14/08)** |
+| **Faketec HT-RA62** | **Verificada por el operador (14/08) + resets remotos y claves admin persistidas verificados en banco 7/7 (16/08)** |
 
 ## Descargas (firmware compilado)
 
@@ -162,10 +163,12 @@ que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables
 - **Tras flashear un nodo nuevo de fábrica**: hacer **un factory reset** para materializar
   el canal Navadmin (los avisos y la consulta por canal abierto dependen de él).
 - **Copia de seguridad de claves**: el flasheo por sí solo **conserva** los `/prefs` del nodo
-  (claves, canales, nombre). Si vas a hacer un **factory reset** (o un `nrf erase`), **exporta
-  antes la configuración y las claves del nodo desde la app de Meshtastic** si quieres poder
-  restaurarlas: el reset **borra las claves del nodo**, y tras un `nrf erase` se regeneran
-  (los demás nodos tendrán que reaprender tu clave nueva para el DM cifrado).
+  (claves, canales, nombre). **Las claves admin del usuario también sobreviven a los resets de
+  fábrica** (F20): se guardan en el nodo y vuelven solas tras un factory/full reset. Lo que sí
+  cambia con `factory_reset` es el **par PKI del nodo** (los demás nodos tendrán que reaprender
+  su clave para el DM cifrado), y `wipe`/`nrf erase` lo purgan todo (identidad nueva + solo la
+  clave de rescate del proyecto). Exporta la configuración desde la app antes de un `wipe`/`nrf
+  erase` si quieres conservarla.
 - **Pruebas en banco**: el E22P es inestable en TX con USB (picos de corriente) — usar
   **TX 1 dBm**; la detección de batería baja exige alimentar **sin USB**.
 
@@ -207,16 +210,23 @@ El firmware sale con una clave admin **de fábrica** (la del proyecto). Para tu 
 3. **Desautoriza la clave de fábrica** una vez verificadas las tuyas: pon **una de tus claves
    en el slot 0** (sustituyendo a la de fábrica). Ojo: si el slot 0 queda **vacío**, el
    firmware **re-inyecta la clave de fábrica en cada arranque** (auto-recuperación anti-bloqueo),
-   así que dejarlo vacío NO la desautoriza — hay que sobreescribirlo con la tuya.
+   así que dejarlo vacío NO la desautoriza — hay que sobreescribirlo con la tuya. **Tu
+   desautorización se guarda en el nodo**: sobrevive a los resets de fábrica (el nodo despierta
+   con tu clave en el slot 0). ⚠️ **Quitar una clave desde la app NO la purga del nodo** (queda
+   la copia guardada): para borrarla de verdad usa `/nava keys_clear` o `/nava wipe`.
 
 ### La clave de fábrica es una herramienta de rescate integrada
 
-La clave admin pre-hardcodeada no es un descuido: es la **llave de rescate del proyecto**. Si un
-nodo sufre un **restablecimiento duro** (factory reset accidental, `nrf erase`, corrupción de la
-configuración), el nodo vuelve a arrancar con esta clave de fábrica — y quien guarda su clave
-privada (el operador del proyecto) puede **volver a entrar en él por DM, restaurarlo y dejarlo de
+La clave admin pre-hardcodeada no es un descuido: es la **llave de rescate del proyecto**. El
+firmware **inyecta la clave de rescate automáticamente** cuando el nodo queda sin estado previo
+que restaurar: tras un **fallo completo** (`wipe`/`nrf erase`, corrupción de la configuración) o
+un reset de fábrica en un nodo que **nunca desautorizó la de fábrica** — quien guarda su clave
+privada (el operador del proyecto) puede **volver a entrar por DM, restaurar el nodo y dejarlo de
 nuevo con la clave de su dueño**. Sin ella, un nodo reseteado en altura quedaría huérfano e
-inalcanzable. Por eso el firmware la re-inyecta si el slot 0 queda vacío.
+inalcanzable. Por eso el firmware también la re-inyecta si el slot 0 queda vacío. **Nota (F20)**:
+si el dueño puso SU clave en el slot 0, tras un factory/full reset el nodo vuelve con SU clave
+(desautorización persistente, sin ventana de secuestro) — la de rescate solo volvería a entrar
+tras un `wipe`, o si el dueño la re-autoriza poniéndola en el slot 0.
 
 **¿Prefieres que tus nodos arranquen ya con TU clave?** Es fácil cambiarla a mano con VS Code
 (no hace falta tocar código C++):
@@ -292,6 +302,7 @@ national preset used in Spain). A single repository produces **12 different firm
 | **NavaCLI `/nava`** | ~45 remote administration commands: telemetry, energy, favorites, blocklist, semi-permanent role, maintenance. Critical actions require PKI-encrypted DM; the Navadmin channel is read-only |
 | **Flash protection** | Filtered node database writes, auto-favoriting of direct routers, hybrid eviction, no transmit-history writes |
 | **Security** | Persistent admin accreditation across reboots, admin-key auto-recovery, orphan-favorite limit |
+| **Persistent admin keys** | The user's admin keys are stored on the node and **come back on their own after a factory/full reset** (`keys_ls`/`keys_clear`); after a complete failure (`wipe`/`nrf erase`) the project rescue key is re-injected |
 | **Semi-permanent role** | `set_role` persists in `/resilience.bin` and **survives factory reset** |
 
 ## The 12 builds
@@ -337,7 +348,7 @@ predefined messages.
 | `fav add/rm/ls` · `fav auto` | Favorites (hop bypass) and auto-favoriting | DM |
 | `ign add/rm/ls` | Block / unblock nodes | DM |
 | `db_purge` · `db_clear` | Node database cleanup | DM |
-| `reboot` · `factory_reset` · `full_reset` · `wipe` | Deferred reboot and resets (ACK first): factory (new PKI key) · full (keeps PKI + bonds) · wipe (total purge, new PKI pair; peers re-learn) | DM |
+| `reboot` · `factory_reset` · `full_reset` · `wipe` | Deferred reboot and resets (ACK first): factory (new PKI pair; admin keys return) · full (keeps PKI, bonds and admin keys) · wipe (total purge: new PKI pair + admin keys deleted; only the rescue key remains) | DM |
 | `storm [1-720]` | Timed hibernation (radio off) | DM |
 | `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Broadcast text · alarm · position · beacon · telemetry | DM |
 | `admin_ls` · `keys_ls` · `keys_clear` · `help` | Configured admin keys · **persisted** keys (survive resets) · clear the persisted copy · command help | DM / Open* |
@@ -399,7 +410,7 @@ To **compile with a different default chemistry**: add
 | **Xiao Kit i2c + E22P** | **Bench verified (15/08)**: full cycle + notices OK (bench: low TX — E22P current spikes) |
 | **Seeed Solar Node P1** | **Semi-tested** — full resilience cycle on the board still pending |
 | **Heltec T114** | **PENDING**: test the firmware sleep/wake resilience cycle |
-| **Faketec HT-RA62** | **Operator-verified (14/08)** |
+| **Faketec HT-RA62** | **Operator-verified (14/08) + remote resets and persisted admin keys bench-verified 7/7 (16/08)** |
 
 ## Downloads (prebuilt firmware)
 
@@ -427,11 +438,12 @@ bench 7/7).
   --upload-port COMx`.
 - **After flashing a factory-new node**: perform **one factory reset** to materialize the
   Navadmin channel (notices and open-channel queries depend on it).
-- **Key backup**: flashing by itself **keeps** the node `/prefs` (keys, channels, name). If you
-  are going to **factory reset** (or `nrf erase`), **export the node configuration and keys
-  from the Meshtastic app first** if you want to restore them: the reset **erases the node
-  keys**, and an `nrf erase` regenerates them (other nodes will need to re-learn your new key
-  for encrypted DM).
+- **Key backup**: flashing by itself **keeps** the node `/prefs` (keys, channels, name). **The
+  user's admin keys also survive factory resets** (F20): they are stored on the node and come
+  back on their own after a factory/full reset. What `factory_reset` does change is the node's
+  **PKI pair** (other nodes must re-learn its key for encrypted DM), and `wipe`/`nrf erase`
+  purge everything (new identity + only the project rescue key). Export the configuration from
+  the app before a `wipe`/`nrf erase` if you want to keep it.
 - **Bench testing**: the E22P TX is unstable over USB (current spikes) � use **1 dBm TX**; the
   low-battery detection requires powering **without USB**.
 
@@ -473,16 +485,23 @@ The firmware ships with a **factory admin key** (the project's key). For your ow
 3. **De-authorize the factory key** once yours are verified: put **one of your keys in slot 0**
    (replacing the factory key). Note: if slot 0 is left **empty**, the firmware **re-injects
    the factory key on every boot** (anti-lockout auto-recovery) — leaving it empty does NOT
-   de-authorize it; you must overwrite it with your own.
+   de-authorize it; you must overwrite it with your own. **Your de-authorization is stored on
+   the node**: it survives factory resets (the node wakes up with your key in slot 0).
+   ⚠️ **Removing a key in the app does NOT purge it from the node** (the saved copy remains):
+   to truly remove it use `/nava keys_clear` or `/nava wipe`.
 
 ### The factory key is a built-in rescue tool
 
-The pre-hardcoded admin key is not an oversight: it is the **project's rescue key**. If a node
-suffers a **hard reset** (accidental factory reset, `nrf erase`, corrupted configuration), the
-node boots back with this factory key — and whoever holds its private key (the project operator)
-can **get back in over DM, restore it and leave it again with its owner's own key**. Without
-it, a reset node on a mast would be orphaned and unreachable. That is why the firmware
-re-injects it when slot 0 is left empty.
+The pre-hardcoded admin key is not an oversight: it is the **project's rescue key**. The
+firmware **injects the rescue key automatically** when the node has no previous state to
+restore: after a **complete failure** (`wipe`/`nrf erase`, corrupted configuration) or a factory
+reset on a node that **never de-authorized the factory key** — whoever holds its private key
+(the project operator) can **get back in over DM, restore the node and leave it again with its
+owner's own key**. Without it, a reset node on a mast would be orphaned and unreachable. That is
+also why the firmware re-injects it when slot 0 is left empty. **Note (F20)**: if the owner put
+THEIR key in slot 0, after a factory/full reset the node returns with THEIR key (persistent
+de-authorization, no hijack window) — the rescue key would only come back after a `wipe`, or if
+the owner re-authorizes it by putting it in slot 0.
 
 **Prefer your nodes to boot with YOUR key?** Changing it by hand with VS Code is easy (no C++
 code involved):
