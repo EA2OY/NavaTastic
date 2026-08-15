@@ -1,5 +1,10 @@
 # Manual de Administración Remota NavaTastic (v4.2.1)
 
+> **ADENDA 16/08/2026 — "NavaTastic Eclipse V3" (4.3.2)**: este manual describe la versión
+> actual. El nodo muestra su generación en `/nava status` y en el aviso [Boot] (`NAVA V3`).
+> **Para saber qué comandos admite un nodo concreto (según la versión que lleve cargada),
+> basta mandarle `/nava help`** — la lista se adapta a su release.
+
 > **ADENDA 14/08/2026 — REPO UNIFICADO (V2)**: manual **VIGENTE**. Ronda V2 (14/08, tras
 > el snapshot baseline): nuevos comandos/mensajes `sleepmsg` y avisos [Sueño]/[Vivo]/[Listo],
 > `status` con favoritos Auto/Manual reales, `power` con ADC + INA cargando/descargando,
@@ -190,6 +195,11 @@ lecturas (~160s)** para todas las placas.
 ---
 
 # NavaTastic Remote Administration Manual (v4.2.1) — English
+
+> **ADDENDUM 16/08/2026 — "NavaTastic Eclipse V3" (4.3.2)**: this manual describes the current
+> version. The node shows its generation in `/nava status` and in the [Boot] notice (`NAVA V3`).
+> **To know which commands a given node supports (depending on the version it runs), just send
+> it `/nava help`** — the list adapts to its release.
 
 > English translation of the Spanish manual above. **The Spanish original is the authoritative
 > version**; this section carries the same information for international readers. Canonical code:

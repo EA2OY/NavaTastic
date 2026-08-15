@@ -287,6 +287,11 @@ BORRA del disco los ficheros force-add (repoblar con distribuir.ps1 -Todo); no p
 dos builds del MISMO env.
 ```
 
+- [x] **NOMENCLATURA DE VERSIONES (16/08, decisión del operador)**: changelog público
+      reestructurado en 4.3.0 / 4.3.1 "NavaTastic Eclipse" / 4.3.2 "NavaTastic Eclipse V3"
+      (actual = etiqueta compilada `NAVA V3`; iteraciones internas solo en BITACORA/cerebro).
+      Manuales ES+EN, README y PDFs actualizados.
+
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)
 - version.properties: 2.7.26, MD5 798B967F7152F34EFCCA88C3A0FCC722 (x12 idénticos)

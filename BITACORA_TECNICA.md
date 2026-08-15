@@ -784,3 +784,15 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   + docs completas (cerebro 33ª, BITACORA, PLAN, transfer_context, guia_integracion, subnotas
   02/03/05, manuales ES+EN con keys_ls/keys_clear/regla de claves/merge, README ES+EN, Guia) +
   PDFs regenerados. Backups docs `.bak-20260816-0100`.
+
+### NOMENCLATURA DE VERSIONES (16/08, decisión del operador)
+- **Changelog público (manual de uso) = 3 hitos**: **4.3.0** (NavaTastic + control remoto sin
+  PC), **4.3.1 = "NavaTastic Eclipse"** (12/08, distribuida a colegas), **4.3.2 = "NavaTastic
+  Eclipse V3"** (actual). Mapeo oficial: **"NavaTastic Eclipse V3" = 4.3.2 = etiqueta
+  compilada `NAVA V3`** — no recompilar por esto. La carpeta destino del Desktop
+  ("NavaTastic Eclipse Edition V2", norma 0.12) conserva su nombre histórico y recibe los
+  builds de Eclipse V3.
+- **Iteraciones internas** (V2.2/V2.3/V2.4/V2.6, F18, Bloque R, F20, F22): SOLO historial
+  técnico de esta bitácora/cerebro; nunca en manuales ni en la etiqueta.
+- Docs actualizadas ES+EN (manual de uso changelog, manual de comandos adenda 16/08 con el
+  tip `/nava help` por nodo, README) + PDFs. Backups `.bak-20260816-0128`.

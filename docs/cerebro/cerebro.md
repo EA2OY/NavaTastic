@@ -432,6 +432,17 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   para no re-derivar todo. Estado: V2.6 verificada, 4/6 placas verificadas (Promicro, Faketec,
   Xiao×2; pendientes Seed y T114), GitHub v2.6.1 publicado. Pendientes de implementar: F18,
   Bloque R (R1 → R2), F22; anotados: F16b/d/e, F17.
+- **2026-08-16 (34ª parte) — NOMENCLATURA DE VERSIONES UNIFICADA (decisión del operador)**:
+  el changelog del manual de uso se reestructura en 3 hitos públicos: **4.3.0** = NavaTastic +
+  control remoto sin PC (auto-fav y NodeDB en RAM ya presentes) · **4.3.1 = "NavaTastic
+  Eclipse"** (12/08, primera distribución a colegas: muchos comandos + cola de mensajes y
+  descartables en RAM) · **4.3.2 = "NavaTastic Eclipse V3"** (15-16/08, actual: reajuste de
+  sueño/despertar sin afectar RF ni lecturas, avisos de estado al dormir/despertar, resets
+  remotos, resiliencia de claves admin F20, 8 lecturas, etiqueta `NAVA V3`; en cualquier nodo
+  `/nava help` lista los comandos de SU release). **Mapeo**: "NavaTastic Eclipse V3" = 4.3.2
+  = etiqueta compilada `NAVA V3` (no recompilar). Las iteraciones internas (V2.2/V2.3/V2.4/
+  V2.6/F18/F20...) quedan SOLO como historial técnico en BITACORA/cerebro, nunca en manuales
+  ni en la etiqueta. Manuales/README actualizados (ES+EN); PDFs regenerados.
 - **2026-08-16 (33ª parte) — F20 (FASE R2) COMPLETADA Y VERIFICADA EN BANCO 7/7 (V3)**:
   **F20** = claves admin PÚBLICAS del usuario persistidas en `/resilience.bin` para que
   sobrevivan a los resets de fábrica (hoy se perdían, L10). Struct `ResiliencePrefs` 84→180 B
