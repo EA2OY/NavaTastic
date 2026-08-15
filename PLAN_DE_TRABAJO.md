@@ -189,73 +189,96 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       (`NAVA V2.7 | fw 2.7.26 (54e0d8d)`) y opcionalmente en el [Boot] junto a la causa.
       Coste: NavaCLIModule.h/.cpp + 12 envs + banco. Riesgo bajo.
 
+## GUÍA PARA LA SESIÓN DE IMPLEMENTACIÓN (F18 / BLOQUE R / F22)
+
+> **Instrucción del operador (15/08)**: estas propuestas NO son órdenes quirúrgicas ciegas.
+> La sesión que las implemente tiene LIBERTAD para analizar la viabilidad ANTES de tocar
+> código, debe explicar el plan en lenguaje fácil de entender y PEDIR PERMISO, y puede
+> PREGUNTAR cualquier duda — el operador trasladará las preguntas (copia-pega) al agente de
+> la sesión anterior (15/08), que tiene más contexto sobre el diseño.
+
+**Pistas de implementación (para no re-derivar todo):**
+
+- **F18 — 8 lecturas para TODAS**: hoy `Power.cpp:1020-1041` usa `#if defined(PROMICRO_DIY_TCXO)
+  → contador >4` / resto `>10`; la macro `USERPREFS_LOW_BATTERY_READINGS_COUNT` YA la lee el
+  pre-check de `main.cpp:544-548` pero no el monitor. Fix previsto: los 12 perfiles jsonc a
+  `"USERPREFS_LOW_BATTERY_READINGS_COUNT": "8"` + Power.cpp comparando contra la macro
+  (fallback 8 si no existe; ojo: el contador actual dispara con `>N` → para 8 lecturas
+  exactas usar `>= 8`). Manuales/docs dicen "5 lecturas ~100s" → actualizar a 8 (~160s).
+- **BLOQUE R — fase R1** (F19 `full_reset` + F21 `wipe`; F20 NO se toca):
+  - Patrón de comando: como `factory_reset` existente (NavaCLIModule `executeCommand` →
+    flag diferido → `runOnce` ejecuta; ACK antes de ejecutar; whitelist DM-PKI solo).
+  - F19: `FSCom.remove("/resilience.bin")` + ejecutar el factory_reset existente (conserva
+    claves PKI por diseño actual, L11).
+  - F21: además de lo anterior, regenerar el par PKI — el mecanismo conocido: borrar/blankear
+    `security.private_key` (el firmware regenera el par al arranque — AGENTS.md "Encryption at
+    a glance") o la ruta de factory reset completa con `eraseBleBonds`; el NodeNum NO cambia
+    (deriva de la MAC, NodeDB.cpp:1269). Verificar en banco: wipe → nodo vuelve con clave del
+    proyecto (auto-recuperación) → observador re-aprende pubkey (H3/updateUser) → DM OK.
+  - Escalera: `factory_reset` → `full_reset` → `wipe`. Nunca implementar F20 sin F21 previo.
+- **F22 — etiqueta de build**: inyectar macro `NAVATASTIC_BUILD` desde
+  `bin/platformio-custom.py` (patrón de los `NAVARICO_*` existentes: inerte si la variable no
+  existe) o `#define` en NavaCLIModule.h con bump manual; mostrarla en `status`/`usageAndState`
+  y opcionalmente en el [Boot].
+
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
 ```
-NUEVA SESIÓN — NavaTastic (repo unificado C:\NavaTastic Codigo completo) — retoma tras la
-sesión del 15/08/2026 (V2.6 cerrada, GitHub publicado, snapshot FINAL creado).
+NUEVA SESIÓN — NavaTastic (repo unificado C:\NavaTastic Codigo completo) — sesión de
+IMPLEMENTACIÓN (15/08/2026): F18 (8 lecturas de baja), BLOQUE R fase R1 (full_reset + wipe)
+y/o F22 (etiqueta de build). ANTES de escribir código: LEER, ANALIZAR, explicar el plan en
+lenguaje fácil y PEDIR PERMISO. Puedes PREGUNTAR lo que necesites: el operador trasladará
+tus preguntas (copia-pega) al agente de la sesión anterior, que tiene más contexto.
 
-PASO 0 (OBLIGATORIO, lectura en este orden ANTES de tocar nada — apertura canónica):
+PASO 0 (OBLIGATORIO, apertura canónica, en este orden):
   0. AGENTS.md (bloque NAVARICO) → Guia_para_agente_sobre_NavaTastic.md §0 REGLAS
      OPERATIVAS: dieta de tokens, flujo en dos fases (FASE 1 plan → esperar confirmación
-     → FASE 2), backup/rollback `.bak-AAAAMMDD-HHMM`, solo se escribe en este repo,
-     commits locales por hito, normas 0.11 (manuales+PDF) y 0.12 (distribución V2).
+     → FASE 2 ejecución), backup/rollback `.bak-AAAAMMDD-HHMM`, solo se escribe en este
+     repo, commits locales por hito, normas 0.11 (manuales+PDF) y 0.12 (distribución V2).
   1. Guia_para_agente_sobre_NavaTastic.md COMPLETA: 12 envs navarrico_* (+12 Propia),
-     perfiles, macros, scripts, mapa de cambios, seguridad de claves, y SECCIÓN 9
-     (flujo de publicación a GitHub).
-  2. BITACORA_TECNICA.md — F1-F15, V2.2-V2.6, lecciones L1-L26, publicación GitHub.
-  3. PLAN_DE_TRABAJO.md — estado + este PROMPT.
-  4. docs\cerebro\cerebro.md — SECCIÓN 5 PRIMERO (3ª-22ª partes = todo lo ocurrido) y
-     después lo que haga falta (5.4 VIGENTE vs OBSOLETO, 5.5 handover).
-  5. PORTING_NUEVO_FORK.md (joya de la corona) y docs de contexto según el caso
-     (transfer_context.md, guia_integracion_navarrico.md, manuales, subnotas 01-12).
-     El 4.3 original (C:\Firmware Navarrico 4.3) es SOLO LECTURA — sirve para diffear.
+     perfiles, macros, scripts, mapa de cambios, seguridad de claves, SECCIÓN 9 (GitHub).
+  2. BITACORA_TECNICA.md: F1-F17, V2.2-V2.6, L1-L31, publicación GitHub, candidatos.
+  3. PLAN_DE_TRABAJO.md: estado + "Posibles ampliaciones" (F18, BLOQUE R, F22) + sección
+     "GUÍA PARA LA SESIÓN DE IMPLEMENTACIÓN" (pistas de diseño por cada ítem) + este PROMPT.
+  4. docs\cerebro\cerebro.md SECCIÓN 5 PRIMERO (24ª-31ª partes) y lo que necesites
+     (5.4 VIGENTE vs OBSOLETO, 5.5 handover).
+  5. PORTING_NUEVO_FORK.md + docs de contexto según el caso (transfer_context,
+     guia_integracion, manuales, subnotas 01-12). C:\Firmware Navarrico 4.3 y 4.2 = SOLO
+     LECTURA (referencias para diffear).
 
-NORMAS: flujo en dos fases, solo escribir en este repo, backups por marca de tiempo,
-commits locales por hito, dieta de tokens, AÑADIR (no reescribir) en cerebro/BITACORA.
-BACKUPS/ROLLBACK (obligatorio en cada hito): copia `nombre.bak-AAAAMMDD-HHMM` JUNTO al
-fichero tocado; binarios históricos y morralla → `_archivo\`; documentar cada cambio EN
-CALIENTE en cerebro (log) + BITACORA (fallos/fixes/lecciones) + PLAN (estado), con
-referencias cruzadas. Actualizar los docs de contexto cuando cambie comportamiento,
-comandos o parches (Guia/transfer_context/guia_integracion/manuales+PDF si procede).
+TRABAJO PROPUESTO (ANALÍZALO ANTES DE EJECUTAR — no es orden ciega):
+- F18: 8 lecturas de batería baja para TODAS las placas (monitor runtime Y pre-check):
+  perfiles ×12 a "USERPREFS_LOW_BATTERY_READINGS_COUNT": "8" + Power.cpp comparando contra
+  la macro (hoy: #ifdef >4 Promicro/Faketec vs >10 resto, Power.cpp ~1020-1041; el
+  pre-check de main.cpp ~544-548 ya la lee). Manuales/docs: "5 lecturas" → "8" (~160s).
+- BLOQUE R fase R1: /nava full_reset (factory_reset + borrar /resilience.bin, CONSERVA
+  claves PKI) y /nava wipe (erase total + regeneración del par PKI; el NodeNum NO cambia,
+  deriva de la MAC — NodeDB.cpp:1269). Patrón diferido con ACK como factory_reset; DM-PKI.
+  F20 (claves admin en resilience.bin) NO se toca — es fase R2, solo después de R1.
+- F22: etiqueta NAVATASTIC_BUILD compilada (patrón NAVARICO_* de platformio-custom.py o
+  #define con bump manual por release) + línea en /nava status + opcional en [Boot].
 
-ESTADO CLAVE (15/08/2026, sesión cerrada):
-- V2.6 VERIFICADA EN BANCO (Promicro E22P R2IG): ciclo sueño/despertar definitivo —
-  [Vivo] (banda corte−100..corte) opera ~100s → [Sueño] (5 lecturas monitor) →
-  doDeepSleep completo → ~1 mA → LPCOMP ~3.7-3.8V → [Listo] → [Boot] a los 2 min con
-  causa (WDT/RESETPIN/SOFT...). Avisos con ADC + CPU (chip). LED apagado en sueño.
-- 12/12 IG compilados SUCCESS y distribuidos (`distribucion\` + Desktop V2).
-- GITHUB PUBLICADO: https://github.com/EA2OY/NavaTastic (rama main, UN solo commit,
-  release v2.6 con 26 assets, Actions desactivadas). Historial local NUNCA se sube
-  (claves Propia en commits viejos). Proyecto hermano: EA2OY/MeshNavarra-Utility.
-- SNAPSHOT FINAL (rollback de referencia): `_archivo\NavaTastic Eclipse Edition V2 -
-  FINAL 20260815 (HEAD 9d45c2bbf).zip` — versión final y completa (V2.6 + README +
-  docs GitHub). Rollback: `git checkout` del commit o descomprimir sobre la raíz.
-- MECANISMO PROPIA listo: 12 envs R2IP/R1IP + `build_propia.ps1` (claves y PIN BT se
-  piden al compilar, NUNCA almacenadas). Para compilar Propia: el script, no perfiles.
-
-TRABAJAR SOBRE EL CÓDIGO (añadir funciones, cambios, compilar):
-- Cambios de comportamiento → código común src/ + docs EN CALIENTE + build del env del
-  banco → verificar en banco → SOLO ENTONCES los 12 envs (lotes paralelos de envs
-  DISTINTOS) → `distribuir.ps1 -Todo -V2` → manuales+PDF si procede → commit local.
-- CADA BUILD ES DIFERENTE (12 envs ≠ mismo binario): placa/radio (NAVARICO_RADIO_*:
-  potencia 12/22, OCV 3500/3400, LPCOMP por placa), rama (NAVARICO_RAMA_1), perfil
-  (claves, canal, BT, rol), rutas libdeps (R2 relativas, R1 r1promic/r1xiaoki). El banco
-  SOLO valida promicro+E22P+R2IG: anotar qué queda sin validar en las otras 11.
+REGLAS ESPECIALES DE ESTA SESIÓN:
+- Las NORMAS del proyecto (dos fases, backups, commits, AÑADIR en docs, documentar EN
+  CALIENTE, dieta de tokens) siguen vigentes.
+- Las propuestas de arriba son PUNTOS DE PARTIDA con pistas (ver la GUÍA en PLAN): si al
+  analizar ves un problema o una vía mejor, DÍLO en la FASE 1. No improvises en silencio.
+- FASE 1 = diagnóstico + plan técnico + método de verificación (p. ej. pio run -e <env>),
+  explicado en lenguaje FÁCIL para el operador, SIN editar archivos; esperar permiso
+  explícito → FASE 2 = ejecución.
+- DUDAS: pregunta todo lo que haga falta; el operador trasladará las preguntas al agente
+  de la sesión anterior (que diseñó estas opciones). Si algo no cuadra, NO sigas.
 - NO TOCAR sin orden expresa: LPCOMP (main-nrf52.cpp), delay(3000) pre-sueño,
-  delay(500)+force del pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), F16d/e.
-- F16b BLE resumeAdvertising: pendiente anotado (BITACORA). F17 PKI_SEND_FAIL: pendiente
-  con candidato — explicación del auditor (15/08): comportamiento estándar de Meshtastic
-  (clave pública del destino aún no aprendida, Router.cpp:669); vigilar timing de
-  aprendizaje de claves si reaparece.
-- MÁS ALLÁ (si se pide): regresión Eclipse en campo, opcional progname OTA, Felix.
+  delay(500)+force del pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), SX1262=22dBm,
+  F16d/e. F16b BLE y F17 PKI: pendientes anotados, no son trabajo de esta sesión.
 
 TRAMPAS CONOCIDAS: reboot automático 7s tras --set (esperar ≥30s); polls --info lentos;
 factory reset borra debug_log_api_enabled y claves admin añadidas; FILE_O_WRITE no trunca
 (remove antes de escribir); nrf erase regenera claves (limpiar peers); serialEnter apaga
-baliza BLE con USB; TX 1 dBm en banco con USB (picos E22P); los avisos NO se ecoan en la
-API del propio emisor (verificar con observador); al alternar rama master↔github-public
-el checkout BORRA del disco los ficheros force-add (repoblar con distribuir.ps1 -Todo).
+baliza BLE con USB; TX bajo en banco con E22P (picos); los avisos NO se ecoan en la API del
+propio emisor (verificar con observador); al alternar rama master↔github-public el checkout
+BORRA del disco los ficheros force-add (repoblar con distribuir.ps1 -Todo); no paralelizar
+dos builds del MISMO env.
 ```
 
 ## Datos de referencia

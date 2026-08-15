@@ -422,6 +422,16 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     **F22** (idea del operador): etiqueta `NAVATASTIC_BUILD` compilada + línea en `/nava
     status` (y opcional en [Boot]) para saber por radio qué versión lleva un nodo. Detalle en
     BITACORA.
+- **2026-08-15 (31ª parte) — CIERRE DE SESIÓN (handover a sesión de implementación)**:
+  sesión cerrada con el estado completo persistido. PROMPT DE RETOMA reescrito en PLAN como
+  **prompt de sesión de IMPLEMENTACIÓN** (F18 8-lecturas / BLOQUE R fase R1 / F22), con
+  apertura canónica + instrucción del operador: analizar la viabilidad ANTES de implementar,
+  explicar el plan en lenguaje fácil, pedir permiso, y PREGUNTAR dudas (el operador traslada
+  al agente de esta sesión, con más contexto). Nueva sección "GUÍA PARA LA SESIÓN DE
+  IMPLEMENTACIÓN" en PLAN con pistas de diseño (ubicaciones de código, mecanismos, patrones)
+  para no re-derivar todo. Estado: V2.6 verificada, 4/6 placas verificadas (Promicro, Faketec,
+  Xiao×2; pendientes Seed y T114), GitHub v2.6.1 publicado. Pendientes de implementar: F18,
+  Bloque R (R1 → R2), F22; anotados: F16b/d/e, F17.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

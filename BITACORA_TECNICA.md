@@ -656,3 +656,15 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   platformio-custom.py, inerte por defecto, bump manual por release) + línea en `status`
   (`NAVA V2.7 | fw 2.7.26 (54e0d8d)`) + opcionalmente en el [Boot]. Coste: NavaCLIModule
   .h/.cpp + 12 envs + banco; riesgo bajo.
+
+### CIERRE DE SESIÓN 15/08 (handover a sesión de implementación)
+- PROMPT DE RETOMA de PLAN reescrito como prompt de IMPLEMENTACIÓN (F18/Bloque R/F22) con la
+  instrucción del operador: analizar viabilidad antes de implementar (no es orden ciega),
+  explicar el plan en lenguaje fácil, pedir permiso y preguntar dudas (canal de traslado al
+  agente de la sesión anterior). Nueva sección "GUÍA PARA LA SESIÓN DE IMPLEMENTACIÓN" en
+  PLAN con pistas de diseño: F18 (Power.cpp:1020-1041 `>4`/`>10`; macro ya usada en
+  main.cpp:544-548; perfiles ×12 a "=8"; ojo `>N` vs `>=N`), Bloque R R1 (patrón
+  factory_reset diferido; F19 = remove resilience.bin + factory reset; F21 = + regenerar par
+  PKI vía blank de security.private_key o factoryReset completo; NodeNum estable por MAC),
+  F22 (macro vía platformio-custom.py). Estado: 4/6 placas verificadas; GitHub v2.6.1
+  publicado; commits del día en master (ver git log).
