@@ -363,6 +363,19 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   (12 UF2 + 12 OTA + 2 PDFs) subidos por API; v2.6 anterior conservado. Credencial: la del
   Administrador de credenciales de Windows (recomendado rotarla, L26). Higiene: `.bak` histórico
   untracked (L28) + L24 aplicada (distribucion\ repoblada, PDFs regenerados). Detalle: BITACORA.
+- **2026-08-15 (26ª parte) — README: CLAVE DE FÁBRICA = HERRAMIENTA DE RESCATE + PDFs BILINGÜES**:
+  README (ES/EN): la advertencia de "cambia la clave por defecto" ahora explica que la clave
+  admin pre-hardcodeada es la **llave de rescate integrada del proyecto** (tras un
+  restablecimiento duro —factory reset accidental, `nrf erase`, corrupción— el nodo vuelve con
+  esa clave y el operador puede reentrar por DM, restaurarlo y dejarlo con la clave de su dueño;
+  por eso se re-inyecta si el slot 0 queda vacío). Añadidas **instrucciones sencillas para
+  cambiar la clave pre-hardcodeada a mano con VS Code** (editar `profiles/<RAMA>_<Placa>.jsonc`
+  → `USERPREFS_USE_ADMIN_KEY_0` con tu clave pública en hex, base64→hex; recompilar `pio run -e
+  <env>`; aviso: se pierde el canal de rescate del proyecto). Versión del README → V2.6.1.
+  **Manuales bilingües**: traducción EN completa añadida al FINAL de
+  `Manual_NavaTastic.md` y `Manual_uso_NavaTastic_4.2.md` (el ES sigue arriba y es la fuente de
+  verdad); PDFs regenerados (98/126 KB) con `generar_pdf.ps1` (norma 0.11: backups
+  `.bak-20260815-1729`). Backups: README/manuales `.bak-20260815-1729`.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

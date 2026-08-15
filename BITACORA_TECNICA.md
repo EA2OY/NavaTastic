@@ -557,3 +557,19 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   `git ls-tree master -r --name-only | Select-String "\.bak|_archivo"`.
 - **L24 aplicada**: tras volver a master se repobló `distribucion\` (`distribuir.ps1 -Todo`)
   y se regeneraron los 2 PDFs (`generar_pdf.ps1`).
+
+### DOCUMENTACIÓN PÚBLICA (15/08) — clave de rescate explicada + manuales bilingües ES/EN
+- **README (ES/EN)**: la advertencia de "cambia la clave por defecto" se matizó con el propósito
+  real: la clave admin pre-hardcodeada es la **herramienta de rescate integrada** — tras un
+  restablecimiento duro (factory reset accidental, `nrf erase`, corrupción de configuración) el
+  nodo vuelve con esa clave y el operador (poseedor de la privada) puede reentrar por DM,
+  restaurarlo y **dejarlo de nuevo con la clave de su dueño**; por eso la auto-recuperación la
+  re-inyecta si el slot 0 queda vacío. Se añadieron **instrucciones para cambiarla a mano con
+  VS Code** (sin tocar C++): editar `profiles/<RAMA>_<Placa>.jsonc` → sustituir los 32 bytes de
+  `USERPREFS_USE_ADMIN_KEY_0` por la clave pública propia (base64→hex) → `pio run -e <env>`; con
+  el aviso de que se pierde el canal de rescate del proyecto. Versión README → V2.6.1.
+- **Manuales bilingües**: traducción EN completa al FINAL de ambos manuales (el ES permanece
+  arriba y es la fuente de verdad; el protocolo de rescate incluye la clave privada del Master
+  Node por decisión del operador). PDFs regenerados con `generar_pdf.ps1` (98/126 KB).
+- Backups norma 0.11: `.bak-20260815-1729` (README + 2 manuales). Pendiente de decidir:
+  republicar a GitHub (main + assets PDF nuevos).

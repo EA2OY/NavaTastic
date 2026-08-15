@@ -132,7 +132,7 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 
 ## Descargas (firmware compilado)
 
-Última versión: **V2.6 (15/08/2026)** — ciclo sueño/despertar definitivo verificado en banco.
+Última versión: **V2.6.1 (15/08/2026)** — ciclo sueño/despertar definitivo verificado en banco.
 
 **Descarga los binarios desde [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
 (panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 2 manuales PDF. NIMH = mismos binarios
@@ -140,7 +140,7 @@ que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables
 [`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
 `UF2`/`OTA`).
 
-### Manuales (PDF)
+### Manuales (PDF, bilingües ES+EN)
 
 - [Manual de administración remota `/nava` (PDF)](docs/pdf/Manual_NavaTastic.pdf) — comandos completos
 - [Manual de uso del firmware (PDF)](docs/pdf/Manual_uso_NavaTastic_4.2.pdf) — montaje, requisitos de hardware, protocolo de rescate
@@ -199,6 +199,27 @@ El firmware sale con una clave admin **de fábrica** (la del proyecto). Para tu 
    en el slot 0** (sustituyendo a la de fábrica). Ojo: si el slot 0 queda **vacío**, el
    firmware **re-inyecta la clave de fábrica en cada arranque** (auto-recuperación anti-bloqueo),
    así que dejarlo vacío NO la desautoriza — hay que sobreescribirlo con la tuya.
+
+### La clave de fábrica es una herramienta de rescate integrada
+
+La clave admin pre-hardcodeada no es un descuido: es la **llave de rescate del proyecto**. Si un
+nodo sufre un **restablecimiento duro** (factory reset accidental, `nrf erase`, corrupción de la
+configuración), el nodo vuelve a arrancar con esta clave de fábrica — y quien guarda su clave
+privada (el operador del proyecto) puede **volver a entrar en él por DM, restaurarlo y dejarlo de
+nuevo con la clave de su dueño**. Sin ella, un nodo reseteado en altura quedaría huérfano e
+inalcanzable. Por eso el firmware la re-inyecta si el slot 0 queda vacío.
+
+**¿Prefieres que tus nodos arranquen ya con TU clave?** Es fácil cambiarla a mano con VS Code
+(no hace falta tocar código C++):
+
+1. Abre `profiles/<RAMA>_<Placa>.jsonc` (p. ej. `profiles/R2IG_Promicro.jsonc`).
+2. Busca `USERPREFS_USE_ADMIN_KEY_0` y sustituye los 32 bytes hex por los de **tu clave pública**
+   (en la app Meshtastic aparece en base64: *Radio config → Device → Public key*; conviértela a
+   hex con cualquier conversor base64→hex, p. ej. `echo "<base64>" | base64 -d | xxd -p`).
+3. Guarda y compila: `pio run -e <env>`. Los slots 1-2 se siguen gestionando desde la app.
+
+Ten en cuenta que al cambiar la clave pre-hardcodeada pierdes el canal de rescate del proyecto:
+guarda bien la clave privada correspondiente a la tuya.
 
 ## Licencia
 
@@ -354,7 +375,7 @@ To **compile with a different default chemistry**: add
 
 ## Downloads (prebuilt firmware)
 
-Latest release: **V2.6 (15/08/2026)** — definitive sleep/wake cycle, bench verified.
+Latest release: **V2.6.1 (15/08/2026)** — definitive sleep/wake cycle, bench verified.
 
 **Download the binaries from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
 (right-hand panel — *Assets*): 12 UF2 + 12 OTA + 2 PDF manuals. NIMH = same binaries as LIPO
@@ -362,7 +383,7 @@ Latest release: **V2.6 (15/08/2026)** — definitive sleep/wake cycle, bench ver
 [`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
 `UF2`/`OTA`).
 
-### Manuals (PDF, Spanish)
+### Manuals (PDF, bilingual ES+EN)
 
 - [Remote administration manual `/nava` (PDF)](docs/pdf/Manual_NavaTastic.pdf)
 - [Firmware user manual (PDF)](docs/pdf/Manual_uso_NavaTastic_4.2.pdf)
@@ -414,13 +435,34 @@ The **Propia** builds (`r2ip`/`r1ip`) use your own admin keys and Bluetooth PIN,
 The firmware ships with a **factory admin key** (the project's key). For your own network:
 
 1. **Add TWO of your own remote-management keys** (from your control devices) via the
-   Meshtastic app ? *Radio config ? Security ? Admin key* (3 slots available).
-2. **Verify they work**: from each control device send a `/nava` command over DM � it must
+   Meshtastic app — *Radio config — Security — Admin key* (3 slots available).
+2. **Verify they work**: from each control device send a `/nava` command over DM — it must
    respond (the repeater accredits that device as admin and saves it to disk).
 3. **De-authorize the factory key** once yours are verified: put **one of your keys in slot 0**
    (replacing the factory key). Note: if slot 0 is left **empty**, the firmware **re-injects
-   the factory key on every boot** (anti-lockout auto-recovery) � leaving it empty does NOT
+   the factory key on every boot** (anti-lockout auto-recovery) — leaving it empty does NOT
    de-authorize it; you must overwrite it with your own.
+
+### The factory key is a built-in rescue tool
+
+The pre-hardcoded admin key is not an oversight: it is the **project's rescue key**. If a node
+suffers a **hard reset** (accidental factory reset, `nrf erase`, corrupted configuration), the
+node boots back with this factory key — and whoever holds its private key (the project operator)
+can **get back in over DM, restore it and leave it again with its owner's own key**. Without
+it, a reset node on a mast would be orphaned and unreachable. That is why the firmware
+re-injects it when slot 0 is left empty.
+
+**Prefer your nodes to boot with YOUR key?** Changing it by hand with VS Code is easy (no C++
+code involved):
+
+1. Open `profiles/<BRANCH>_<Board>.jsonc` (e.g. `profiles/R2IG_Promicro.jsonc`).
+2. Find `USERPREFS_USE_ADMIN_KEY_0` and replace the 32 hex bytes with those of **your public
+   key** (the Meshtastic app shows it in base64: *Radio config — Device — Public key*; convert
+   it to hex with any base64-to-hex converter, e.g. `echo "<base64>" | base64 -d | xxd -p`).
+3. Save and build: `pio run -e <env>`. Slots 1-2 are still managed from the app.
+
+Keep in mind that changing the pre-hardcoded key removes the project's rescue channel: keep the
+private key matching your own well backed up.
 
 ## License
 

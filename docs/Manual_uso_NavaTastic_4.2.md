@@ -234,3 +234,263 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 
 | **4.4 (12/08/2026)** ⭐ **distribuido como "NavaTastic 4.3 Eclipse Edition"** (build 17:09-17:15, entregado a colegas para pruebas; referencia de regresión) | Rama 2: homogeneizado el canal Navadmin (slot 1) en las 12 variantes; fix H3 de administración remota (rotación de clave: el NodeInfo del mando acredita admin al instante, canal y DM); **`/nava fav auto [on|off]`** (control del auto-favoriteo de routers directos, persistido en `/resilience.bin`); respuestas fragmentadas por palabra/línea (nunca se parten comandos a la mitad); ayuda y consultas: cualquier comando sin argumento muestra estado y opciones, interrogación con `/nava <comando> ?` o `help`, y aviso de rollback (`nrf erase`) en comandos persistentes. || **4.2.1 / 4.4** | **Endurecimiento de la ronda de auditoría**: whitelist estricta en el canal Navadmin (solo lectura, no-admins en silencio); normalización a minúsculas antes del filtro; guardas de longitud en `substr()` (elimina crash); `help <comando>`; respuestas en español; `factory_reset` diferido; `ign add` seguro; rate-limit de no-admins por DM; `ble` real; `bat` honesto (sin sag falso); **storm real** con RTC2 y apagado de radio (`storm test1`/`test2`); Secuencia Remota 2 completa (`set_chem`, `set_vbat`, `set_vwake`, `txoff`/`txon`, `ble`, `rxlog`, `afc`, `reset_reason`, `trace`, `route`, `msg`, `bell`, `pos`, `nodeinfo`, `sendtel`, `admin_ls`, `power`, `noise`). |
 | **4.5 (12/08/2026)** | **Rama 1 (Clientes)**: nueva rama para nodos de infraestructura que no son routers — aparecen en la malla como **CLIENT** (`set_role` y el rol por defecto). El rol es ahora **semi-permanente**: `/nava set_role [client/mute/router]` se guarda en `/resilience.bin` y sobrevive al factory reset (un cliente puede convertirse en router por radio y revertirse cuando quiera; cuidado: tras un rescate, un nodo convertido a router seguirá retransmitiendo hasta que se le devuelva a client). Resto de la rama idéntico a Rama 2 (misma administración `/nava`, misma protección de Flash y energía). |
+
+---
+
+# NavaTastic User Manual 4.2 — English
+
+> English translation of the Spanish manual above. **The Spanish original is the authoritative
+> version.** The firmware is designed for autonomous, isolated **Meshtastic** network nodes; its
+> goal is hardware survival through critical energy drops or memory corruption, with **100%
+> remote** recovery — no physical intervention needed at the site.
+
+## 1. Compatibility and variants
+
+The distribution package contains `.uf2` binaries and `.zip` packages (OTA wireless updates),
+plus board-specific bootloaders with security patches to recover from failed Bluetooth transfers.
+
+| Variant | Hardware | Notes |
+| :--- | :--- | :--- |
+| **Xiao nRF52840 + E22P** | Seeed Xiao + Ebyte E22P-868M30S | 2.7.26 |
+| **Xiao nRF52840 Kit i2c** | Seeed Xiao + I2C OLED | 2.7.26 |
+| **Faketec Estándar** | nRF52840 + **HT-RA62** radio (standard SX1262) | Any HT-RA62 version and Faketec Vx variants |
+| **nRF52840 + E22P** | Standard nRF52840 + E22P | Radio selector pad on E22 |
+| **Seed Solar Node P1** | Seeed Solar Node | 2.7.26 |
+| **Heltec T114** | Heltec T114 | 2.7.26 (built, not yet field-tested) |
+
+**Sensors (v4.2)**: fixed INA219 power monitoring; native support for **BMP280 + AHT20, BME680**.
+
+## 2. Critical hardware and wiring requirements
+
+- **E22P radio wiring rule**: follow the standard E22 wiring. E22P modules switch TX/RX
+  automatically, so **GPIO 017** no longer toggles TX/RX — it acts as the **radio power switch**:
+  HIGH wakes the module, GND sleeps it.
+- **Dedicated PCB compatibility**: on compatible carrier boards (e.g. **Albatastic**, **Xiaowa**)
+  the radio selector pad must be soldered to **E22**.
+- **ADC divider 2.0**: the battery voltage divider must use **two 1 MΩ resistors**
+  (NRF52/Faketec/Albatastic/XiaoWa).
+  > **TIP — different divider**: adjust before compiling in
+  > `variants/nrf52840/diy/nrf52_promicro_diy_tcxo/variant.h` (`ADC_MULTIPLIER`,
+  > `VBAT_DIVIDER_COMP`). **Important**: the same divider feeds **LPCOMP**, which decides the
+  > **low-battery resilience wake-up** (`set_vwake`, levels 1-5) — levels are calibrated for 2.0;
+  > with another divider recalibrate `getActiveLpcompThreshold()` in
+  > `src/platform/nrf52/main-nrf52.cpp` (or use the board's factory fixed threshold).
+- **Optimized bus lines (v4.1 Xiao Kit i2c)**: the radio output bus switches to **GND** during
+  Deep Sleep to reduce leakage current.
+
+## 3. Node configuration (hardcoded firmware)
+
+The firmware comes **hardcoded** for the SFNarrow network (national LoRa preset in Spain): EU868
+region, ShortFast Narrow preset, SFNarrow channel and Navadmin channel, power and battery
+thresholds per variant. **No user configuration is required** to operate on the mesh. Optional
+operator steps: set the node **name**, enable telemetry sensors (INA219, BMP280 + AHT20 / BME680).
+**Bluetooth**: fixed PIN **`654321`** (FIXED_PIN mode; the app asks when pairing). Everything
+else (channels, region, remote administration, battery protection) is preconfigured at build time.
+
+> **⚙️ Deployment (new or reflashed nodes)**: flashing keeps old `/prefs`. Factory-new nodes (or
+> nodes from firmware without the Navadmin channel) need **one factory reset after flashing** to
+> materialize the Navadmin channel (slot 1) — without it, the [Sueño]/[Vivo]/[Listo] notices and
+> open-channel queries will not arrive.
+>
+> **📄 The `/nava` commands** (name, sensors, all other parameters) are in the remote
+> administration manual (`Manual_NavaTastic.md`).
+
+## 4. Solar sizing recommendations
+
+| Radio | Minimum battery | Solar panel (peak) |
+| :--- | :--- | :--- |
+| **SX1262 / HT-RA62** | **3000+ mAh** | ~**300 mA** |
+| **E22P-868M30S** | **6000+ mAh** | ~**1000 mA** |
+
+> The E22P's amplification stage draws more in TX — double the capacity and solar input.
+
+### Supported battery chemistries
+
+4 chemistries, configurable via `/nava set_chem` (DM only):
+
+| Chemistry | Cutoff | Wake | Notes |
+| :--- | :--- | :--- | :--- |
+| **LiPo / Li-Ion** | 3500 mV | ~3.7 V | Standard |
+| **NiMH (3 cells)** | 3400 mV | ~3.7 V | |
+| **Sodium (Na-Ion)** | 2600 mV | ~3.7 V | Max charge ~4.0 V |
+| **LiFePO4** | 2800 mV | **~3.3 V** | **Promicro fix and Faketec only** |
+
+> **⚠️ Chemistry compatibility per board**: on **Seed Solar P1, Xiao Kit i2c, Xiao E22P and
+> Heltec T114** `lifepo4` is **rejected** (`ERR: LIFEPO4 NO COMPATIBLE, UMBRAL LPCOMP FIJO`):
+> their LPCOMP is hardware-fixed and its wake threshold (~3.67 V–4.04 V) exceeds the physical
+> maximum of a LiFePO4 cell (~3.65 V) — an accepted LiFePO4 node would **never wake on solar**
+> (remote brick). Only `lipo`, `nimh`, `sodium` there. On **Promicro fix and Faketec** (dynamic
+> LPCOMP) all 4 chemistries are available; `lifepo4` wakes at ~3.3 V.
+
+### ⚠️ Initial power-on of a solar node
+
+The panel can produce **dirty current** while exposed to light during boot → **brownout** and
+reset loops. Correct procedure:
+
+1. **Fully cover the solar panel** (paper, opaque cloth) before connecting the battery.
+2. Connect the battery with the panel covered.
+3. Wait for the node to boot and stabilize.
+4. Uncover the panel only after boot is confirmed.
+
+If the node brownouts anyway: disconnect power, cover the panel, repeat from the start.
+
+## 5. Automatic safeguard logic
+
+### A. Anti-brownout system (battery protection)
+
+1. **Monitoring**: continuous voltage reading with an anti-false-positive filter: sleeping needs
+   **5 consecutive readings below the critical threshold (3.4 V–3.5 V) ~20 s apart (~100 s
+   total)** — a single spurious ADC reading (RF, temperature, transients) cannot take the node
+   down; any good reading resets the counter. (At boot, the pre-check uses 5 fast 200 ms
+   readings as anti-brownout protection.)
+2. **Shutdown sequence**: the node saves state to non-volatile memory, powers the radio down
+   (GPIO LOW) and arms the nRF52840's low-power comparator (**LPCOMP**).
+3. **Minimum hibernation consumption**: deep sleep at ~**0.4 mA** on the nRF52840; total node
+   consumption (with an **MT3608** booster) max **1.5 mA** (or **2 mA** with an ATTINY13a for
+   cyclic resets).
+4. **Safety cushion**: cutting consumption preserves ~**30%** of battery capacity — avoids early
+   chemical degradation from deep discharge and gives months of margin for solar recovery.
+5. **Automatic resurrection**: once solar charging raises the battery above **+3.7 V** (up to 4 V
+   depending on local electronics tolerances), the nRF52840 wakes, reactivates the radio and the
+   node returns to full mesh operation.
+
+> **⚠️ CRITICAL POWER WARNING**: the low-battery anti-brownout safeguard **will NOT work when the
+> node is powered through USB**. Without battery power the node cannot enter the controlled
+> low-power sleep; in that scenario the firmware only protects against an accidental reset to
+> factory values.
+
+### B. Catastrophe safeguard (hardcoded recovery)
+
+If the node suffers memory corruption, a write failure or a critical electrical reset by the
+ATTINY13a right while saving data, the firmware performs a **Factory Reset**. To avoid leaving
+the node isolated and unreachable, these defaults are hardcoded:
+
+| Parameter | Value |
+| :--- | :--- |
+| **Operating region** | EU868 |
+| **Modem preset** | ShortFast Narrow / 869.618 MHz / Slot 4 (62 kHz BW, SF7, CR5) |
+| **Maximum power** | **22 dBm** HT-RA62/SX1262 · **12 dBm** E22P (30 dBm after amplification) |
+| **Administration** | Prefixed public admin key, injected automatically |
+
+> **🔴 Power & antenna note**: the power limit avoids spurs/harmonics. **The antenna must be
+> tuned/resonant at 869 MHz** to avoid damaging the radios.
+
+## 6. Laboratory: technical test bench
+
+Before deploying to a remote location, validate the safeguards in a controlled environment:
+
+```
+[Adjustable Lab Power Supply] -> [Node Battery Input]
+                                     |
+                                     +--> [Multimeter in Ammeter Mode]
+```
+
+1. Connect the node to an adjustable lab supply set to **4.2 V** through the battery pins
+   (**never through USB**).
+2. Wire a multimeter in series (mA mode) to monitor consumption in real time.
+3. **Hibernation test**: slowly lower the supply to **3.3 V** and wait (1–3 min). Verify the
+   firmware saves state, powers the radio down and consumption drops to **0.4 mA** (or
+   1.5–2 mA with peripherals/boosters).
+4. **Recovery test**: raise the supply voltage. Verify that past **~3.71 V** the node
+   "resurrects" automatically, initializes modules and transmits beacons at normal power.
+
+## 7. Remote rescue protocol (step by step)
+
+If a remote node suffers a critical failure and returns to factory state, it keeps its unique
+Meshtastic ID (`idxxxxx`) but operates under the generic default parameters (EU868, ShortFast
+Narrow, preconfigured public rescue key).
+
+> Because of how Meshtastic encryption and public/private key exchange work, **follow this
+> protocol strictly** to avoid cryptographic key lockouts.
+
+### Step 1: Preparing the control node (rescue)
+
+You need any physical Meshtastic-compatible node acting as the remote control to reach the
+fallen node.
+
+1. **Initial isolation**: make sure this control node is fully powered off (or shielded where it
+   cannot emit/receive mesh beacons) before configuring it.
+2. **New recommendation**: the traditional method sometimes fails because a Meshtastic app bug
+   breaks backup restoration. Therefore:
+3. **First**, install Meshtastic app version **2.7.10** on your smartphone — it allows editing
+   the node's private key (the `.apk` is included in the Navarrico firmware package).
+4. Open the app, connect to your control node and make sure it stayed isolated; otherwise there
+   will be a key conflict with the node you want to control.
+5. Go to that node's **Security Settings** and, in the "Private Key" field, clear the content and
+   type exactly:
+
+```
+cJzjBkBwWid26swcnuOJ9v8EQcWC5fyugDhZddtnu04=
+```
+
+Save the changes.
+
+6. Reboot the node normally and verify it generated the public key:
+
+```
+x9wN6W0TuoY/gtVKM/+lysx8Rewb5CAdZ9YfzIVRAFU=
+```
+
+### Step 2: Interconnecting on the mesh
+
+1. Once the rescue configuration is loaded on the control node, power it on / let it reach the
+   radio spectrum. **DO NOT LET IT SEND ANY OF ITS OWN BEACONS TO THE NETWORK BEFORE THIS MOMENT!**
+2. **The key conflict**: if the control node had already identified itself on the network before
+   restoring the backup, it exchanged standard keys with the remote node. Applying the backup
+   afterwards makes the stored keys mismatch and remote administration access is denied.
+3. **Conflict resolution**: if you suspect the nodes already "saw" each other with wrong keys,
+   manually purge the remote node from your user app's device list and wait for a completely
+   clean, fresh beacon from the fallen node. This forces mutual recognition under the shared
+   rescue public key. The purge also happens naturally on the remote node as it "recycles" old
+   nodes (limited to **80 nodes** in memory).
+
+### Step 3: Remote reconfiguration
+
+1. Once both devices recognize each other through the injected public key, access the **Remote
+   Management** interface from your control node.
+2. Restore the specific configuration the node originally had (private channels, custom
+   transmission rates, geolocation, etc.).
+3. **ADC verification**: during reconfiguration, check that the ADC (Analog-Digital Converter)
+   parameter is set to the correct value for your hardware (e.g. `2.0`). A wrong value makes the
+   node misread the real cell voltage and the anti-brownout safeguard could fail or trigger late.
+4. Apply the changes remotely. The remote node assimilates the data and rejoins the mesh with its
+   usual functions and names.
+
+## 8. Remote administration (summary)
+
+Remote administration runs with **`/nava`** commands (module `NavaCLIModule`), **100% silent and
+headless**, through two channels:
+
+| Channel | Scope | Security |
+| :--- | :--- | :--- |
+| **Open channel (Navadmin)** | Read-only query and diagnostics | Batch reply with 0.5-6.5 s jitter. Non-admins get total silence |
+| **Encrypted DM (PKI)** | Configuration, reboot, DB, blocklist, favorites, energy | Mandatory PKI cryptographic signature |
+
+> **📄 The complete `/nava` command manual is distributed separately** (`Manual_NavaTastic.md`):
+> 40+ commands, batch addressing (`!ID`, `@router`, `@name:...`), per-command help
+> (`/nava help <command>`, `/nava <command> ?`).
+
+### Security notes (v4.2.1)
+
+- The Navadmin channel uses Meshtastic's default **public PSK**: anyone can listen. Read-only;
+  never replies to non-admins.
+- `from` spoofing on the channel is possible (public PSK); the read-only whitelist is the
+  mitigation. **Destructive commands ALWAYS go through DM PKI.**
+- The Navadmin channel is identified by its **slot (index 1)**, not by name: do not reorder
+  channels.
+- `/resilience.bin` (chemistry, voltages, TX/BLE state) lives at the disk root and **survives
+  factory resets**.
+
+## 9. Version changelog
+
+| Version | Description |
+| :--- | :--- |
+| **1.0** | Initial version, proven on several mesh routers that suffered brownouts — the solution stopped them. |
+| **2.0** | Hardcoded defaults after factory reset; the node survives critical memory failures; user changes no longer persist over the remote-management keys after a reset. |
+| **3.0** | Fixed a wake/sleep loop when booting or being reset (by hand or ATtiny13a) below the programmed sleep voltage. |
+| **4.0** | Xiao Kit i2c build; Spreading Factor 5 and 6 support in all builds (new LoRa presets being deployed in Madrid). |
+| **4.1** | Fixed Faketec INA219 detection; Xiao NRF52 Kit i2c radio output bus switches to GND for lower Deep Sleep consumption. |
+| **4.2** | Ported to Meshtastic 2.7.26 Beta, more boards supported. Added **Branch 2** for infrastructure routers (Flash protection + auto-favoriting of direct radio routers). Previous branch renamed **Branch 1**. |
+| **4.3** | Renamed **NavaTastic**; hybrid security architecture and extended remote admin commands in Branch 2: Navadmin channel (slot 1, PSK 0x01) for batch administration; `NavaCLIModule` intercepting `/nava` silently; addressing by ID/role/name with anti-collision jitter; critical access via DM PKI only; admins cannot be silenced; fixed full-DB DoS (limit 80) and 10-orphan-favorite limit; solved NodeInfo broadcast storm at boot. |
+| **4.4 (12/08/2026)** ⭐ **"NavaTastic 4.3 Eclipse Edition"** (17:09-17:15 build, handed to colleagues for testing; regression reference) | Branch 2: homogenized Navadmin channel (slot 1) across all 12 variants; remote-admin H3 fix (key rotation: the control node's NodeInfo accredits admin instantly, channel and DM); **`/nava fav auto [on|off]`**; word/line fragmentation; help & queries for every command; rollback warning (`nrf erase`) on persistent commands. 4.2.1/4.4 audit hardening: strict read-only whitelist, lowercase normalization before filtering, `substr()` length guards, Spanish replies, deferred `factory_reset`, safe `ign add`, non-admin DM rate-limit, real `ble`, honest `bat`, **real storm** (RTC2 + radio off), complete Remote Sequence 2. |
+| **4.5 (12/08/2026)** | **Branch 1 (Clients)**: new branch for non-router infrastructure nodes — they appear on the mesh as **CLIENT**. Role is now **semi-permanent**: `/nava set_role [client/mute/router]` is saved in `/resilience.bin` and survives factory reset. Rest of the branch identical to Branch 2. |

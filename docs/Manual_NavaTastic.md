@@ -177,3 +177,180 @@ NO afecta al comportamiento energético, solo a los avisos). Contenido: `ADC X m
 - `extern void timedSystemSleepSeconds(uint32_t);` (main-nrf52, storm RTC2).
 - `extern void setBleForceDisabled(bool);` (main-nrf52).
 - `router->getInterface()` (Router.h), `environmentTelemetryModule->sendTelemetry()` (EnvironmentTelemetry public).
+
+---
+
+# NavaTastic Remote Administration Manual (v4.2.1) — English
+
+> English translation of the Spanish manual above. **The Spanish original is the authoritative
+> version**; this section carries the same information for international readers. Canonical code:
+> `src/modules/NavaCLIModule.h/.cpp` in the unified repo (all 12 envs compile this same module;
+> only `set_txpower` differs, 0-12/0-22 by `NAVARICO_RADIO_*`).
+
+## Command security levels
+
+- **Open channel (Navadmin)**: read-only query/diagnostic commands only. Batch execution over the
+  fleet with anti-collision response jitter; non-accredited senders get **no reply at all**
+  (total silence). **Rate-limit: max 1 command per node every 30 s** (excess ignored silently) to
+  avoid battery/airtime exhaustion through the public channel.
+- **Encrypted DM only**: critical configuration, reboot, database, blocklist, favorites and energy
+  commands. Mandatory PKI signature. A known node sending a DM without being accredited gets a
+  single reply: `NO AUTORIZADO COMO ADMINISTRADOR`.
+
+## 1. Diagnostics & telemetry (open channel and DM)
+
+- **`/nava ping`** — Latency reply with uptime and noise floor. Rate-limit: 1 reply every 10 s per node.
+- **`/nava status`** — Memory health: nodes RAM/80, **real Manual/Auto favorites** (persist across
+  reboots), orphans, auto-fav state, uptime and energy line (ADC + INA when present).
+- **`/nava env`** — Battery, heap, nRF52 CPU temperature and I2C environmental sensor.
+- **`/nava channel`** — Spectrum usage (airtime % and TX %).
+- **`/nava peers`** — Direct 0-hop neighbors (ID, role, SNR, last-heard).
+- **`/nava rxlog`** — Metadata of the last 5 received packets.
+- **`/nava afc`** — TCXO frequency drift in Hz of the last packet.
+- **`/nava reset_reason`** — Last reset cause (RESETREAS register).
+- **`/nava noise`** — Instantaneous LoRa chip noise floor in dBm.
+- **`/nava bat`** — Active chemistry, voltage mV, OCV % and TX state.
+- **`/nava route !ID`** — Hops and SNR toward a node; launches a TraceRoute automatically if unknown.
+- **`/nava trace !ID`** — Native TraceRoute toward the node.
+- **`/nava help`** — Short command glossary. **`/nava help <command>`** / **`<command> ?`** /
+  **`<command> help`** — brief help for ANY command (except `msg`).
+
+## 2. Blocklist management (ENCRYPTED DM ONLY)
+
+- **`/nava ign ls`** — Lists blocked nodes.
+- **`/nava ign add !ID`** — Blocks and silences a node, purging its public key. Safeguards:
+  `ERR: NO SE PUEDE IGNORAR A UN ADMIN`, `ERR: NO PUEDES IGNORARTE A TI MISMO`,
+  `ERR: NODO DESCONOCIDO, NO SE PUEDE VERIFICAR ADMIN`.
+- **`/nava ign rm !ID`** — Unblocks (DM, to prevent the blocked node from unblocking itself).
+
+## 3. Favorites management (ENCRYPTED DM ONLY)
+
+- **`/nava fav add !ID`** — Adds to favorites with hop bypass; creates a RAM orphan slot if never
+  heard (max 10).
+- **`/nava fav rm !ID`** — Removes from favorites.
+- **`/nava fav ls`** — Lists favorites tagged `[AUTO]` / `[MAN]`.
+- **`/nava fav auto [on|off]`** — Enables/disables auto-favoriting of direct (0-hop) routers.
+  Default ON; persists in `/resilience.bin` (survives factory reset). No argument shows state.
+
+## 4. Hot node configuration (ENCRYPTED DM ONLY)
+
+- **`/nava set_name "[Long]" "[Short]"`** — Renames the node (quotes supported).
+- **`/nava set_role [client/mute/router]`** — Hardware role. **SEMI-PERMANENT on BOTH branches
+  (V2.1)**: saved in `/resilience.bin`, survives factory reset; only `nrf erase` restores the env
+  profile role.
+- **`/nava set_mqtt [on/off]`** · **`/nava set_tz [POSIX]`** · **`/nava set_hops [1-7]`**
+- **`/nava set_txpower [0-12]`** — TX power (Promicro/E22P). **Faketec HT-RA62: [0-22]**.
+
+## 5. Maintenance & reboot (ENCRYPTED DM ONLY)
+
+- **`/nava db_purge`** — Evicts non-favorite, non-admin nodes.
+- **`/nava db_clear`** — Empties the node database (nuclear). **Important**: it also removes YOUR
+  entry from the repeater; re-accredit by **forcing your own NodeInfo broadcast (broadcast, NOT
+  DM)** before sending any `/nava` — otherwise the repeater stays silent until your next periodic
+  NodeInfo (up to 72 h).
+- **`/nava reboot`** — Deferred reboot at 3 s (ACK goes out first).
+- **`/nava factory_reset`** — Emergency factory reset restoring rescue channels (ACK first).
+
+## 6. Energy & resilience (ENCRYPTED DM ONLY)
+
+- **`/nava set_chem [lipo/nimh/sodium/lifepo4]`** — Switches chemistry and adjusts cutoff/OCV/LPCOMP.
+  Persists in `/resilience.bin`. Cutoffs: lipo 3500, nimh 3400, sodium 2600, **lifepo4 2800**.
+  No argument → current chemistry + cutoffs/wake table. **Rollback ONLY via `nrf erase`.**
+  - ⚠️ On **Seed Solar P1, Xiao Kit i2c, Xiao E22P and Heltec T114** `lifepo4` is **rejected**
+    (`ERR: LIFEPO4 NO COMPATIBLE, UMBRAL LPCOMP FIJO`): their LPCOMP is hardware-fixed and the
+    wake threshold (~3.67 V–4.04 V) exceeds the physical maximum of a LiFePO4 cell (~3.65 V) — an
+    accepted LiFePO4 would never wake on solar. Only `lipo`, `nimh`, `sodium` there. Promicro and
+    Faketec (dynamic LPCOMP) keep all 4 chemistries.
+- **`/nava set_vbat [2400-3600]`** — Battery shutdown cutoff in mV. No argument shows current.
+  **Rollback ONLY via `nrf erase`.**
+- **`/nava set_vwake [1-5]`** — Solar wake LPCOMP level. Real voltages (Promicro/Faketec, 0.5
+  divider): 1=2.1 V, 2=2.5 V, **3=3.7 V (LiPo/NiMH/Sodium)**, 4=4.5 V, **5=3.3 V (LiFePO4)**.
+  No argument shows current. **Rollback ONLY via `nrf erase`.**
+  - ⚠️ Seed/Xiao×2: fixed `3_8` (~3.67 V) — `set_vwake` does not change the wake voltage.
+  - ⚠️ Heltec T114: fixed `2_8` (~4.04 V) — `set_vwake` does not change it either.
+- **`/nava storm [1-720]`** — Hibernation with radio off (RTC2); wakes by timer and reboots.
+  ACKs "MODO TORMENTA ACTIVADO..." and waits 15 s before sleeping. `storm test1`/`test2` = 60 s/120 s.
+- **`/nava txoff`** — Disables TX after 3 s (RX stays). Persists; rollback ONLY via `nrf erase`.
+  **`/nava txon`** — Re-enables TX.
+- **`/nava ble [on/off]`** — Disables/enables Bluetooth (schedules a real reboot). Persists;
+  rollback ONLY via `nrf erase`.
+
+## 7. Data transmission (ENCRYPTED DM ONLY)
+
+- **`/nava msg "[TEXT]"`** — Broadcasts on channel 0 signed by the repeater.
+- **`/nava pos`** — Forces a position broadcast. **`/nava nodeinfo`** — NodeInfo beacon without
+  asking for replies. **`/nava sendtel`** — Immediate environmental telemetry.
+- **`/nava power`** — Energy metrics: internal ADC (mV) + I2C power sensor (INA219/260) with
+  V, ±mA CHARGING/DISCHARGING and power in mW. **DM only** (SOLO DM SEGURO).
+
+## 8. Sleep/wake notices (v4.3 V2)
+
+The node can announce its battery cycle **on the Navadmin channel (slot 1)** (ON by default;
+does NOT affect energy behavior, only the notices). Content: `ADC X mV | CPU X.X C` (internal
+nRF52 sensors only — I2C sensors are unavailable at those moments). **Bench-verified 15/08/2026**
+(full cycle: [Vivo] → ~100 s operation → [Sueño] → ~1 mA sleep → LPCOMP ~3.7-3.8 V → [Listo] →
+[Boot] at 2 min):
+
+- **`/nava sleepmsg [on|off]`** — Enables/disables notices. Persists in `/resilience.bin`.
+  Fixed in V2.3 (the gate never activated by command before).
+- **`[Sueño]`** — Before low-battery sleep: name, id, ADC + chip temperature and LPCOMP wake
+  voltage. Fires after **5 low monitor readings (~100 s)** — the filter prevents sleeping on
+  spurious ADC readings (RF/temperature). Then sleeps EVERYTHING (radio, GPS, screen, LED) → ~1 mA.
+- **`[Vivo]`** — Woken by external reset (e.g. ATtiny13A) with battery in the band
+  **[cutoff−100 mV, cutoff)** (E22P: 3400-3500; SX1262: 3300-3400): "alive, at the charge limit"
+  and the node **keeps operating normally** — the monitor decides after its 5 readings.
+- **`[Listo]`** — Wake with **V ≥ OCV cutoff** (solar LPCOMP or external reset): "awake, charging,
+  ready" — normal operation continues.
+- **`[Boot]` (V2.4)** — Startup notice **delayed 2 minutes** (anti-loop: a node in a reset cycle
+  never sends it). Only on boots NOT coming from the sleep cycle: power-on, external reset,
+  **watchdog**, brownout, flash, `/nava reboot`. Includes the **reset cause** (RESETREAS: `WDT`,
+  `RESETPIN`, `SOFT`, `LOCKUP`, `LPCOMP`, `VBUS`). All gated by `sleepmsg`.
+- Silence rule: below cutoff−100 mV nothing is sent — direct re-sleep (anti-brownout protection).
+- **To receive them**: the observer/control node must have the Navadmin channel materialized
+  (public PSK `{0x01}`, slot 1) and use the same frequency/LoRa parameters.
+
+## 9. Utilities (ENCRYPTED DM ONLY)
+
+- **`/nava bell`** — Acoustic alarm for localization.
+- **`/nava admin_ls`** — Shows the 3 admin keys in **base64** (to verify against configuration).
+
+## Batch addressing syntax (prefixes)
+
+1. **By ID**: `/nava !a7c43b2f ping` (only that node answers).
+2. **By role**: `/nava @router status` (Routers only).
+3. **By name**: `/nava @name:Navarra env` (names starting with "Navarra").
+4. **All**: `/nava env` (every repeater in range, sequential).
+
+## Deployment notes (condensed)
+
+- Any configuration command answers with state when called with no arguments; `?` / `help`
+  interrogation works for all except `msg`. Persistent commands (`set_chem`, `set_vbat`,
+  `set_vwake`, `txoff`, `ble`) warn: rollback only via `nrf erase`.
+- Multi-line replies are fragmented at line breaks (max 190 chars per fragment).
+- Navadmin channel uses Meshtastic's **public PSK**: anyone can listen — read-only only, never
+  replies to non-admins. It is identified by **slot (index 1)**, not by name: do not reorder
+  channels.
+- **Deployment (new or reflashed nodes)**: flashing keeps `/prefs`; a factory-new node needs
+  **one factory reset after flashing** to materialize channel 1 — without it the [Sueño]/[Vivo]/
+  [Listo] notices and open-channel queries will not arrive. (Factory reset also clears
+  `debug_log_api_enabled` and app-added admin keys — re-apply them.)
+- `/resilience.bin` survives factory resets (only `/prefs` is removed).
+- **Control-key rotation (fix 2026-08-10)**: a control node presenting a new public key is
+  accepted whenever the new key matches a configured admin key (and re-favorited).
+- **Persistent admin accreditation (15/08)**: accreditation is saved to disk at PKI validation —
+  the admin answers after reboot without waiting for its next NodeInfo. An `nrf erase` ALWAYS
+  regenerates the node keys: peers holding the old key fail DM PKI (`PKI_SEND_FAIL_PUBLIC_KEY`) —
+  remove their entries and re-learn.
+- **Bench testing**: the Promicro E22P TX is unstable at high power on a lab supply (current
+  spikes) — use **1 dBm TX** for tests; USB disables low-battery detection (`getHasUSB`) — power
+  from the supply only to test the sleep cycle.
+
+## Source code reference (for audit)
+
+> The deployed code lives in the unified repo (`src/modules/NavaCLIModule.h/.cpp`); the repo is
+> the source of truth. Class `NavaCLIModule` (SinglePortModule + OSThread): `wantPacket()` (DM or
+> channel 1), `handleReceived()` (PKI auth, one-time replies to non-admins), `executeCommand()`
+> (lowercases before the channel whitelist), `helpForCommand()`, `runOnce()` (drains the fragment
+> queue, deferred txoff/reboot/factory_reset/storm). Persistence: `ResiliencePrefs` in
+> `/resilience.bin` (84 B with version marker; legacy/corrupt files auto-migrate). The
+> [Sueño]/[Vivo]/[Listo] notices always enqueue with `NODENUM_BROADCAST` (never `to=0`).

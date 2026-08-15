@@ -200,6 +200,18 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
 
 ## 8. Historial de Auditoría (Resumen)
 
+*   **Ronda 2026-08-15 (documentación pública — README + manuales bilingües)**:
+  - **README (ES/EN)**: la clave admin de fábrica se explica como **herramienta de rescate
+    integrada**: tras un restablecimiento duro (factory reset accidental, `nrf erase`,
+    corrupción) el nodo vuelve con la clave pre-hardcodeada y el operador (poseedor de la
+    privada) reentra por DM, restaura y deja el nodo **con la clave de su dueño** — por eso la
+    auto-recuperación la re-inyecta si el slot 0 queda vacío. Instrucciones para cambiarla a
+    mano con VS Code: `profiles/<RAMA>_<Placa>.jsonc` → sustituir los 32 bytes de
+    `USERPREFS_USE_ADMIN_KEY_0` por la clave pública propia (base64→hex) → `pio run -e <env>`
+    (aviso: se pierde el canal de rescate del proyecto). Versión README → V2.6.1.
+  - **Manuales bilingües ES+EN**: traducción EN completa al final de `Manual_NavaTastic.md`
+    y `Manual_uso_NavaTastic_4.2.md` (el ES permanece arriba y es la fuente de verdad);
+    PDFs regenerados con `generar_pdf.ps1`.
 *   **Ronda 2026-08-15 (auditoría externa Claude — pack 14/08, analizada por agente)**:
   - **Resultado**: 2 hallazgos ya resueltos en el código vivo (§4 instrumentación TEMP F15 retirada; §5 gate `version != 0x4E415653` aplicado en las 3 rutas de carga), 1 **RECHAZADO por medición de laboratorio** (§1: proponía Seed 4084 mV — el Seed probado en banco con el MISMO `3_8` despierta a **~3,8 V** → divisor efectivo ~0,326, no 0,303; la teoría desde `ADC_MULTIPLIER 3.3` falla ~300 mV, L27), 1 **APLICADO** (§2: `power` movido de [Q] a [E] en el help del firmware + "SOLO DM SEGURO" — cosmético), F16c **CERRADO** (`substr(7)` correcto en el código actual), F17 anotado con explicación candidata (PKI estándar: clave pública del destino no aprendida antes del 1er NodeInfo, Router.cpp:669), §6 migración 80B por diseño con riesgo 0.
   - **Dato empírico clave**: el Seed Solar Node P1 despierta a **~3,8 V** (fuente de laboratorio, firmware 4.2 con el mismo `3_8` + `HYST_NOHYST`). El repo actual usa el mismo `3_8` con `HYST_ENABLED` (50 mV) → ~3,85 V. El valor 3670 del aviso [Sueño] es teórico/informativo; re-medir en banco para fijar el exacto (~3800). NO aplicar la teoría del divisor 0.303 (daría 4084, falso).

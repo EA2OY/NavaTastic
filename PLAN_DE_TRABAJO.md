@@ -135,6 +135,13 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       cuele en publicaciones futuras. L24: distribucion\ repoblada + PDFs regenerados.
       Recomendado al operador: rotar/revocar el token guardado en el Administrador de
       credenciales de Windows (L26).
+- [x] **DOCUMENTACIÓN PÚBLICA (15/08)**: README ES/EN — la clave admin de fábrica explicada
+      como **herramienta de rescate integrada** (reentrar tras restablecimiento duro y devolver
+      el nodo a la clave de su dueño) + instrucciones VS Code para cambiar la clave
+      pre-hardcodeada (`profiles/*.jsonc` → `USERPREFS_USE_ADMIN_KEY_0`). Manuales **bilingües
+      ES+EN** (traducción EN al final de ambos documentos; ES = fuente de verdad) y PDFs
+      regenerados. Backups `.bak-20260815-1729`. Pendiente: republicar a GitHub (README + PDFs
+      nuevos en el release).
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
