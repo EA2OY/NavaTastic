@@ -383,6 +383,13 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   responsabilidad exclusiva del instalador; el proyecto queda **desvinculado** de montajes o
   usos de terceros que no se ajusten a la legislación. PDFs regenerados. Publicado a GitHub
   (rama huérfana → main + PDFs del release v2.6.1 sustituidos). Detalle: BITACORA.
+- **2026-08-15 (28ª parte) — PROTOCOLO DE RESCATE ACTUALIZADO (dato del operador)**: ya NO
+  hace falta la app 2.7.10: la app **actual** de Meshtastic (Play Store) permite cambiar la
+  clave privada. Operativa (manual de uso ES+EN y README ES+EN): **Ajustes → Seguridad** del
+  nodo de mando → borrar el campo **"Clave Privada"** → pegar la privada del proyecto →
+  **guardar/enviar** → la clave pública correcta **se regenera sola**. Si no se queda
+  aplicada, repetir (bug conocido de la app de Meshtastic). PDFs regenerados. Backups
+  `.bak-20260815-1812`.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

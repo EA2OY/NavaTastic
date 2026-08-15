@@ -221,6 +221,12 @@ inalcanzable. Por eso el firmware la re-inyecta si el slot 0 queda vacío.
 Ten en cuenta que al cambiar la clave pre-hardcodeada pierdes el canal de rescate del proyecto:
 guarda bien la clave privada correspondiente a la tuya.
 
+**Para inyectar la clave de rescate en un nodo de mando** (protocolo completo en el manual de
+uso): con la app **actual** de Meshtastic (Play Store), entra en **Ajustes → Seguridad** del nodo
+de mando, borra el campo **"Clave Privada"** y pega la clave privada del proyecto; al
+guardar/enviar, la clave pública correcta **se regenera sola**. Si no se queda aplicada, repite
+la operación (bug conocido de la app).
+
 ## Licencia
 
 - **Firmware (código de este repositorio)**: **GPL v3** — heredada de
@@ -471,6 +477,11 @@ code involved):
 
 Keep in mind that changing the pre-hardcoded key removes the project's rescue channel: keep the
 private key matching your own well backed up.
+
+**To inject the rescue key into a control node** (full protocol in the user manual): with the
+**current** Meshtastic app (Play Store), open the control node's **Settings — Security**, clear
+the **"Private Key"** field and paste the project's private key; on save/send the correct public
+key **regenerates by itself**. If it does not stick, repeat the operation (known app bug).
 
 ## License
 

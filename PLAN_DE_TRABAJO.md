@@ -146,6 +146,10 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       descargo normativo ampliado (normativa nacional/autonómica/local/europea del montaje,
       responsabilidad exclusiva del instalador, proyecto desvinculado de usos de terceros
       ilegales). PDFs regenerados y publicados (main + release v2.6.1).
+- [x] **PROTOCOLO DE RESCATE ACTUALIZADO (15/08, dato del operador)**: sin app 2.7.10 — la
+      app actual (Play Store) cambia la clave privada; operativa: Ajustes → Seguridad → pegar
+      privada → guardar/enviar → pública se regenera sola; si no se aplica, repetir (bug de la
+      app). Documentado en manual de uso ES+EN y README ES+EN; PDFs regenerados.
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 

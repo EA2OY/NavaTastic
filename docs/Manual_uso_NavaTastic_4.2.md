@@ -176,21 +176,25 @@ Necesitas un nodo físico cualquiera que actúe como "mando a distancia" para co
 
 1. **Aislamiento inicial**: Asegúrate de que este nodo de mando esté completamente apagado o blindado en un entorno donde no pueda emitir ni recibir balizas de la malla antes de ser configurado.
 2. **Nueva recomendación**: A veces el método tradicional no funciona bien, ya que por un bug de la app de Meshtastic falla la restauración de la copia de seguridad. Por lo tanto:
-3. **Primero**, instala en tu smartphone la versión **2.7.10** de la app de Meshtastic, ya que esta permite modificar la clave privada del nodo (el `.apk` está incluido en el archivo general del firmware Navarrico).
+3. **Usa la versión ACTUAL de la app de Meshtastic (Play Store)**: ya permite modificar la
+   clave privada del nodo y, al guardarla, la clave pública correcta se **regenera sola**. No
+   hace falta la versión 2.7.10 ni el `.apk` antiguo.
 4. Abre la app, conéctate a tu nodo de mando y asegúrate de que haya estado aislado; si no, dará conflicto de claves con el nodo que quieres controlar.
-5. Ve a **Ajustes de Seguridad** de ese nodo y, en el campo "Clave Privada", borra el contenido y escribe exactamente:
+5. Entra en **Ajustes → Seguridad** de ese nodo y, en el campo **"Clave Privada"**: borra el contenido y pega exactamente:
 
 ```
 cJzjBkBwWid26swcnuOJ9v8EQcWC5fyugDhZddtnu04=
 ```
 
-Guarda los cambios.
+Pulsa **guardar/enviar**: con eso, la clave pública correcta se regenera sola.
 
-6. Reinicia el nodo normalmente y comprueba que ha generado la clave pública:
+6. Comprueba que se ha generado la clave pública:
 
 ```
 x9wN6W0TuoY/gtVKM/+lysx8Rewb5CAdZ9YfzIVRAFU=
 ```
+
+(Si la clave privada no se queda aplicada al guardar, hazlo de nuevo — es un bug conocido de la app de Meshtastic.)
 
 ### Paso 2: Interconexión en la Malla
 
@@ -427,24 +431,26 @@ fallen node.
    cannot emit/receive mesh beacons) before configuring it.
 2. **New recommendation**: the traditional method sometimes fails because a Meshtastic app bug
    breaks backup restoration. Therefore:
-3. **First**, install Meshtastic app version **2.7.10** on your smartphone — it allows editing
-   the node's private key (the `.apk` is included in the Navarrico firmware package).
-4. Open the app, connect to your control node and make sure it stayed isolated; otherwise there
-   will be a key conflict with the node you want to control.
-5. Go to that node's **Security Settings** and, in the "Private Key" field, clear the content and
-   type exactly:
+3. **Use the CURRENT Meshtastic app (Play Store)**: it already allows editing the node's
+   private key and, when saved, the correct public key **regenerates by itself**. No need for
+   the 2.7.10 version or the old `.apk`.
+4. Open the app, connect to your control node and make sure it stayed isolated; otherwise there will be a key conflict with the node you want to control.
+5. Go to that node's **Settings → Security** and, in the **"Private Key"** field: clear the
+   content and paste exactly:
 
 ```
 cJzjBkBwWid26swcnuOJ9v8EQcWC5fyugDhZddtnu04=
 ```
 
-Save the changes.
+Press **save/send**: the correct public key regenerates by itself.
 
-6. Reboot the node normally and verify it generated the public key:
+6. Verify that the public key has been generated:
 
 ```
 x9wN6W0TuoY/gtVKM/+lysx8Rewb5CAdZ9YfzIVRAFU=
 ```
+
+(If the private key does not stick on save, do it again — a known Meshtastic app bug.)
 
 ### Step 2: Interconnecting on the mesh
 

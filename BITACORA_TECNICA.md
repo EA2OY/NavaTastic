@@ -586,3 +586,11 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   sustituidos por los nuevos (con el descargo). El árbol publicado incluye TODO lo documental
   (`docs\`: cerebro + subnotas + contexto + manuales). L24 aplicada de nuevo (distribucion\ +
   PDFs repoblados tras volver a master).
+
+### PROTOCOLO DE RESCATE ACTUALIZADO (15/08, dato del operador)
+- **Ya no hace falta la app 2.7.10**: la app ACTUAL de Meshtastic (Play Store) permite cambiar
+  la clave privada del nodo. Operativa documentada (manual de uso §7 ES+EN y README ES+EN):
+  **Ajustes → Seguridad** → borrar el campo **"Clave Privada"** → pegar la privada del proyecto
+  → **guardar/enviar** → la clave pública correcta **se regenera sola** (sin reinicio). Si no
+  se queda aplicada al guardar, repetir la operación — bug conocido de la app de Meshtastic.
+  Backups `.bak-20260815-1812` (README + manual de uso).
