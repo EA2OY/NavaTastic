@@ -7,6 +7,24 @@
 > Compilar: `pio run -e navarrico_<placa>_<radio>_<rama>` desde la raíz. `C:\Firmware
 > Navarrico 4.3` es SOLO LECTURA (archivo histórico). El resto de esta guía (orden de
 > lectura, reglas esenciales) sigue siendo válido como referencia conceptual.
+>
+> **ADENDA 15/08/2026 — ESTADO V2.3 + BANCO (F15/F16 cerrados)**:
+> - **Cerrado en banco (Promicro R2IG)**: rol semi-permanente (sobrevive factory reset),
+>   migración `/resilience.bin` (84 B, remove-antes-de-escribir), avisos [Sueño]/[Vivo]/[Listo]
+>   por canal Navadmin (ciclo completo verificado), acreditación admin persistente tras reboot
+>   (F16a: `saveToDisk(SEGMENT_NODEDATABASE)` en AdminModule). Instrumentación TEMP F15
+>   RETIRADA del código; build limpio banco SUCCESS (UF2 MD5 `f5cb93cd...`).
+> - **Pendiente (4.7)**: flashear build limpio en banco (smoke) → compilar los 12 envs →
+>   `distribuir.ps1 -Todo -V2` → PDFs (norma 0.11) → docs cierre → commit local.
+> - **Trampas operativas nuevas (banco, no repetir)**: `to=0` NO es broadcast (avisos encolados
+>   así mueren en el aire — usar NODENUM_BROADCAST); E22P inestable en TX >1 dBm en banco (picos
+>   de corriente); `--listen` por Start-Process pierde el buffer (PYTHONUNBUFFERED=1) y `--nodes`
+>   falla con encoding cp1252 (PYTHONIOENCODING=utf-8); flash nRF52 = `pio -t upload
+>   --upload-port COMx` (nrfutil + touch 1200bps, NO hay unidad UF2); `--set` con requiresReboot
+>   rebota a los 7s y `--reboot` a los 10s (esperar ≥30s antes de verificar); `nrf erase`
+>   regenera claves (limpiar entradas en peers); factory reset borra `debug_log_api_enabled`
+>   (re-activar para diagnósticos); con USB conectado `getHasUSB()` bloquea la detección de
+>   batería baja (tests de sueño SOLO por fuente).
 
 Punto de entrada único para cualquier agente (IA) que retome trabajo en este proyecto. Léela completa **antes de tocar cualquier fichero**.
 

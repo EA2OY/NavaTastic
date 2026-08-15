@@ -1,13 +1,16 @@
 # 09 — Rama General vs Propia: Normas de Diferenciación
 
-> **ESTADO 14/08/2026 — REPO UNIFICADO**: la norma **sigue vigente** y **General ya está
+> **ESTADO 15/08/2026 — REPO UNIFICADO**: la norma **sigue vigente** y **General ya está
 > implementada** en el repo único (12 perfiles con K0=Master Node + BT 654321: `R2IG_*` y
 > `R1IG_*`). La copia de carpetas queda obsoleta: en el repo se añaden perfiles y envs,
-> sin copiar nada. **Propia (K0/K1 Promicro + BT 123457) pendiente**: perfiles
-> `R2IP_*/R1IP_*` gitignored + 12 envs, sin tocar código. El fuzzer
+> sin copiar nada. **Propia implementada con claves NO almacenadas (15/08)**: 12 envs
+> `R2IP_*/R1IP_*` que extienden los de General; al compilarlos, `bin/platformio-custom.py`
+> exige las variables de entorno `NAVARICO_PROPIA_KEY_0` / `NAVARICO_PROPIA_KEY_1` /
+> `NAVARICO_PROPIA_BT` (las pide `build_propia.ps1` sin almacenarlas en disco) y las inyecta
+> como macros. **Las claves del operador NO viven en ningún fichero del repo.** El fuzzer
 > (`.clusterfuzzlite/router_fuzzer.cpp`) usa la clave General (1 clave).
 
-Estado 2026-08-12: **`Infraestructura General\` ACTIVA (primera ronda 12/08)**: el operador copió los 6 folders desde Propia y aplicamos EN LOTE esta norma: K0 = Master Node (1 sola clave), K1/K2 sin usar, `USERPREFS_FIXED_BLUETOOTH=654321` (regla nueva del operador), fuzzer con 1 clave. Compiladas SUCCESS 6/6 y distribuidas a UF2/OTA de General. La copia la hace el operador; el agente solo aplica normas + compila + distribuye. **Rama 1 Clientes hereda el MISMO split (12/08)**: los 6 `R1IG` llevan K0=Master Node + BT 654321 y los 6 `R1IP` K0/K1 Promicro + BT 123457 (copiados tal cual desde R2).
+Estado 2026-08-12 (histórico): **`Infraestructura General\` ACTIVA (primera ronda 12/08)**: el operador copió los 6 folders desde Propia y aplicamos EN LOTE esta norma: K0 = Master Node (1 sola clave), K1/K2 sin usar, `USERPREFS_FIXED_BLUETOOTH=654321` (regla nueva del operador), fuzzer con 1 clave. Compiladas SUCCESS 6/6 y distribuidas a UF2/OTA de General. **Rama 1 Clientes hereda el MISMO split (12/08)**: los 6 `R1IG` llevan K0=Master Node + BT 654321 y los 6 `R1IP` las claves propias del operador + BT propio (ahora se piden al compilar, no se almacenan).
 
 ---
 
@@ -17,7 +20,7 @@ Estado 2026-08-12: **`Infraestructura General\` ACTIVA (primera ronda 12/08)**: 
 
 | Item | Propia (actual) | General (futura) |
 |---|---|---|
-| Claves admin | **2**: K0 `{0x12,0x48,...0xaa,0x68}` + K1 `{0x3f,0x38,...0x73,0x38}` | **1**: K0 = Master Node `{0xc7,0xdc,...0x00,0x55}`; K1 sin usar (comentado/`{}`) |
+| Claves admin | **2**: K0/K1 del operador (**valores no publicados** — se piden al compilar: `NAVARICO_PROPIA_KEY_0/1`) | **1**: K0 = Master Node `{0xc7,0xdc,...0x00,0x55}`; K1 sin usar (comentado/`{}`) |
 | Canal Navadmin (slot 1) | PSK `{0x01}` | igual (sin cambios) |
 | Canal 0 SFNarrow | PSK `{0x01}` | igual (sin cambios) |
 | Núcleo / variantes | — | idéntico a Propia (solo cambia `userPrefs.jsonc`) |

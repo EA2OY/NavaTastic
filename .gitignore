@@ -65,4 +65,7 @@ profiles/*R1IP*.jsonc
 profiles/*R2IP*.jsonc
 profiles/*Felix*.jsonc
 
+# NAVARICO: backups por marca de tiempo (norma 9/0.11) — pueden contener claves
+*.bak-*
+
 docs/pdf/

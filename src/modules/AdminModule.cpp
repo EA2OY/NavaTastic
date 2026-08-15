@@ -106,7 +106,14 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
             // Automatically favorite the node that is using the admin key
             auto remoteNode = nodeDB->getMeshNode(mp.from);
             if (remoteNode) {
-                remoteNode->bitfield |= NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+                // NAVARICO: F16a - persistir la acreditacion (bitfield+favorito) para que
+                // el admin siga autorizado tras reboot sin re-anunciar nodeinfo. Solo
+                // escribe si algo cambio (proteccion Flash).
+                bool accChanged = false;
+                if (!(remoteNode->bitfield & NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK)) {
+                    remoteNode->bitfield |= NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+                    accChanged = true;
+                }
                 if (!remoteNode->is_favorite) {
                     if (config.device.role == meshtastic_Config_DeviceConfig_Role_CLIENT_BASE) {
                         // Special case for CLIENT_BASE: is_favorite has special meaning, and we don't want to automatically set it
@@ -115,7 +122,11 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
                     } else {
                         LOG_INFO("PKC admin valid. Auto-favoriting node %x", mp.from);
                         remoteNode->is_favorite = true;
+                        accChanged = true;
                     }
+                }
+                if (accChanged) {
+                    nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
                 }
             }
         } else {

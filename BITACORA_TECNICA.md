@@ -227,6 +227,37 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   (Rama 2 Routers\LIPO\UF2). Backup binario V2.2 en `_archivo\Promicro R2IG V2.2 20CDA06A - antes
   de instrumentacion F15.uf2`. Backups código: `.bak-20260814-1819` (main/Power/NavaCLIModule).
 
+### F15 (cierre 15/08). El gate por tamaño no bastaba: fichero envenenado 84B + InternalFS sin trunc
+- **Verificado en banco (Promicro R2IG, sesión 14-15/08)**: la migración V2.3c (gate
+  `fileSize < sizeof`) NO curó el nodo porque su `/resilience.bin` medía **1252 bytes**
+  (el manifiesto de ficheros lo delató): metadata LFS corrupta + **`FILE_O_WRITE` de
+  Adafruit InternalFS NO trunca** (`LFS_O_RDWR | LFS_O_CREAT`, seek a 0, tamaño nunca
+  encoge) → el fichero "envenenado" (84B role=0, escrito por un build intermedio V2.3)
+  sobrevivía a todo. Con tamaño raro, el read del boot era impredecible → role=CLIENT
+  permanente y sleepmsg OFF.
+- **Fix FINAL (a7ab507, compilado y flasheado)**: `FSCom.remove("/resilience.bin")`
+  antes de CADA escritura (saveResiliencePrefs + navaSetWasInSleep) → fichero SIEMPRE de
+  84 bytes exactos; gates de migración `fileSize != sizeof(prefs) || version !=
+  0x4E415653` en loadResiliencePrefs/navaResiliencePeek/navaSetWasInSleep; saneado de
+  campos fuera de rango; fallback de navaSetWasInSleep completado. Legacy VÁLIDO de
+  ficheros 4.3 se preserva.
+- **CICLO VERIFICADO**: 1252B→84B ✓ · `set_role client`→CLIENT ✓ · reboot→persiste ✓ ·
+  **factory reset→CLIENT sobrevive** ✓ · `set_role router`→ROUTER ✓ · `nrf erase`→
+  ROUTER (perfil) + fichero nuevo 84B ✓. Factory reset solo rmDir("/prefs"): el
+  resilience.bin sobrevive (diseño confirmado). El nrf erase REGENERA la clave del nodo
+  (¡PKI: los peers guardan la vieja → limpiar sus entradas!).
+- **CDC mudo explicado**: logs de boot se pierden antes de la enumeración USB (normal
+  nRF52); en runtime los LogRecords protobuf SOLO con `debug_log_api_enabled=true`
+  (el factory reset lo borra). API USB = canal de verdad.
+- **Falsos positivos de la sesión (no repetir)**: (1) el "flip de rol en 1s" era
+  artefacto de polls `--info` lentos (3-10s cada uno) + el **reboot automático 7s tras
+  cualquier setConfig con requiresReboot** (AdminModule→saveChanges→reboot(7) →
+  powerCommandsCheck en loop()); (2) el "factory reset borra resilience.bin" era el
+  fichero corrupto, no el reset.
+- **BLE**: `PowerFSM::serialEnter` apaga la baliza BLE mientras el CLI USB está
+  conectado (estándar); "no emite baliza" tras la batería de resets se recuperó con
+  power-cycle → candidato F16 (resumeAdvertising tras shutdown()).
+
 ### LECCIONES DE SESIÓN 14/08 (para no repetir fallos)
 - **L1 — AÑADIR, no reescribir (cerebro §5.2)**: al añadir una entrada de log el agente pisó
   la 8ª parte (al insertar la 9ª) y la 9ª (al insertar la 10ª); ambas restauradas. Regla: el
@@ -243,6 +274,109 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   artefactos, no con ExitCode.
 - **L6 — Artefactos acumulados**: `.pio/build/<env>` acumula UF2/zip de builds previos;
   distribuir SIEMPRE el más reciente (LastWriteTime) — ver F13.
+
+### LECCIONES DE SESIÓN 14-15/08 (L7-L12, para no repetir fallos)
+- **L7 — Adafruit InternalFS `FILE_O_WRITE` NO trunca** (`LFS_O_RDWR|LFS_O_CREAT`):
+  escribir menos bytes deja el fichero con su tamaño máximo histórico; el tamaño no es
+  fiable como gate de formato. Regla: **`FSCom.remove()` antes de abrir para escribir**
+  cualquier fichero binario de estado (resilience.bin) y gatear por `fileSize !=
+  sizeof(struct) || marcador de versión`, no por `<`.
+- **L8 — El manifiesto de ficheros delata el FS**: `--listen` (con debug_log_api_enabled)
+  entrega "File: X (N) bytes" — la forma más rápida de ver tamaños/corrupción LFS por API.
+- **L9 — `--set` con requiresReboot REBOTA SOLO a los 7s** (reboot(7) + powerCommandsCheck):
+  cualquier verificación post-write debe esperar ≥30s o mirar el HB/uptime; los polls
+  `--info` encadenados son lentos (3-10s) y crean líneas de tiempo falsas.
+- **L10 — El factory reset borra `debug_log_api_enabled`** (y las admin_key añadidas por
+  app): tras un reset, re-activar el canal de logs y re-añadir claves admin si procede.
+- **L11 — `nrf erase` regenera el par de claves del nodo**: los peers con la clave vieja
+  fallan el DM PKI (`PKI_SEND_FAIL_PUBLIC_KEY`) → `--remove-node` en el peer + reaprender
+  el nodeinfo nuevo. El fabric/reset de config NO toca las claves.
+- **L12 — Instrumentación por MALLA para nodos sin USB**: con la fuente de laboratorio no
+  puede haber USB (el cargador sube VBUS) → los diagnósticos TEMP se encolan al canal
+  Navadmin (patrón enqueueResponse(0,1,...)) y se reciben en un nodo observador.
+
+### CANDIDATOS F16 (anotados, NO tocados — esperan orden)
+- **F16a — Admin no persiste tras reboot**: **CERRADO (15/08)** — `saveToDisk(SEGMENT_NODEDATABASE)`
+  tras acreditar/favoritear (solo si cambia) + verificado en banco (PONG antes/después de reboot).
+- **F16b — BLE**: baliza no reaparece tras shutdown() sin power-cycle (revisar
+  resumeAdvertising; mitigado: serialEnter apaga BLE con CLI USB — comportamiento normal).
+- **F16c — `fav rm` substr(8)** con "fav rm" de 6 letras se come el 1er carácter del id
+  (fav add/auto OK).
+- **F16d — jitter quick 300-2300ms muerto** (setIntervalFromNow pisado por
+  OSThread::run→setInterval; cosmético).
+- **F16e — whitelist canal 1 sin `sleepmsg`** (solo lectura por canal 1; consulta por DM
+  PKI — decisión del operador: dejarlo).
+- **F16f — estado del banco (15/08)**: test node Promicro (a7ab507 + diags TEMP) en fuente
+  de laboratorio a 869.545 (override duty cycle ON, clave observador añadida como admin);
+  observador Promicro (COM9, Eclipse V1 54e0d8d) a 869.545. Pendiente: `--remove-node` de
+  la entrada stale del test node en el observador (clave nueva) + ejecutar el test del
+  sueño observando por COM9.
+
+### F16a/f — FRENTES A y B (15/08, sesión de banco): CAUSA RAÍZ del FRENTE A encontrada; fix B aplicado
+- **CIERRE (15/08, tras verificación en banco)**: retirada TODA la instrumentación TEMP F15
+  (0 restos en src, verificado por grep): logs F15DBG (LR/AD/SR/XX), watchdog 1s, HB-60s canal 1,
+  bootDiag, logs de escritura, `return 1000`→60000, contador Power a LOG_DEBUG. Los fixes reales
+  quedan (remove-antes-de-escribir + gates + saneado + substr(9) + NODENUM_BROADCAST + F16a save).
+  Build banco LIMPIO SUCCESS 66.11s (UF2 MD5 f5cb93cd6f1d23c653be8a796cf90211), sin flashear.
+  Docs actualizadas (backups .bak-20260815-0137): Manual (adenda 15/08 + set_role ambas ramas +
+  sección 8 + notas despliegue), transfer_context (ronda 15/08), guia_integracion (O.6),
+  GUIA_AGENTE_NAVTASTIC (adenda 15/08), PORTING (inventario + trampas 16-18), cerebro 17ª parte.
+  Pendiente: PDFs + flash limpio + smoke + 12 envs + distribuir -Todo -V2 + commit.
+- **FRENTE A — causa raíz (código)**: los mensajes [Sueño]/[Vivo]/[Listo] y los diags TEMP por
+  canal 1 usaban `enqueueResponse(0, 1, ...)` con **destino 0** en vez de `NODENUM_BROADCAST`.
+  `isBroadcast(0)=false` (NodeDB.cpp:542) → el paquete se emite al aire pero NADIE lo entrega
+  (ni nodos ni API local): invisible. El PONG de `/nava ping` sí llegaba (usa NODENUM_BROADCAST).
+  Presente desde FASE 2 V2 (verificado en .bak-20260814-1819). Fix: 6 ocurrencias
+  (NavaCLIModule.cpp 351/369/1465/1477/1488/1498) → NODENUM_BROADCAST.
+- **FRENTE A — causa contribuyente (RF, operador)**: el E22P del Promicro genera picos de
+  corriente al TXear; a 8 dBm los frames del test node llegaban corruptos al observador
+  (110 RX / 109 bad). Bajando TX a 1 dBm (`--set lora.tx_power 1`) el enlace quedó estable
+  (SNR ~12, todo decodifica). Regla de banco: test node SIEMPRE a 1 dBm.
+- **FRENTE B (F16a) aplicado**: `saveToDisk(SEGMENT_NODEDATABASE)` tras acreditar/favoritear en
+  AdminModule.cpp (con flag `accChanged` — solo escribe si cambia algo). El save filtrado ya
+  persiste favoritos/admins/direct routers/ignored; loadFromDisk los restaura (bitfield 0x08
+  incluido). Pendiente verificación en banco tras flash.
+- **L13 — NODENUM_BROADCAST, nunca 0**: `to=0` no es broadcast en Meshtastic 2.7
+  (`isBroadcast` solo NODENUM_BROADCAST/NODENUM_BROADCAST_NO_LORA); un paquete `to=0` se emite
+  y nadie lo entrega. Los TX no-broadcast NO se ecoplean a la API local (sendLocal solo
+  handleReceived para broadcasts) → el propio nodo no muestra sus TX con to inválido.
+- **L14 — Picos de corriente E22P**: con fuente/USB justos, TX >1 dBm corrompe frames
+  (llegaban CRC-ok pero indescifrables/109 bad). El consejo del operador (bajar potencia)
+  resolvió un enlace "asimetrico" que parecía bug de código.
+- **L15 — `--listen` con Start-Process y RedirectStandardOutput pierde el buffer** al matar el
+  proceso (Python bufferea stdout sin TTY): usar `PYTHONUNBUFFERED=1` y stderr, o fichero+kill
+  con flush. `--nodes` falla con encoding cp1252: `PYTHONIOENCODING=utf-8` +
+  `[Console]::OutputEncoding=UTF8`.
+- **L16 — Los TX propios NO siempre aparecen en el stream API del nodo**: solo los broadcast se
+  ecoplean (Router::sendLocal → handleReceived solo si isBroadcast). Para verificar TX propios
+  con to inválido hay que mirar el contador airUtilTx o un observador externo.
+- **Abierto**: PKI_SEND_FAIL_PUBLIC_KEY esporádico en el test node (~uptime 243s tras boot,
+  coincide con el ciclo de nodeinfos) — origen sin identificar (F17).
+- **4.5 VERIFICADO EN BANCO (15/08) — ciclo sueño/despertar completo**: test node SOLO en fuente
+  (usb=0): bajada a ~3.4V → 5 lecturas bajas → `F15DBG lowbat: ... bat=3375 usb=0` → **[Sueno] ...
+  INA 3.40 V -51 mA DESCARGANDO** → silencio (dormido). Subida a 4V → LPCOMP (~3710) despierta →
+  precheck `wasInSleep=1 gate=3710 corte=3500` → **[Listo] ... ADC 3772 mV** → HBs de vuelta.
+  **FRENTE A CERRADO** ([Vivo] no salió: V saltó de 3.4 a 4V; rama [Vivo] = V en [corte, LPCOMP)).
+- **Saneado de claves pre-GitHub (15/08, orden del operador)**: auditoría de fuga: encontrada la
+  **K1 Propia completa** comentada en `userPrefs.jsonc` + 12 perfiles → eliminada (0 restos);
+  prefijos truncados K0/K1 sustituidos por "valores no publicados" en 02/07/09/transfer_context;
+  referencias a BT 123457 eliminadas (Propia: PIN propio, se pide). Master Node (privada+pública)
+  se conserva por decisión del operador (General pública). `.gitignore` += `*.bak-*`.
+  **Mecanismo Propia sin almacenar**: `custom_meshtastic_propia_keys` en platformio-custom.py
+  (vars `NAVARICO_PROPIA_KEY_0/1` + `NAVARICO_PROPIA_BT` obligatorias, error claro si faltan),
+  12 envs `R2IP_*/R1IP_*` (extends General), `build_propia.ps1` (interactivo, no guarda nada).
+  Probado 3/3 (IG OK / IP sin vars = error / IP con vars = SUCCESS). **GitHub pendiente**: repo
+  NUEVO con un solo commit (el historial actual contiene claves desde el 14/08).
+- **VERIFICADO EN BANCO (15/08)**: flash via `pio -t upload --upload-port COM15` (nrfutil, 113.93s,
+  touch 1200bps automático — NO usar UF2-por-drive: el bootloader no monta unidad, el protocolo
+  del board es nrfutil). Observador COM9 recibe: bootDiag al primer tick + HB-60s cada minuto
+  (canal 1, SNR 12) → camino de [Sueño]/[Vivo]/[Listo] probado punta a punta. FRENTE B: DM ping →
+  PONG antes y después del reboot del test node (sin re-anuncio del observador) → síntoma resuelto;
+  matiz: el save de updateUser/H3 (NodeDB.cpp:2153-2165, throttled 1 min) también persiste el
+  bitfield cuando llega nodeinfo del admin; el fix F16a cubre el caso AdminMessage-sin-nodeinfo.
+  Pendiente: test real de sueño (4.5) SIN USB en el test node.
+- Backups código: `.bak-20260815-0100` (NavaCLIModule.cpp, AdminModule.cpp). Build banco:
+  SUCCESS 62.99s (UF2 MD5 0ddd16a5a4c4bdd3153c4bdd50b360a7), pendiente de flashear.
 
 ## SESIÓN 14/08 (3ª-10ª partes) — PORTABILIDAD DEL CONOCIMIENTO (cerebro VIVO + joya + PDF + V2)
 

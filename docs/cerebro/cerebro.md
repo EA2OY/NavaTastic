@@ -87,7 +87,7 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 - **2026-08-11 (2ª parte) — Pautas operativas nuevas** (registradas por el operador): backup/rollback por marca de tiempo (`.bak-AAAAMMDD-HHMM` por archivo, `snap-AAAAMMDD-HHMMSS.zip` snapshot); autorización de proyectos (solo 4.3 editable salvo orden explícita puntual); método de verificación obligatorio en FASE 1; actualización continua del cerebro.
 - **2026-08-12 — RAMA GENERAL COMPILADA Y DISTRIBUIDA (primera ronda)**: el operador copió los 6 folders de Propia a `Infraestructura General\` (renombrados `R2IG`) + creó `UF2\`/`OTA\` vacíos. Aplicado EN LOTE (norma `09` + 1 regla nueva del operador):
   - **K0 = Master Node** `{0xc7,0xdc,...0x00,0x55}` en los 6 `userPrefs.jsonc` (K1/K2 comentadas, 1 sola clave admin).
-  - **`USERPREFS_FIXED_BLUETOOTH = 654321`** (regla nueva del operador; Propia sigue con 123457).
+  - **`USERPREFS_FIXED_BLUETOOTH = 654321`** (regla nueva del operador; Propia: PIN propio, se pide al compilar — no se almacena).
   - `.clusterfuzzlite/router_fuzzer.cpp` ×6: `admin_key[0]`=Master Node, `admin_key_count=1`.
   - Compiladas las 6 con env real: Promicro/Faketec `nrf52_promicro_diy_tcxo`, Seed `seeed_solar_node`, T114 `heltec-mesh-node-t114`, Xiao×2 `seeed_xiao_nrf52840_kit_i2c` → **SUCCESS 6/6** (08:40-14:20 aprox). Distribuidas a `UF2\`/`OTA\` de General (nombres `R2IG`).
   - Backup previo: `userPrefs.jsonc.bak-20260812-0726` ×6 + `snap-20260812-072636.zip` (raíz 4.3).
@@ -207,6 +207,76 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 
 ### 5.2 Registro de estado (log) — sesión 14/08 (portabilidad)
 
+- **2026-08-15 (14ª parte) — FRENTE A CAUSA RAÍZ + fix FRENTE B (sesión de banco)**: diagnóstico en
+  banco (test node COM15 + observador COM9, 869.545): (1) **RF**: con TX 8 dBm del E22P los TX del
+  test node llegaban corruptos al observador (numPacketsRx=110, RxBad=109; consejo del operador:
+  picos de corriente del E22P al TXear) → bajado TX a 1 dBm (`--set lora.tx_power 1`): TODO decodifica
+  (SNR ~12), nodeinfo reaprendido (clave nueva s1HpF…). (2) **CAUSA RAÍZ del FRENTE A (código)**: los
+  mensajes [Sueño]/[Vivo]/[Listo] y los diags TEMP por canal 1 se encolaban con **destino 0**
+  (`enqueueResponse(0, 1, …)`) en vez de `NODENUM_BROADCAST`: `isBroadcast(0)=false` → el paquete
+  TXea pero nadie lo entrega (muere en el aire, invisible en API). El PONG sí llegaba porque usa
+  NODENUM_BROADCAST. Bug presente desde FASE 2 V2 (verificado en .bak-20260814-1819). **Fix**: 6
+  ocurrencias en NavaCLIModule.cpp (351/369/1465/1477/1488/1498) → NODENUM_BROADCAST. (3) **FRENTE B
+  (F16a)**: aplicado `nodeDB->saveToDisk(SEGMENT_NODEDATABASE)` tras acreditar/favoritear admin en
+  AdminModule.cpp (solo si cambia algo — protección Flash; el save filtrado ya persiste
+  favoritos/admins/direct routers/ignored). Compilado SOLO env banco
+  (`navarrico_promicro_e22p_r2ig`, SUCCESS 62.99s, UF2 MD5 0ddd16a5…) — pendiente flash + verificación
+  en banco. Backups código `.bak-20260815-0100` (NavaCLIModule/AdminModule). Nota: USERPREFS_NODEDB_
+  RAM_ONLY no se referencia en src (macro inerte); loadFromDisk carga nodes.proto filtrado → el
+  bitfield admin persiste. Abierto: PKI_SEND_FAIL_PUBLIC_KEY esporádico en el test node (~uptime 243s,
+  origen sin identificar — candidato F17).
+- **2026-08-15 (15ª parte) — VERIFICADO EN BANCO: fixes A+B flasheados (pio -t upload, nrfutil,
+  113.93s)**: (1) FRENTE A ✓✓: el observador recibe por canal 1 el bootDiag
+  ("F15DBG precheck: wasInSleep=0 gate=3500 ... low=0/5") al primer tick y el HB-60s
+  ("F15DBG HB bat=4053 usb=1 sleepMsgs=1 rol=2...") cada minuto → el camino de [Sueño]/[Vivo]/[Listo]
+  (mismo enqueue NODENUM_BROADCAST canal 1) queda probado punta a punta. rol=2 ROUTER persistente
+  tras flash (F15 sigue OK). (2) FRENTE B ✓ (nivel síntoma): DM `/nava ping` del observador → PONG
+  ANTES y DESPUÉS de `--reboot` del test node (el observador NO re-anunció nodeinfo → el bitfield
+  admin vino del disco). Matiz técnico: el bitfield pudo llegar al disco también por el save de
+  updateUser/H3 (NodeDB.cpp:2153-2165, throttled 1/min) tras el nodeinfo del observador; el fix F16a
+  cubre el caso exacto del operador (acreditación SOLO por AdminMessage sin nodeinfo posterior →
+  ahora guarda al instante). Reproducción dirigida del caso exacto queda pendiente (requiere
+  limpiar la entrada del observador y rompe el PKI del DM). (3) Pendiente 4.5: test real de sueño
+  con la fuente SIN USB en el test node (getHasUSB() bloquea la detección de batería baja).
+- **2026-08-15 (16ª parte) — 4.5 VERIFICADO: CICLO SUEÑO/DESPERTAR COMPLETO EN BANCO**: con el test
+  node SOLO en fuente (usb=0) y el observador escuchando: bajada a ~3.4V → monitor cuenta 5
+  lecturas bajas → `F15DBG lowbat: ... bat=3375 usb=0` → **[Sueno] ... ADC 3375 mV | INA 3.40 V
+  -51 mA DESCARGANDO | despertara >= 3710 mV** recibido → HBs en silencio (radio apagada, dormido).
+  Subida a 4V → LPCOMP despierta (~3710 mV) → `F15DBG precheck: wasInSleep=1 gate=3710 corte=3500
+  low=0/5` → **[Listo] ... ADC 3772 mV | despierto, cargando** → HBs de vuelta. Los 3 mensajes
+  [Sueño]/[Vivo]/[Listo] llegan por canal Navadmin: **FRENTE A CERRADO** (el [Vivo] no salió en este
+  ciclo porque V saltó directamente de 3.4 a 4V; la rama [Vivo] es para V en [corte, LPCOMP) —
+  opcional test intermedio a ~3.55V si se quiere). Siguiente: CIERRE 4.7 (retirar instrumentación
+  TEMP F15 → build banco → 12 envs → distribuir -Todo -V2 → manual/PDF → docs → commit).
+- **2026-08-15 (17ª parte) — CIERRE F15: instrumentación retirada + docs actualizadas (pendiente
+  flash limpio + 12 envs + distribución)**: retirada TODA la instrumentación TEMP F15 del código
+  (verificado: 0 restos en src): logs F15DBG, breadcrumbs AD/LR/SR/XX, watchdog 1s, HB-60s canal
+  1, bootDiag (mecanismo navaSetBootDiag/GetBootDiag eliminado de .h/.cpp), logs de escritura,
+  `return 1000`→60000, contador Power a LOG_DEBUG. Los fixes F15/A/B reales quedan intactos
+  (remove-antes-de-escribir, gates versión/tamaño, saneado, substr(9), NODENUM_BROADCAST,
+  saveToDisk acreditación). Build banco LIMPIO SUCCESS 66.11s (UF2 MD5 `f5cb93cd6f...`), sin
+  flashear aún. Docs actualizadas (norma 0.11: backups `.bak-20260815-0137`): manual de comandos
+  (adenda 15/08, set_role ambas ramas, sección 8 verificada, notas de despliegue, código fuente
+  de referencia al repo), transfer_context (ronda 15/08 con L13-L18), guia_integracion (bloque
+  O.6), GUIA_AGENTE_NAVTASTIC (adenda 15/08), PORTING_NUEVO_FORK (inventario + trampas 16-18).
+  Pendiente: PDFs (generar_pdf.ps1) + flash limpio + smoke + 12 envs + distribuir -Todo -V2 +
+  commit local.
+- **2026-08-15 (18ª parte) — SANEADO DE CLAVES + MECANISMO PROPIA SIN ALMACENAR (pre-GitHub)**:
+  auditoría de fuga de claves ordenada por el operador. **Eliminado del repo**: (1) la K1 Propia
+  `{0x3f,0x38,...}` que estaba comentada con hex completo en `userPrefs.jsonc` + 12 perfiles;
+  (2) los prefijos truncados de K0/K1 Propia en 02_claves_admin/07_estella/09_general_vs_propia/
+  transfer_context (sustituidos por "valores no publicados"); (3) todas las referencias a BT
+  123457 (Propia: PIN propio, se pide al compilar). **Conservado** (decisión del operador): clave
+  privada+pública del Master Node en el manual y pública en perfiles/fuzzer (General pública).
+  `.gitignore` += `*.bak-*` (los backups pueden contener claves). **Mecanismo Propia nuevo**
+  (probado 3/3: IG sin regresión, IP sin vars → error claro, IP con vars → SUCCESS): opción de
+  env `custom_meshtastic_propia_keys=true` en `bin/platformio-custom.py` (inyecta
+  `USERPREFS_USE_ADMIN_KEY_0/1` + `USERPREFS_FIXED_BLUETOOTH` desde `NAVARICO_PROPIA_KEY_0/1` y
+  `NAVARICO_PROPIA_BT`); 12 envs `R2IP_*/R1IP_*` en navarrico.ini (extienden los General);
+  `build_propia.ps1` pide las claves de forma interactiva y NO las guarda. **Las claves Propia
+  no existen en ningún fichero del repo** (verificado por grep, 0 restos). Para GitHub queda:
+  repo nuevo con un solo commit del árbol saneado (el historial actual contiene claves de
+  commits del 14/08). Backups `.bak-20260815-0200` (25 ficheros).
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner
@@ -277,6 +347,48 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   radio esté lista para TX; (4) `allocDataPacket`/`sendToMesh` con `channel=1` + `to=0`; (5) los
   LOGs de serial del nodo son la fuente de verdad. Distribución -Todo -V2 SIGUE PENDIENTE del
   fix.     Binarios V2 pre-fix archivados en `_archivo\V2-testeados-antes-fix-timing-20260814.zip`.
+- **2026-08-15 (13ª parte) — F15 RESUELTA EN BANCO + 2 FRENTES NUEVOS (admin-nodedb + mensajes sueño/vivo/listo)**:
+  **VERIFICADO EN BANCO (Promicro R2IG, COM15):**
+  1. El gate de migración POR TAMAÑO era insuficiente: el nodo tenía un `/resilience.bin`
+     "envenenado" de **84 bytes con role=0** (escrito por un build intermedio V2.3), que el
+     tamaño no distinguía del formato bueno → role=CLIENT persistente.
+  2. El manifiesto de ficheros reveló que el fichero medía **1252 bytes** (metadata LFS
+     corrupta). Causa de fondo: **`FILE_O_WRITE` de Adafruit InternalFS NO trunca**
+     (`LFS_O_RDWR|LFS_O_CREAT`, seek a 0, sin trunc) → los ficheros nunca encogen y, tras
+     los resets/escrituras de la sesión, la metadata se corrompió.
+  3. **FIX FINAL (compilado y flasheado)**: `FSCom.remove()` antes de cada escritura
+     (fichero siempre de 84 bytes exactos) + gates de migración `fileSize != sizeof(prefs)
+     || version != 0x4E415653` + saneado de campos fuera de rango (chemistry/vbat/vwake/
+     flags) en loadResiliencePrefs, navaResiliencePeek y navaSetWasInSleep; fallback de
+     navaSetWasInSleep completado (vbat/vwake/chemistry). Los campos legacy VÁLIDOS de
+     ficheros 4.3 se preservan.
+  4. **CICLO VERIFICADO**: migración 1252B→84B limpio ✓ · `set_role client`→CLIENT ✓ ·
+     reboot→CLIENT persiste ✓ · **factory reset→CLIENT sobrevive (diseño cumplido)** ✓ ·
+     `set_role router`→ROUTER ✓ · `nrf erase`→ROUTER (perfil) + fichero nuevo 84B ✓.
+     El factory reset SOLO borra /prefs (`rmDir`); resilience.bin sobrevive (confirmado).
+  5. **CDC mudo explicado**: los logs del boot se pierden antes de que enumere el CDC
+     (normal en nRF52); en runtime los logs van como LogRecords protobuf SOLO con
+     `debug_log_api_enabled=true` (el factory reset lo borra → se pierde el canal).
+     La API USB es el canal de verdad.
+  6. **BLE**: `PowerFSM::serialEnter` apaga la baliza mientras el CLI USB está conectado
+     (comportamiento estándar); el "wedge" que parecía BLE se recuperó con power-cycle
+     (anotado F16: revisar resumeAdvertising tras shutdown()).
+  **FRENTE B (bug nuevo, NO cerrado):** la acreditación admin (bitfield+favorito) en
+  `AdminModule.cpp:109-117` NO guarda la DB → tras reboot el nodo admin no responde hasta
+  que re-anuncia nodeinfo. Fix propuesto: `saveToDisk(SEGMENT_NODEDATABASE)` tras
+  acreditar/favoritear + verificación en banco. (El 4.3 funcionaba; la lógica de
+  updateUser/H3-fix está intacta en el unificado.)
+  **FRENTE A (test sueño, NO cerrado):** con fuente de laboratorio el MCU duerme/despierta
+  pero NO envía [Sueño]/[Listo]. Parche TEMP flasheado (diagnósticos por canal Navadmin:
+  HB cada 60s, disparo lowbat, pre-check) + banco montado a 869.545 privada con observador
+  (COM9, Eclipse V1). PENDIENTE de ejecutar el test. **OJO: el nrf erase regeneró la clave
+  del test node → el observador tiene la clave vieja → DM PKI falla
+  (`PKI_SEND_FAIL_PUBLIC_KEY`) → hay que `--remove-node` en el observador y que reaprenda.**
+  **INSTRUMENTACIÓN TEMP F15 PENDIENTE DE RETIRAR** (todo marcado `NAVARICO: TEMP F15`):
+  F15DBG logs + breadcrumbs owner.short_name (AD/LR/SR/XX) en AdminModule/NavaCLIModule,
+  HB 1s + HB canal-1 60s + bootDiag en runOnce, `return 1000` (original 60000), logs
+  F15 precheck en main.cpp, contador Power.cpp a LOG_INFO, "F15: resilience.bin escrito".
+  Backups código `.bak-20260814-2125`; docs `.bak-20260815-0024`.
 - **2026-08-14 (11ª parte) — F15: CAUSA RAÍZ ENCONTRADA (bug parseo sleepmsg + compat /resilience.bin)**:
   el operador descubrió que `/nava sleepmsg` respondía OFF persistente (ni factory reset ni flasheo
   lo cambiaban) y que el R2IG aparecía como CLIENT pese al perfil ROUTER. Diagnóstico: (1) **bug de
@@ -335,8 +447,9 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   LPCOMP `9_16`/`3_8`/`2_8`, divisores ADC (0.5 / 1M-510k / 3.3 / 4.916), `RADIO_POWER_ENABLE_PIN`.
 - Mapa de hardcodeos (subnota 10): el mapa como tal; los valores viven ahora en
   `profiles/*.jsonc` + `variant.h` por placa + envs `navarrico_*`.
-- Claves: K0/K1 Promicro (Propia, pendiente de migrar a perfiles) y K0 = Master Node
-  (General, implementada en los 12 perfiles). Regla: SOLO en perfiles/`userPrefs.jsonc`,
+- Claves: K0/K1 Propia (del operador, **valores no publicados** — se piden al compilar los
+  envs `R2IP_*/R1IP_*` vía variables de entorno + `build_propia.ps1`, nunca almacenadas en el
+  repo) y K0 = Master Node (General, implementada en los 12 perfiles). Regla: SOLO en perfiles/`userPrefs.jsonc`,
   nunca literales en código.
 - Manuales de comandos `/nava` y de uso (docs/), subnotas 03/05/07/12, diagnósticos.
 
@@ -366,8 +479,8 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 - **Estado**: repo unificado autónomo y documentado (cerebro VIVO + guías + bitácora +
   plan + PORTING_NUEVO_FORK.md). Paridad 12/12 conseguida. `distribucion\` poblada
   (32 ficheros). Propia y GitHub pendientes (solo General; claves Propia no subir).
-- **Siguiente paso** (espera orden): (1) test en banco (P0/P1, H3, fav auto, ayuda,
-  fragmentación, Rama 1: rol CLIENT, `set_role` semi-permanente, NIMH, compat
-  `resilience.bin`); (2) Propia: 12 perfiles + 12 envs; (3) GitHub: repo público solo
-  General; (4) opcional: `progname` por env para OTA zip byte-idéntico; (5) regresión
-  vs Eclipse Edition en campo.
+- **Siguiente paso** (sesión nueva, en orden — detalle en las 14ª-17ª partes y PLAN):
+  (1) flashear el build LIMPIO en banco (pio -t upload) + smoke (ping/sleepmsg);
+  (2) compilar los 12 envs (lotes paralelos de envs DISTINTOS); (3) `distribuir.ps1 -Todo -V2`;
+  (4) manual/PDF ya actualizados (17ª parte); (5) docs cierre + commit local; (6) después:
+  Propia (perfiles+envs), GitHub (solo General), opcional progname OTA, regresión Eclipse en campo.

@@ -6,6 +6,21 @@
 > `fav ls` etiquetado, fragmentación por línea. El código de referencia vive en
 > `src/modules/NavaCLIModule.h/.cpp` del repo único. Los 12 envs compilan este mismo
 > módulo (diferencia solo `set_txpower` 0-12/0-22 por `NAVARICO_RADIO_*`).
+>
+> **ADENDA 15/08/2026 — CIERRE V2.3 + FRENTES A/B VERIFICADOS EN BANCO**:
+> - **Ciclo sueño/despertar PROBADO punta a punta** (Promicro R2IG): [Sueño] 3375 mV → dormido →
+>   despertar LPCOMP 3710 mV → [Listo] 3772 mV. Los avisos salen por el **canal Navadmin
+>   (slot 1)**; verificar que el canal está materializado para recibirlos.
+> - **`sleepmsg` reparado (V2.3)**: el gate nunca se activaba por comando (bug de parseo);
+>   ahora persiste correctamente en `/resilience.bin` (84 B con versión; los ficheros
+>   antiguos de 80 B se migran solos: `sleepMsgs=1`, rol sin fijar).
+> - **Rol semi-permanente en AMBAS ramas (V2.1)**: `set_role` persiste en `/resilience.bin`
+>   y sobrevive al factory reset también en Rama 2.
+> - **Acreditación admin persistente (F16a, 15/08)**: tras validar el PKI de un admin, el
+>   repetidor guarda la acreditación (bitfield+favorito) en disco → el admin sigue
+>   respondiendo tras un reboot sin necesidad de re-anunciar nodeinfo.
+> - **Fix de entrega (Frente A, 15/08)**: los avisos [Sueño]/[Vivo]/[Listo] se encolaban con
+>   destino inválido (nadie los entregaba); ahora se difunden correctamente al canal Navadmin.
 
 Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comandos `/nava` (módulo `NavaCLIModule`) y código fuente de referencia para auditoría con otro agente.
 
@@ -54,7 +69,7 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 ## ⚙️ 4. Configuración del Nodo en Caliente (SOLO DM PRIVADO CIFRADO)
 
 - **`/nava set_name "[Largo]" "[Corto]"`** — Cambia el nombre (soporta comillas).
-- **`/nava set_role [client/mute/router]`** — Cambia el rol de hardware. **En Rama 1 (Clientes) el rol es SEMI-PERMANENTE**: se guarda en `/resilience.bin` y sobrevive al factory reset (un cliente convertido en router sigue siéndolo tras un rescate; se revierte con `set_role client`). En Rama 2 solo persiste en `/prefs` (el factory reset lo restaura).
+- **`/nava set_role [client/mute/router]`** — Cambia el rol de hardware. **SEMI-PERMANENTE en AMBAS ramas (V2.1)**: se guarda en `/resilience.bin` y sobrevive al factory reset (un cliente convertido en router sigue siéndolo tras un rescate; se revierte con `set_role client`). Solo un `nrf erase` restaura el rol del perfil del env.
 - **`/nava set_mqtt [on/off]`** — Activa/desactiva MQTT.
 - **`/nava set_tz [tz_POSIX]`** — Zona horaria POSIX.
 - **`/nava set_hops [1-7]`** — Límite de saltos LoRa.
@@ -92,14 +107,16 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 
 ## 💤 8. Avisos de Sueño/Despertar (v4.3 V2)
 
-El nodo puede anunciar en el canal Navadmin su ciclo de batería (ON por defecto; NO afecta
-al comportamiento energético, solo a los avisos):
+El nodo puede anunciar **por el canal Navadmin (slot 1)** su ciclo de batería (ON por defecto;
+NO afecta al comportamiento energético, solo a los avisos). **Verificado en banco 15/08/2026**
+(ciclo completo: [Sueño] 3375 mV → dormido → LPCOMP 3710 mV → [Listo] 3772 mV):
 
-- **`/nava sleepmsg [on|off]`** — Activa/desactiva los avisos. **Sin argumento**: estado actual. Persiste en `/resilience.bin` (sobrevive a factory reset).
+- **`/nava sleepmsg [on|off]`** — Activa/desactiva los avisos. **Sin argumento**: estado actual. Persiste en `/resilience.bin` (sobrevive a factory reset). Reparado en V2.3 (el gate nunca se activaba por comando).
 - **`[Sueño]`** — Antes de dormir por batería baja: nombre, id, ADC mV (+ INA si presente) y tensión de despertar por LPCOMP.
-- **`[Vivo]`** — Despertado por reset externo (p. ej. ATtiny13A) con batería en rango seguro (≥ corte OCV del env): aviso "sigo vivo, esperando recuperar carga" y re-sueño tras el envío.
-- **`[Listo]`** — Despertar real por LPCOMP (solar): "despierto, cargando, listo para trabajar".
+- **`[Vivo]`** — Despertado por reset externo (p. ej. ATtiny13A) con batería en rango seguro (**entre el corte OCV y el umbral LPCOMP**): aviso "sigo vivo, esperando recuperar carga" y re-sueño tras el envío.
+- **`[Listo]`** — Despertar real por LPCOMP (solar) con V ≥ umbral LPCOMP: "despierto, cargando, listo para trabajar".
 - Regla de silencio: si la batería está por debajo del corte OCV (3400/3500 mV según env) NO se envía nada — re-sueño directo (protección anti-brownout).
+- **Para recibirlos**: el observador/mando debe tener materializado el canal Navadmin (PSK pública `{0x01}`, slot 1) y estar en la misma frecuencia/parametros LoRa.
 
 ## 🔔 9. Utilidades (SOLO DM PRIVADO CIFRADO)
 
@@ -127,12 +144,15 @@ al comportamiento energético, solo a los avisos):
 - Las respuestas largas se fragmentan a 190 caracteres con retardo entre fragmentos (MTU LoRa SFNarrow).
 - `/resilience.bin` en la raíz del disco sobrevive a los resets de fábrica (solo se borra `/prefs`).
 - **Rotación de clave del mando (fix 2026-08-10)**: si un mando aparece con una clave pública distinta a la que el repetidor guarda en su DB, el repetidor acepta el cambio SIEMPRE que la nueva clave coincida con una clave de admin configurada, y lo re-marca como favorito. Esto permite re-acreditar a un mando que se registró con una clave no autorizada (p.ej. tras `db_clear` o `ign rm`): basta con que el mando reenvíe su NodeInfo con la clave correcta; el siguiente DM PKI `/nava` ya se descifra y valida. Si la clave nueva NO es admin, el NodeInfo se descarta como antes.
+- **Acreditación admin persistente (15/08)**: la acreditación (bitfield criptográfico + favorito) se guarda en disco en el momento de validar el PKI → el admin responde tras reboot sin esperar su próximo NodeInfo. Un `nrf erase` SIEMPRE regenera las claves del nodo: los peers con la clave vieja fallarán el DM PKI (`PKI_SEND_FAIL_PUBLIC_KEY`) — limpiar sus entradas (`--remove-node` en el peer) y reaprender.
+- **`/resilience.bin` v2 (15/08)**: fichero de 84 B con versión interna; los ficheros antiguos (80 B) o corruptos se migran solos al arrancar (defaults: `sleepMsgs=1`, rol sin fijar → rol del perfil). Un fichero corrupto ya no puede dejar el nodo en CLIENT con avisos OFF.
+- **Pruebas en banco**: con fuente de laboratorio, el E22P del Promicro es inestable en TX a potencias altas (picos de corriente) — usar **TX 1 dBm** para pruebas; en campo se usa la potencia del env (12 dBm E22P / 22 dBm HT-RA62). El USB conectado desactiva la detección de batería baja (`getHasUSB`) — para probar el ciclo de sueño, alimentar SOLO por fuente.
 
 ---
 
 ## 💻 Código Fuente de Referencia (para auditoría)
 
-> El código canónico desplegado y compilado es el de `Rama 2 Infraestructura\Infraestructura Propia\Promicro NRF52+E22P NavTastic 2.7.26 R2IP\src\modules\NavaCLIModule.h/.cpp` (idéntico en la Faketec PROPIA salvo `set_txpower` 0-22). Este bloque es la referencia de auditoría; si difiere del repo, **el repo es la fuente de verdad**.
+> El código canónico desplegado y compilado vive en el **repo único** (`src/modules/NavaCLIModule.h/.cpp`); los 12 envs compilan este mismo módulo (diferencia solo `set_txpower` 0-12/0-22 por `NAVARICO_RADIO_*` y el rol semi-permanente por `NAVARICO_RAMA_1`). Este bloque es la referencia de auditoría; si difiere del repo, **el repo es la fuente de verdad**.
 
 ### Estructura clave del módulo (v4.2.1)
 
@@ -142,9 +162,10 @@ al comportamiento energético, solo a los avisos):
   - `handleReceived()` — autenticación: DM exige PKI; nodo no en DB -> responde una vez `NODO NO REGISTRADO EN NODEDB`; nodo conocido no-admin -> una vez `NO AUTORIZADO COMO ADMINISTRADOR` (rate-limit con `std::set<NodeNum> unauthorizedReplied`); canal 1 solo admins.
   - `executeCommand()` — normaliza a minúsculas ANTES del filtro de canal; whitelist canal 1; despacha comandos (con guards de longitud en `substr()`).
   - `helpForCommand(topic)` — ayuda por comando en español.
-  - `runOnce()` — drena `responseQueue` (fragmentos de 190 chars, retardo 12s entre fragmentos), ejecuta `txoff`/`reboot`/`factory_reset`/`storm` diferidos.
+  - `runOnce()` — drena `responseQueue` (fragmentos de 190 chars, retardo 12s entre fragmentos), envía [Vivo]/[Listo] en el primer tick, ejecuta `txoff`/`reboot`/`factory_reset`/`storm` diferidos.
 - **Flags internos**: `rebootScheduled`, `factoryResetPending`, `stormPending`/`stormSeconds`, `txOffScheduled`.
-- **Persistencia**: `ResiliencePrefs` en `/resilience.bin` (química, vbat, vwake, tx, ble, auto-fav y —Rama 1— rol).
+- **Persistencia**: `ResiliencePrefs` en `/resilience.bin` (química, vbat, vwake, tx, ble, auto-fav, `sleepMsgs`, rol —ambas ramas—, marcador `version` 84 B). **F15**: se recrea el fichero antes de escribir (el `FILE_O_WRITE` de InternalFS no trunca) y se migran ficheros antiguos/corruptos.
+- **Avisos por canal**: los mensajes [Sueño]/[Vivo]/[Listo] se encolan SIEMPRE con `NODENUM_BROADCAST` (nunca `to=0`: no es broadcast y nadie lo entrega — fix Frente A 15/08).
 
 ### Dependencias externas del módulo
 - `extern float lastRxFrequencyError;` (RadioLibInterface).

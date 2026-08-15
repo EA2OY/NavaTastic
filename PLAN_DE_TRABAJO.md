@@ -39,7 +39,10 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       (transfer_context, guia_integracion, 2 manuales, GUIA_AGENTE_NAVTASTIC).
       El 4.3 queda SOLO LECTURA (archivo histórico).
 - [ ] GitHub (otra sesión): repo público solo General, docs saneadas de claves Propia
-- [ ] Propia (R2IP/R1IP): perfiles + envs sin tocar código
+- [x] **Propia (R2IP/R1IP, 15/08)**: 12 envs `R2IP_*/R1IP_*` (extends General) +
+      `build_propia.ps1` + opción `custom_meshtastic_propia_keys` — claves y PIN BT se piden
+      al compilar (variables de entorno) y **NO se almacenan** (verificado grep 0 restos).
+      Backups `.bak-20260815-0200`.
 - [ ] Opcional: progname por env para OTA zip byte-idéntico
 - [x] **⭐ JOYA DE LA CORONA (14/08, 4ª parte)**: creado `PORTING_NUEVO_FORK.md` (raíz del
       repo) — guía maestra de portabilidad: (1) inventario COMPLETO fichero a fichero
@@ -78,17 +81,98 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       dormirse? ¿llegan ping/status por canal 1? ¿primer runOnce antes de radio lista? Serial =
       fuente de verdad. Factory reset YA hecho en el primer binario (materializar canal 1) — NO
       repetir salvo indicación.
-- [ ] **F15 — AVANCE 14/08 (V2.3b+V2.3c, PENDIENTE DE RE-TEST)**: causa raíz hallada en
-      `/resilience.bin` (ver BITACORA F15): (1) bug de parseo `sleepmsg on|off` (substr(8)→substr(9),
-      fix en V2.3b); (2) fichero de 80 bytes de la era Eclipse sin los campos V2 → `sleepMsgs`
-      leía padding (OFF) y `role` leía 0 (CLIENT), y la migración por tamaño no se disparaba →
-      fix con campo `version` (84 bytes) en V2.3c (MD5 98A97F88) — el nodo debe reportar ROUTER y
-      sleepmsg ON al primer boot. **Pendiente en sesión nueva**: (a) reflashear V2.3c y verificar
-      por `meshtastic --port COM15 --info` (role=ROUTER) y `/nava sleepmsg` (ON); (b) verificar
-      persistencia de escritura de resilience.bin (`sleepmsg on` → reboot → ON); si falla → `nrf
-      erase`; (c) explicar el **CDC mudo** del nodo (la API USB funciona pero el serial no emite);
-      (d) retirar la instrumentación `NAVARICO: TEMP F15` al confirmar; (e) distribución
-      `-Todo -V2` sigue pendiente hasta el OK del re-test.
+- [x] **F15 (CIERRE PARCIAL 15/08)**: causa raíz confirmada y SUPERADA en banco: (1) bug
+      parseo sleepmsg (substr(9), V2.3b); (2) fichero envenenado 84B role=0 + metadata LFS
+      corrupta (1252B) + `FILE_O_WRITE` de InternalFS SIN trunc → fix final: remove-antes-
+      de-escribir + gates `fileSize != sizeof || version != NAVS` + saneado de campos.
+      **Verificado**: `set_role client` → persiste → SOBREVIVE factory reset → `set_role
+      router` → ROUTER; `nrf erase` → ROUTER + fichero 84B limpio. CDC mudo explicado
+      (logs boot pre-enumeración + debug_log_api_enabled). (Detalle: BITACORA F15 cierre +
+      cerebro 12ª parte.)
+- [x] **4.5 CICLO SUEÑO/DESPERTAR VERIFICADO EN BANCO (15/08)**: test node solo en fuente (usb=0):
+      ~3.4V → [Sueno] (INA -51 mA DESCARGANDO) → dormido (HBs en silencio) → subir a 4V → LPCOMP
+      ~3710 despierta → precheck wasInSleep=1 → [Listo] (ADC 3772) → HBs de vuelta. **FRENTE A
+      CERRADO** (rama [Vivo] = V en [corte, LPCOMP): test opcional a ~3.55V).
+- [x] **FRENTE A (15/08) — CAUSA RAÍZ + FIX VERIFICADO EN BANCO**: (1) RF: TX 8 dBm del E22P
+      corrompía frames → TX a 1 dBm: enlace estable. (2) Código: [Sueño]/[Vivo]/[Listo] y diags
+      encolados con `to=0` en vez de NODENUM_BROADCAST → se emiten pero nadie los entrega.
+      Fix: 6 ocurrencias en NavaCLIModule.cpp. **Flash vía `pio -t upload` (nrfutil)**: observador
+      recibe bootDiag + HB-60s por canal 1 → camino probado punta a punta. Pendiente SOLO el test
+      real de sueño (4.5, fuente SIN USB).
+- [x] **FRENTE B (15/08) — fix aplicado + verificado a nivel síntoma**: saveToDisk(SEGMENT_NODEDATABASE)
+      tras acreditar/favoritear admin (AdminModule.cpp, solo si cambia). Banco: DM ping → PONG
+      antes y DESPUÉS de reboot del test node (observador sin re-anunciar) → síntoma resuelto.
+      (Matiz: updateUser/H3 también guarda al recibir nodeinfo; el fix cubre AdminMessage sin
+      nodeinfo posterior.)
+- [x] **BUILD BANCO (15/08)**: `navarrico_promicro_e22p_r2ig` SUCCESS 62.99s (UF2 MD5
+      0ddd16a5a4c4bdd3153c4bdd50b360a7) con fixes A+B, flasheado y verificado.
+- [x] **DOCS CIERRE SESIÓN 14-15/08**: cerebro 12ª parte + BITACORA (F15 cierre, L7-L12,
+      F16a-f) + PLAN (este fichero). Backups docs `.bak-20260815-0024`, código
+      `.bak-20260814-2125`.
+
+## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
+
+```
+NUEVA SESIÓN — NavaTastic V2 (repo unificado C:\NavaTastic Codigo completo) — retoma
+tras la sesión 14-15/08 (F15 casi cerrada, 2 frentes abiertos).
+PASO 0 (OBLIGATORIO, lectura en este orden ANTES de tocar nada — apertura canónica):
+  0. AGENTS.md → Guia_para_agente_sobre_NavaTastic.md §0 REGLAS OPERATIVAS (dieta de
+     tokens, flujo en dos fases: FASE 1 plan → esperar confirmación → FASE 2,
+     backup/rollback .bak-AAAAMMDD-HHMM, solo se escribe en este repo, commits locales
+     por hito, norma 0.11 manuales+PDF, norma 0.12 distribución V2).
+  1. Guia_para_agente_sobre_NavaTastic.md COMPLETA (12 envs navarrico_*, perfiles,
+     macros, scripts, mapa de cambios, seguridad de claves).
+  2. BITACORA_TECNICA.md — F1-F15 (cierre incluido) + LECCIOnES L1-L12 + F16a-f.
+  3. PLAN_DE_TRABAJO.md — F15 + FRENTES A/B + CIERRE + este PROMPT.
+  4. docs\cerebro\cerebro.md — SECCIÓN 5 PRIMERO (13ª parte = sesión 14-15/08 con el
+     detalle de TODO lo ocurrido) y después las secciones que hagan falta.
+  5. PORTING_NUEVO_FORK.md (joya de la corona: inventario fichero a fichero + bloques
+     E1/E2/S/N/P + trampas) y, si el contexto lo pide, los docs de contexto de docs\
+     (transfer_context.md, guia_integracion_navarrico.md, manuales) y subnotas
+     docs\cerebro\ (01-12, con sus banners ESTADO 14/08). El 4.3 original
+     (C:\Firmware Navarrico 4.3) es SOLO LECTURA — sirve para diffear.
+NORMAS: flujo en dos fases, solo escribir en este repo, backups por marca de tiempo,
+commits locales por hito, dieta de tokens, AÑADIR (no reescribir) en cerebro/BITACORA.
+BACKUPS/ROLLBACK (obligatorio en cada hito): copia `nombre.bak-AAAAMMDD-HHMM` JUNTO al
+fichero tocado (código y docs, misma convención que las normas 9/0.11); binarios/UUF2
+históricos y morralla → `_archivo\`; documentar cada backup y cada cambio EN CALIENTE en
+cerebro (log de estado) + BITACORA (fallos/fixes/lecciones) + PLAN (estado), referencias
+cruzadas entre los tres para mantener coherencia.
+ESTADO CLAVE:
+- Fix F15 de rol/migración VERIFICADO en banco (set_role persiste + sobrevive factory
+  reset; nrf erase → ROUTER + fichero 84B). Fix en código: remove-antes-de-escribir +
+  gates version/tamaño + saneado.
+- FRENTE A CERRADO (15/08): causa raíz = avisos [Sueño]/[Vivo]/[Listo] encolados con
+  `to=0` (no es broadcast) + RF E22P inestable a 8 dBm en banco. Fix: NODENUM_BROADCAST
+  (6 sitios) + TX 1 dBm en banco. Ciclo completo VERIFICADO ([Sueño] 3375 → dormido →
+  LPCOMP 3710 → [Listo] 3772).
+- FRENTE B CERRADO (15/08): `saveToDisk(SEGMENT_NODEDATABASE)` tras acreditar/favoritear
+  (solo si cambia). Verificado: PONG antes/después de reboot sin re-anuncio del admin.
+- INSTRUMENTACIÓN TEMP F15 RETIRADA del código (0 restos, verificado). Build banco
+  LIMPIO SUCCESS (UF2 MD5 f5cb93cd6f...). **PENDIENTE**: flashear build limpio en banco +
+  smoke (ping/sleepmsg) → compilar 12 envs → `distribuir.ps1 -Todo -V2` → PDFs (norma
+  0.11, docs ya actualizadas 17ª parte) → docs cierre → commit local.
+- PENDIENTES ANOTADOS (leer BITACORA F16a-f; NO tocar sin orden expresa): F16c `fav rm`
+  substr(8), F16d jitter quick muerto, F16e whitelist canal 1 sin sleepmsg, F16b BLE
+  resumeAdvertising, F17 PKI_SEND_FAIL_PUBLIC_KEY esporádico (origen sin identificar).
+  MÁS ALLÁ: Propia (12 perfiles+envs), GitHub (solo General), opcional progname OTA,
+  regresión Eclipse en campo.
+- NO TOCAR: LPCOMP (main-nrf52.cpp), delay(3000) pre-sueño, delay(500)+force del
+  pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), F16c/d/e sin orden expresa.
+- CADA BUILD ES DIFERENTE (los 12 envs NO son el mismo binario): difieren en placa/radio
+  (macros NAVARICO_RADIO_E22P/SX1262 → potencia 12/22 dBm, curvas OCV 3500/3400, LPCOMP
+  por placa, pin de radio), rama (NAVARICO_RAMA_1 → rol por defecto CLIENT vs ROUTER),
+  perfil (claves admin, canal Navadmin, BT, rol; química SODIUM en Seed/T114; LIFEPO4
+  incompatible con LPCOMP fijo de Seed/Xiao/T114) y rutas embebidas de libdeps (R2
+  relativas, R1 r1promic/r1xiaoki). El test de banco SOLO valida la combinación
+  promicro+E22P+R2IG: cada fix debe ser ortogonal por macros/perfil y hay que ANOTAR
+  qué queda sin validar en las otras 11 combinaciones (banco/campo). No desplazar líneas
+  en NodeDB.cpp (paridad __LINE__) ni tocar variant.h sin backup previo (norma 9).
+- TRAMPAS CONOCIDAS: reboot automático 7s tras --set (esperar ≥30s antes de verificar);
+  polls --info lentos; factory reset borra debug_log_api_enabled y claves admin añadidas;
+  FILE_O_WRITE no trunca (remove antes de escribir); nrf erase regenera claves (limpiar
+  entradas en peers); serialEnter apaga baliza BLE con CLI USB conectado.
+```
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

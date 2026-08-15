@@ -71,7 +71,7 @@ Inventario verificado 2026-08-11 contra el código real (Promicro R2IP como refe
 |---|---|---|
 | `FIX_NATIVE_CORE_RESET` (reset limpio + canal + claves) | `variant.h` (6/6) | `variant.h` → `Power.cpp`, `Channels.cpp`, `NodeDB.cpp` |
 | Reset limpio `NVIC_SystemReset()` (no `sd_nvic_SystemReset()`) | `Power::reboot()` | `src/Power.cpp` |
-| `USERPREFS_FIXED_BLUETOOTH=123457` | macro | `userPrefs.jsonc` |
+| `USERPREFS_FIXED_BLUETOOTH` (General 654321; **Propia: PIN propio, se pide al compilar**) | macro | `userPrefs.jsonc` / variables de entorno Propia |
 
 ## 6. Cómo cambiar un valor correctamente (reglas)
 

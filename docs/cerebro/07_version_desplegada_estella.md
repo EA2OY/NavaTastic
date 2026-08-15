@@ -30,8 +30,8 @@ Punto de referencia de lo que está DESPLEGADO en el nodo de Tierra Estella. Cap
 | Rebrodecast | `LOCAL_ONLY` |
 | NodeInfo broadcast | `259200` (72h) |
 | NodeDB | `RAM_ONLY = true` (protección Flash) |
-| **Admin K0** | `{0x12, 0x48, ...0xaa, 0x68}` (la misma que hoy) |
-| **Admin K1** | `{0x3f, 0x38, ...0x73, 0x38}` (la misma que hoy) |
+| **Admin K0** | `K0 del operador (valores no publicados — se piden al compilar los envs Propia)` |
+| **Admin K1** | `K1 del operador (ídem)` |
 
 Las claves admin ya eran las actuales (no cambiaron desde entonces).
 

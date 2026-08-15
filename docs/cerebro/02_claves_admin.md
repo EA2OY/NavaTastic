@@ -1,16 +1,17 @@
 # 02 — Claves Admin y Regla del Hardcodeo
 
-> **ESTADO 14/08/2026 — REPO UNIFICADO**: contenido **VIGENTE**. Las claves viven ahora en
+> **ESTADO 15/08/2026 — REPO UNIFICADO**: contenido **VIGENTE**. Las claves viven ahora en
 > `profiles/*.jsonc` (General = K0 Master Node, 1 clave, BT 654321) y en el
 > `userPrefs.jsonc` raíz (perfil por defecto R2IG Promicro). El flujo es idéntico:
-> perfil → macro `-DUSERPREFS_USE_ADMIN_KEY_X` → `NodeDB.cpp`. Propia (K0/K1 Promicro,
-> BT 123457) se migrará a perfiles gitignored sin tocar código. Los números de línea
-> citados abajo son orientativos (NodeDB.cpp unificado: ~80-87, 725-743, 1460-1520).
+> perfil → macro `-DUSERPREFS_USE_ADMIN_KEY_X` → `NodeDB.cpp`. **Propia (K0/K1 del operador,
+> BT propio) se compila con claves NO almacenadas**: 12 envs `R2IP_*/R1IP_*` + variables de
+> entorno `NAVARICO_PROPIA_KEY_0/1` y `NAVARICO_PROPIA_BT` (script `build_propia.ps1`, que
+> las pide y NO las guarda). **Las claves del operador no existen en ningún fichero del
+> repo.** Los números de línea citados abajo son orientativos (NodeDB.cpp unificado: ~80-87,
+> 725-743, 1460-1520).
 
 ## Claves unificadas (fix 2026-08-10)
-Las 6 variantes usan exactamente las claves del Promicro:
-- **K0** = `{0x12, 0x48, 0xc4, 0xec, ... 0xaa, 0x68}`
-- **K1** = `{0x3f, 0x38, 0x04, 0x5a, ... 0x73, 0x38}`
+Las 6 variantes usan exactamente las claves del Promicro (K0/K1 del operador, **valores no publicados** — en el repo unificado se inyectan al compilar los envs Propia, nunca se almacenan).
 
 Estado previo: Xiao E22P/Seed P1 tenían clave de rescate `{0xc7...}`; Heltec T114 ninguna.
 

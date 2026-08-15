@@ -558,8 +558,6 @@ void setup()
             lowGateMv = navaGetLpcompWakeMv();
         }
 #endif
-        // NAVARICO: TEMP F15 - trazado del pre-check (se retira al confirmar el fix)
-        LOG_INFO("F15 precheck: wasInSleep=%d gate=%u (corte %u)", navaFromSleep, lowGateMv, lowBattSleepMv);
         auto isLowNow = [&]() -> bool {
             // V2.2: force=true -> lecturas ADC REALES consecutivas (sin el throttle
             // de 5s de Power.cpp), para que la decision y el valor reportado en
@@ -574,16 +572,12 @@ void setup()
         int lastLowMv = 0;
         for (uint8_t i = 0; i < lowBattReadingsNeeded; i++) {
             if (!isLowNow()) {
-                LOG_INFO("F15 precheck: lectura %u/%u NO baja (mv=%d bat=%d usb=%d)", i + 1, lowBattReadingsNeeded,
-                         powerStatus->getBatteryVoltageMv(), powerStatus->getHasBattery(), powerStatus->getHasUSB());
                 break;
             }
             lastLowMv = powerStatus->getBatteryVoltageMv();
-            LOG_INFO("F15 precheck: lectura %u/%u baja (mv=%d)", i + 1, lowBattReadingsNeeded, lastLowMv);
             consecutiveLow++;
             delay(200);
         }
-        LOG_INFO("F15 precheck: resultado consecutiveLow=%u lastLowMv=%d (gate=%u)", consecutiveLow, lastLowMv, lowGateMv);
         if (consecutiveLow >= lowBattReadingsNeeded) {
             NavaCLIModule::navaSetWasInSleep(true);
             if (NavaCLIModule::peekSleepMsgsEnabled() && navaFromSleep &&
@@ -592,18 +586,14 @@ void setup()
                 // permitir el boot para mandar [Vivo] y volver a dormir tras el envio
                 LOG_WARN("Battery %d mV in [OCV cutoff, LPCOMP wake): boot for [Vivo] message, re-sleep after TX",
                          lastLowMv);
-                LOG_INFO("F15 precheck: rama VIVO (boot, [Vivo] + re-sueno)");
                 NavaCLIModule::navaSetVivoPending();
             } else {
-                LOG_INFO("F15 precheck: rama RE-SUENO SILENCIOSO");
                 LOG_WARN("Battery below %u mV for %u consecutive readings: entering System OFF "
                           "(radio/BT/screen never powered this boot) - hardware LPCOMP wakes the MCU "
                           "(full reset) once VBAT crosses BATTERY_LPCOMP_THRESHOLD, see variant.h",
                           lowGateMv, lowBattReadingsNeeded);
                 cpuDeepSleep(portMAX_DELAY);
             }
-        } else {
-            LOG_INFO("F15 precheck: rama BOOT NORMAL");
         }
     }
 #endif

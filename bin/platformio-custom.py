@@ -232,6 +232,26 @@ with open(jsonLoc) as f:
     userPrefs = json.loads(jsonStr)
 
 pref_flags = []
+# NAVARICO: builds Propia (R2IP/R1IP) — las claves del operador y el PIN BT se piden por
+# variables de entorno y NUNCA se almacenan en el repo. Los envs Propia extienden los de
+# General y activan la opcion custom_meshtastic_propia_keys; aqui sus macros sobrescriben
+# las del perfil General. Sin las variables el build aborta con instrucciones.
+nav_propia_raw = env.GetProjectOption("custom_meshtastic_propia_keys", "")
+nav_propia_on = str(nav_propia_raw).strip().lower() in ("1", "true", "yes", "on")
+if nav_propia_on:
+    def nav_propia_required(var):
+        val = os.environ.get(var, "").strip()
+        if not val:
+            print("NAVARICO ERROR: build Propia requiere la variable de entorno " + var)
+            print("  Define NAVARICO_PROPIA_KEY_0 y NAVARICO_PROPIA_KEY_1 (hex entre llaves,")
+            print("  p. ej. '{ 0x12, 0x48, ... }') y NAVARICO_PROPIA_BT (PIN de 6 digitos).")
+            print("  O usa build_propia.ps1, que las pide de forma interactiva SIN guardarlas.")
+            sys.exit(1)
+        return val
+    userPrefs["USERPREFS_USE_ADMIN_KEY_0"] = nav_propia_required("NAVARICO_PROPIA_KEY_0")
+    userPrefs["USERPREFS_USE_ADMIN_KEY_1"] = nav_propia_required("NAVARICO_PROPIA_KEY_1")
+    userPrefs["USERPREFS_FIXED_BLUETOOTH"] = nav_propia_required("NAVARICO_PROPIA_BT")
+    print("NAVARICO: build Propia — claves y PIN inyectados desde variables de entorno (no se almacenan)")
 # Pre-process the userPrefs
 for pref in userPrefs:
     if userPrefs[pref].startswith("{"):

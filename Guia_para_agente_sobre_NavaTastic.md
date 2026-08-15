@@ -59,7 +59,9 @@ SFNarrow, Madrid). Con un solo repositorio se generan **12 firmwares distintos**
   Xiao Kit i2c (SX1262), Xiao+E22P.
 - **2 ramas**: Rama 2 (Routers, rol ROUTER) y Rama 1 (Clientes, rol CLIENT + rol semi-permanente).
 - **1 configuración**: General (clave admin Master Node, BT 654321). La rama Propia (claves
-  Promicro) se añadirá después como perfiles, sin tocar código.
+  del operador + PIN BT propio) se compila con los 12 envs `R2IP_*/R1IP_*` + `build_propia.ps1`:
+  las claves y el PIN se piden al compilar (variables de entorno `NAVARICO_PROPIA_KEY_0/1`,
+  `NAVARICO_PROPIA_BT`) y **NO se almacenan en ningún fichero del repo**.
 
 Las diferencias entre las 24 versiones antiguas eran SOLO: `variant.h` (radio/potencia/OCV),
 `userPrefs.jsonc` (claves/canales/rol/BT) y 2 ficheros con deltas de Rama 1. Todo eso está ahora
@@ -98,6 +100,11 @@ Los 12 envs (definidos en `variants/nrf52840/navarrico.ini`):
 | navarrico_xiao_e22p_r1ig | ídem | E22P | R1 | CLIENT | profiles/R1IG_XiaoKitI2cE22P.jsonc |
 
 Salida: `.pio/build/<env>/` (`.uf2`, `.hex`, `.zip` OTA, `.mt.json`).
+
+Además hay 12 envs **Propia** (`navarrico_<placa>_<radio>_r2ip/r1ip`, extienden a los General):
+sus claves admin y PIN BT **no se almacenan** — se piden al compilar (variables de entorno
+`NAVARICO_PROPIA_KEY_0/1`, `NAVARICO_PROPIA_BT` o el script interactivo `build_propia.ps1`).
+Sin las variables, el build aborta con instrucciones.
 
 Helpers PowerShell (Windows):
 ```powershell
@@ -168,7 +175,9 @@ Para claves/canales/rol → perfil jsonc. Para añadir una rama (Propia) → per
 ## 5. Seguridad y claves
 
 - Las claves admin de `profiles/` son claves **PÚBLICAS** (el firmware solo lleva públicas).
-- Los perfiles `*R2IP*`, `*R1IP*` (Propia) y Felix están gitignored: no subir a GitHub.
+- Las claves Propia (K0/K1 del operador + PIN BT) **NO existen en el repo**: se piden al
+  compilar los envs `R2IP_*/R1IP_*` (variables de entorno, script `build_propia.ps1`), nunca
+  se almacenan. Los patrones `profiles/*R2IP*`/`*R1IP*` están gitignored por si acaso.
 - El JSON con la clave privada del Master Node NO debe distribuirse nunca.
 - El fuzzer (`.clusterfuzzlite/router_fuzzer.cpp`) usa la clave General (1 clave, Master Node).
 

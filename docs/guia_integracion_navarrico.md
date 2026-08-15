@@ -403,6 +403,23 @@ void timedSystemSleepSeconds(uint32_t seconds)
 ### O.5 Reclasificación de Visibilidad en Telemetría (EnvironmentTelemetry.h)
 Mover `sendTelemetry(...)` de `protected:` a `public:` (necesario para `/nava sendtel`).
 
+### O.6 Fixes V2.3/F15/F16a (15/08 — cierre verificado en banco)
+1. **Avisos de sueño SIEMPRE con NODENUM_BROADCAST** (`NavaCLIModule.cpp`): los 6 `enqueueResponse(0, 1, ...)`
+   de [Sueño]/[Vivo]/[Listo] (y diags) usaban `to=0`, que NO es broadcast en 2.7
+   (`isBroadcast()` = NODENUM_BROADCAST/NODENUM_BROADCAST_NO_LORA) → el paquete se emitía y nadie lo
+   entregaba. Regla: **`enqueueResponse(NODENUM_BROADCAST, 1, ...)`** para todo aviso por canal 1.
+2. **`/resilience.bin` a prueba de corrupción** (`NavaCLIModule.cpp`): `FSCom.remove("/resilience.bin")`
+   antes de CADA escritura (el `FILE_O_WRITE` de Adafruit InternalFS no trunca y el fichero nunca
+   encoge); gates de migración `fileSize != sizeof(prefs) || version != 0x4E415653` (marcador al final
+   del struct, 84 B) + saneado de campos fuera de rango; migración de ficheros legacy 80 B
+   (`sleepMsgs=1`, `role=0xFF`, `wasInSleep=0`). Fichero corrupto → defaults, nunca rol fantasma.
+3. **Acreditación admin persistente** (`AdminModule.cpp`, bloque "Automatically favorite the node that
+   is using the admin key"): tras `bitfield |= 0x08` y `is_favorite = true`, añadir
+   `if (accChanged) nodeDB->saveToDisk(SEGMENT_NODEDATABASE);` — el admin sigue autorizado tras reboot
+   sin re-anunciar nodeinfo. (El save es el filtrado: favoritos/admins/direct routers/ignored.)
+4. **`sleepmsg` parseo**: `substr(9)` ("sleepmsg" = 8 letras + espacio) — con `substr(8)` el arg quedaba
+   " on" y el gate NUNCA se activaba por comando.
+
 ---
 
 # 2. CÓDIGO ESPECÍFICO DE HARDWARE
