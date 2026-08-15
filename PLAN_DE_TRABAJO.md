@@ -120,65 +120,67 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
 ```
-NUEVA SESIÓN — NavaTastic V2 (repo unificado C:\NavaTastic Codigo completo) — retoma
-tras la sesión 14-15/08 (F15 casi cerrada, 2 frentes abiertos).
+NUEVA SESIÓN — NavaTastic (repo unificado C:\NavaTastic Codigo completo) — retoma tras la
+sesión del 15/08/2026 (V2.6 cerrada, GitHub publicado, snapshot FINAL creado).
+
 PASO 0 (OBLIGATORIO, lectura en este orden ANTES de tocar nada — apertura canónica):
-  0. AGENTS.md → Guia_para_agente_sobre_NavaTastic.md §0 REGLAS OPERATIVAS (dieta de
-     tokens, flujo en dos fases: FASE 1 plan → esperar confirmación → FASE 2,
-     backup/rollback .bak-AAAAMMDD-HHMM, solo se escribe en este repo, commits locales
-     por hito, norma 0.11 manuales+PDF, norma 0.12 distribución V2).
-  1. Guia_para_agente_sobre_NavaTastic.md COMPLETA (12 envs navarrico_*, perfiles,
-     macros, scripts, mapa de cambios, seguridad de claves).
-  2. BITACORA_TECNICA.md — F1-F15 (cierre incluido) + LECCIOnES L1-L12 + F16a-f.
-  3. PLAN_DE_TRABAJO.md — F15 + FRENTES A/B + CIERRE + este PROMPT.
-  4. docs\cerebro\cerebro.md — SECCIÓN 5 PRIMERO (13ª parte = sesión 14-15/08 con el
-     detalle de TODO lo ocurrido) y después las secciones que hagan falta.
-  5. PORTING_NUEVO_FORK.md (joya de la corona: inventario fichero a fichero + bloques
-     E1/E2/S/N/P + trampas) y, si el contexto lo pide, los docs de contexto de docs\
-     (transfer_context.md, guia_integracion_navarrico.md, manuales) y subnotas
-     docs\cerebro\ (01-12, con sus banners ESTADO 14/08). El 4.3 original
-     (C:\Firmware Navarrico 4.3) es SOLO LECTURA — sirve para diffear.
+  0. AGENTS.md (bloque NAVARICO) → Guia_para_agente_sobre_NavaTastic.md §0 REGLAS
+     OPERATIVAS: dieta de tokens, flujo en dos fases (FASE 1 plan → esperar confirmación
+     → FASE 2), backup/rollback `.bak-AAAAMMDD-HHMM`, solo se escribe en este repo,
+     commits locales por hito, normas 0.11 (manuales+PDF) y 0.12 (distribución V2).
+  1. Guia_para_agente_sobre_NavaTastic.md COMPLETA: 12 envs navarrico_* (+12 Propia),
+     perfiles, macros, scripts, mapa de cambios, seguridad de claves, y SECCIÓN 9
+     (flujo de publicación a GitHub).
+  2. BITACORA_TECNICA.md — F1-F15, V2.2-V2.6, lecciones L1-L26, publicación GitHub.
+  3. PLAN_DE_TRABAJO.md — estado + este PROMPT.
+  4. docs\cerebro\cerebro.md — SECCIÓN 5 PRIMERO (3ª-22ª partes = todo lo ocurrido) y
+     después lo que haga falta (5.4 VIGENTE vs OBSOLETO, 5.5 handover).
+  5. PORTING_NUEVO_FORK.md (joya de la corona) y docs de contexto según el caso
+     (transfer_context.md, guia_integracion_navarrico.md, manuales, subnotas 01-12).
+     El 4.3 original (C:\Firmware Navarrico 4.3) es SOLO LECTURA — sirve para diffear.
+
 NORMAS: flujo en dos fases, solo escribir en este repo, backups por marca de tiempo,
 commits locales por hito, dieta de tokens, AÑADIR (no reescribir) en cerebro/BITACORA.
 BACKUPS/ROLLBACK (obligatorio en cada hito): copia `nombre.bak-AAAAMMDD-HHMM` JUNTO al
-fichero tocado (código y docs, misma convención que las normas 9/0.11); binarios/UUF2
-históricos y morralla → `_archivo\`; documentar cada backup y cada cambio EN CALIENTE en
-cerebro (log de estado) + BITACORA (fallos/fixes/lecciones) + PLAN (estado), referencias
-cruzadas entre los tres para mantener coherencia.
-ESTADO CLAVE:
-- Fix F15 de rol/migración VERIFICADO en banco (set_role persiste + sobrevive factory
-  reset; nrf erase → ROUTER + fichero 84B). Fix en código: remove-antes-de-escribir +
-  gates version/tamaño + saneado.
-- FRENTE A CERRADO (15/08): causa raíz = avisos [Sueño]/[Vivo]/[Listo] encolados con
-  `to=0` (no es broadcast) + RF E22P inestable a 8 dBm en banco. Fix: NODENUM_BROADCAST
-  (6 sitios) + TX 1 dBm en banco. Ciclo completo VERIFICADO ([Sueño] 3375 → dormido →
-  LPCOMP 3710 → [Listo] 3772).
-- FRENTE B CERRADO (15/08): `saveToDisk(SEGMENT_NODEDATABASE)` tras acreditar/favoritear
-  (solo si cambia). Verificado: PONG antes/después de reboot sin re-anuncio del admin.
-- INSTRUMENTACIÓN TEMP F15 RETIRADA del código (0 restos, verificado). Build banco
-  LIMPIO SUCCESS (UF2 MD5 f5cb93cd6f...). **PENDIENTE**: flashear build limpio en banco +
-  smoke (ping/sleepmsg) → compilar 12 envs → `distribuir.ps1 -Todo -V2` → PDFs (norma
-  0.11, docs ya actualizadas 17ª parte) → docs cierre → commit local.
-- PENDIENTES ANOTADOS (leer BITACORA F16a-f; NO tocar sin orden expresa): F16c `fav rm`
-  substr(8), F16d jitter quick muerto, F16e whitelist canal 1 sin sleepmsg, F16b BLE
-  resumeAdvertising, F17 PKI_SEND_FAIL_PUBLIC_KEY esporádico (origen sin identificar).
-  MÁS ALLÁ: Propia (12 perfiles+envs), GitHub (solo General), opcional progname OTA,
-  regresión Eclipse en campo.
-- NO TOCAR: LPCOMP (main-nrf52.cpp), delay(3000) pre-sueño, delay(500)+force del
-  pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), F16c/d/e sin orden expresa.
-- CADA BUILD ES DIFERENTE (los 12 envs NO son el mismo binario): difieren en placa/radio
-  (macros NAVARICO_RADIO_E22P/SX1262 → potencia 12/22 dBm, curvas OCV 3500/3400, LPCOMP
-  por placa, pin de radio), rama (NAVARICO_RAMA_1 → rol por defecto CLIENT vs ROUTER),
-  perfil (claves admin, canal Navadmin, BT, rol; química SODIUM en Seed/T114; LIFEPO4
-  incompatible con LPCOMP fijo de Seed/Xiao/T114) y rutas embebidas de libdeps (R2
-  relativas, R1 r1promic/r1xiaoki). El test de banco SOLO valida la combinación
-  promicro+E22P+R2IG: cada fix debe ser ortogonal por macros/perfil y hay que ANOTAR
-  qué queda sin validar en las otras 11 combinaciones (banco/campo). No desplazar líneas
-  en NodeDB.cpp (paridad __LINE__) ni tocar variant.h sin backup previo (norma 9).
-- TRAMPAS CONOCIDAS: reboot automático 7s tras --set (esperar ≥30s antes de verificar);
-  polls --info lentos; factory reset borra debug_log_api_enabled y claves admin añadidas;
-  FILE_O_WRITE no trunca (remove antes de escribir); nrf erase regenera claves (limpiar
-  entradas en peers); serialEnter apaga baliza BLE con CLI USB conectado.
+fichero tocado; binarios históricos y morralla → `_archivo\`; documentar cada cambio EN
+CALIENTE en cerebro (log) + BITACORA (fallos/fixes/lecciones) + PLAN (estado), con
+referencias cruzadas. Actualizar los docs de contexto cuando cambie comportamiento,
+comandos o parches (Guia/transfer_context/guia_integracion/manuales+PDF si procede).
+
+ESTADO CLAVE (15/08/2026, sesión cerrada):
+- V2.6 VERIFICADA EN BANCO (Promicro E22P R2IG): ciclo sueño/despertar definitivo —
+  [Vivo] (banda corte−100..corte) opera ~100s → [Sueño] (5 lecturas monitor) →
+  doDeepSleep completo → ~1 mA → LPCOMP ~3.7-3.8V → [Listo] → [Boot] a los 2 min con
+  causa (WDT/RESETPIN/SOFT...). Avisos con ADC + CPU (chip). LED apagado en sueño.
+- 12/12 IG compilados SUCCESS y distribuidos (`distribucion\` + Desktop V2).
+- GITHUB PUBLICADO: https://github.com/EA2OY/NavaTastic (rama main, UN solo commit,
+  release v2.6 con 26 assets, Actions desactivadas). Historial local NUNCA se sube
+  (claves Propia en commits viejos). Proyecto hermano: EA2OY/MeshNavarra-Utility.
+- SNAPSHOT FINAL (rollback de referencia): `_archivo\NavaTastic Eclipse Edition V2 -
+  FINAL 20260815 (HEAD 9d45c2bbf).zip` — versión final y completa (V2.6 + README +
+  docs GitHub). Rollback: `git checkout` del commit o descomprimir sobre la raíz.
+- MECANISMO PROPIA listo: 12 envs R2IP/R1IP + `build_propia.ps1` (claves y PIN BT se
+  piden al compilar, NUNCA almacenadas). Para compilar Propia: el script, no perfiles.
+
+TRABAJAR SOBRE EL CÓDIGO (añadir funciones, cambios, compilar):
+- Cambios de comportamiento → código común src/ + docs EN CALIENTE + build del env del
+  banco → verificar en banco → SOLO ENTONCES los 12 envs (lotes paralelos de envs
+  DISTINTOS) → `distribuir.ps1 -Todo -V2` → manuales+PDF si procede → commit local.
+- CADA BUILD ES DIFERENTE (12 envs ≠ mismo binario): placa/radio (NAVARICO_RADIO_*:
+  potencia 12/22, OCV 3500/3400, LPCOMP por placa), rama (NAVARICO_RAMA_1), perfil
+  (claves, canal, BT, rol), rutas libdeps (R2 relativas, R1 r1promic/r1xiaoki). El banco
+  SOLO valida promicro+E22P+R2IG: anotar qué queda sin validar en las otras 11.
+- NO TOCAR sin orden expresa: LPCOMP (main-nrf52.cpp), delay(3000) pre-sueño,
+  delay(500)+force del pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), F16c/d/e.
+- F16b BLE resumeAdvertising y F17 PKI_SEND_FAIL: pendientes anotados (BITACORA).
+- MÁS ALLÁ (si se pide): regresión Eclipse en campo, opcional progname OTA, Felix.
+
+TRAMPAS CONOCIDAS: reboot automático 7s tras --set (esperar ≥30s); polls --info lentos;
+factory reset borra debug_log_api_enabled y claves admin añadidas; FILE_O_WRITE no trunca
+(remove antes de escribir); nrf erase regenera claves (limpiar peers); serialEnter apaga
+baliza BLE con USB; TX 1 dBm en banco con USB (picos E22P); los avisos NO se ecoan en la
+API del propio emisor (verificar con observador); al alternar rama master↔github-public
+el checkout BORRA del disco los ficheros force-add (repoblar con distribuir.ps1 -Todo).
 ```
 
 ## Datos de referencia

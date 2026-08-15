@@ -331,11 +331,20 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     654321, backup de claves, gestiÃ³n de claves admin (2 propias + desautorizar la de fÃ¡brica
     en slot 0 â€” el slot 0 vacÃ­o se re-inyecta), estado de pruebas por placa, licencia GPL v3
     + cumplimiento (fuente de los binarios en el mismo commit) + disclaimer.
-  - **Trampas de la publicaciÃ³n (L24-L26 en BITACORA)**: el checkout entre ramas BORRA del
-    disco los ficheros force-add que la otra rama no trackea (distribucion/workflows) â†’
-    repoblar `distribuir.ps1 -Todo` tras cada publicaciÃ³n y regenerar la huÃ©rfana borrÃ¡ndola
-    antes; el token GitHub del operador se compartiÃ³ por chat â†’ REVOCAR y usar uno puntual
-    por sesiÃ³n (o gh CLI).
+- **Trampas de la publicación (L24-L26 en BITACORA)**: el checkout entre ramas BORRA del
+    disco los ficheros force-add que la otra rama no trackea (distribucion/workflows) ?
+    repoblar `distribuir.ps1 -Todo` tras cada publicación y regenerar la huérfana borrándola
+    antes; el token GitHub del operador se compartió por chat ? REVOCAR y usar uno puntual
+    por sesión (o gh CLI).
+- **2026-08-15 (23ª parte) — HANDOVER FINAL (cierre de sesión)**: sesión cerrada y
+  commitada (master `9d45c2bbf`). **SNAPSHOT FINAL**: `_archivo\NavaTastic Eclipse Edition
+  V2 - FINAL 20260815 (HEAD 9d45c2bbf).zip` (5.85 MB, 2205 entradas) — versión final y
+  completa (V2.6 + README bilingüe + docs GitHub + escudo), reemplaza al intermedio del
+  80e9f7e14. **PROMPT DE RETOMA reescrito** en PLAN_DE_TRABAJO.md (estado V2.6 + GitHub +
+  snapshot FINAL + cómo trabajar sobre el código + Propia + trampas).
+  `docs\INSTRUCCION_AUDITORIA_CLAUDE.md` actualizado al repo unificado con el material
+  personal excluido (orden del operador). Queda en manos del operador: auditoría externa
+  del código (Claude, amigo del operador) y prompt de auditoría de MeshNavarra-Utility.
 - **2026-08-14 (3Âª parte) â€” CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canÃ³nico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo Ãºnico: banner
