@@ -4,6 +4,8 @@
 
 # NavaTastic
 
+<img src="flyer_navatastic_eclipse_v3.jpg" alt="Cartel NavaTastic Eclipse V3" width="480"/>
+
 </div>
 
 Firmware **NavaTastic** — fork de [Meshtastic](https://meshtastic.org) v2.7.26 (base `54e0d8d`)
