@@ -156,8 +156,11 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       de pruebas actualizado. **4 de 6 placas verificadas** (Promicro, Faketec, Xiao×2);
       pendientes: Seed y T114.
 - [ ] **F18 (candidato, espera orden)**: unificar contador de baja a
-      `USERPREFS_LOW_BATTERY_READINGS_COUNT` (5, ≈100s) para las 6 placas (hoy: >4 Promicro/
-      Faketec vs >10 resto). Nota: `USERPREFS_LORACONFIG_TX_POWER` es config muerta (L30);
+      `USERPREFS_LOW_BATTERY_READINGS_COUNT` para las 6 placas (hoy: `>4` Promicro/Faketec vs
+      `>10` resto en Power.cpp; la macro SOLO la usa el pre-check de main.cpp — "medio
+      huérfana"). **Decisión del operador (15/08): 8 lecturas para TODAS** (≈160 s):
+      perfiles a `=8` + Power.cpp leyendo la macro (también el pre-check queda a 8; manual/
+      docs a actualizar). Nota: `USERPREFS_LORACONFIG_TX_POWER` es config muerta (L30);
       SX1262 = 22 dBm SIEMPRE (decisión del operador, no tocar).
 
 ## Posibles ampliaciones (anotadas 15/08, esperan orden)

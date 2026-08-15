@@ -397,8 +397,10 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     SX1262 = 22 dBm siempre (decisión del operador). Pendientes: Seed y T114.
   - **Hallazgos de código (anotados, NO tocados)**:
     1. Contador de baja ASIMÉTRICO: `>4` (≈100s) solo Promicro/Faketec vs `>10` (≈220s) en
-       Seed/T114/Xiao×2 (Power.cpp); el perfil `USERPREFS_LOW_BATTERY_READINGS_COUNT=5` lo
-       ignora el código → candidato **F18** (unificar a 5 lecturas, espera orden).
+       Seed/T114/Xiao×2 (Power.cpp); la macro `USERPREFS_LOW_BATTERY_READINGS_COUNT` está
+       "medio huérfana" (la usa el pre-check de main.cpp, NO el monitor runtime) → candidato
+       **F18**: decisión del operador (15/08) = **8 lecturas para TODAS** (≈160s), perfiles a
+       `=8` + Power.cpp leyendo la macro.
     2. `USERPREFS_LORACONFIG_TX_POWER` de los perfiles es **configuración MUERTA** (0 refs en
        src): el default real de TX vive en Channels.cpp (8 E22P / 22 SX1262) y es IDÉNTICO
        recién flasheado y tras factory reset (mismo camino `resetRadioConfig`→`initDefaults`).

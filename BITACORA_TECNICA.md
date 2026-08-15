@@ -603,9 +603,11 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   **Faketec HT-RA62 (14/08)** — 4 de 6 placas verificadas (pendientes Seed y T114). Tabla del
   README actualizada.
 - **Candidato F18 (NO tocado, espera orden)**: contador de baja ASIMÉTRICO — `>4` (~100s) solo
-  con `PROMICRO_DIY_TCXO`; Seed/T114/Xiao×2 usan `>10` (~220s) (Power.cpp:1023-1029); el perfil
-  `USERPREFS_LOW_BATTERY_READINGS_COUNT=5` lo ignora el código. Fix propuesto: unificar a la
-  macro del perfil (5 lecturas ≈ 100s) para las 6 placas.
+  con `PROMICRO_DIY_TCXO`; Seed/T114/Xiao×2 usan `>10` (~220s) (Power.cpp:1023-1029). La macro
+  `USERPREFS_LOW_BATTERY_READINGS_COUNT` está "MEDIO HUÉRFANA": la usa el pre-check de arranque
+  (main.cpp) pero NO el monitor runtime (Power.cpp). Fix (decisión del operador 15/08):
+  **8 lecturas para TODAS** (≈160 s) — perfiles a `=8` + Power.cpp leyendo la macro; el
+  pre-check también queda a 8; actualizar manuales/docs ("5 lecturas" → "8").
 - **L30 — `USERPREFS_LORACONFIG_TX_POWER` de los perfiles es configuración MUERTA** (0 refs en
   src); el default real de TX vive en `Channels.cpp:107-111` (8 E22P / 22 SX1262) y es el MISMO
   recién flasheado y tras factory reset (mismo camino `resetRadioConfig`→`channels.initDefaults`
