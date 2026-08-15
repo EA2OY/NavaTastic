@@ -48,6 +48,7 @@ Para que las salvaguardas de bajo consumo y gestión de energía funcionen corre
 - **Regla del conexionado de radio (E22P)**: El conexionado físico debe realizarse siguiendo el esquema del modelo E22 estándar. Los módulos E22P realizan la conmutación de transmisión y recepción de forma automática. Por este motivo, se ha modificado el comportamiento del **GPIO 017**: ya no conmuta TX/RX, sino que actúa como el **interruptor de encendido de la radio**, manteniéndose en alto (HIGH) para despertar el módulo y derivándose a masa (GND) para dormirlo.
 - **Compatibilidad en PCBs dedicadas**: Si el módulo E22P se monta sobre placas base compatibles (como **Albatastic** o **Xiaowa**), el pad de selección de radio que se debe soldar es obligatoriamente el correspondiente al **E22**.
 - **Divisor ADC 2.0**: Es necesario que el divisor de resistencias que mide el voltaje de la batería esté compuesto por **dos resistencias de 1 Megaohmio** (NRF52/Faketec/Albatastic/XiaoWa).
+  > **TIP — divisor distinto**: si tu placa lleva un divisor con otros valores, puedes ajustarlo antes de compilar en `variants/nrf52840/diy/nrf52_promicro_diy_tcxo/variant.h` (macro `ADC_MULTIPLIER`, valor `VBAT_DIVIDER_COMP`). **AVISO importante**: ese mismo divisor alimenta el comparador **LPCOMP**, que es el que decide el **despertar del modo de resiliencia por batería baja** (`set_vwake`, niveles 1-5). Los niveles de despertar están calibrados para divisor 2.0 (1M+1M): con otro divisor, el nodo despertará a una tensión distinta de la indicada — hay que recalibrar `getActiveLpcompThreshold()` en `src/platform/nrf52/main-nrf52.cpp` (o usar el umbral fijo de fábrica).
 - **Líneas de bus optimizadas (v4.1 Xiao Kit i2c)**: Se ha modificado el bus de salida a la radio para que conmute a **GND** durante el estado de Deep Sleep, reduciendo drásticamente cualquier fuga residual de corriente.
 
 ---
@@ -62,6 +63,8 @@ La única intervención opcional del operador es:
 - **Activar la lectura de sensores de telemetría** de energía (INA219) y de clima (BMP280 + AHT20 / BME680), si la placa los incorpora.
 
 Todo lo demás (canales, región, administración remota, protección de batería) está preconfigurado en compilación.
+
+> **⚙️ Despliegue (nodos nuevos o reflasheados)**: el flasheo conserva los `/prefs` antiguos. Si el nodo es nuevo de fábrica (o viene de un firmware sin el canal Navadmin), hacer **un factory reset tras flashear** para materializar el canal Navadmin (slot 1). Sin ese canal, los avisos [Sueño]/[Vivo]/[Listo] y los comandos de consulta por canal abierto no llegarán.
 
 > **📄 Los comandos `/nava` para ajustar nombre, sensores y resto de parámetros están en el manual de administración remota** (`Manual_NavaTastic.md`).
 

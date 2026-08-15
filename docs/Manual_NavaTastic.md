@@ -141,6 +141,7 @@ NO afecta al comportamiento energético, solo a los avisos). **Verificado en ban
 
 - La PSK del canal Navadmin es la pública de Meshtastic: cualquiera puede escuchar. Por eso el canal solo admite lectura y NUNCA responde a no-admins.
 - El canal Navadmin se identifica por slot (índice 1), no por nombre: no reordenar canales.
+- **Despliegue (nodos nuevos o reflasheados)**: el flasheo conserva los `/prefs`; un nodo nuevo de fábrica (o con firmware sin canal Navadmin) necesita **un factory reset tras flashear** para materializar el canal 1. Sin él, los avisos [Sueño]/[Vivo]/[Listo] y los comandos de consulta por canal abierto no llegarán. (El factory reset borra `debug_log_api_enabled` y las claves admin añadidas por app — re-aplicarlas si hacían falta.)
 - Las respuestas largas se fragmentan a 190 caracteres con retardo entre fragmentos (MTU LoRa SFNarrow).
 - `/resilience.bin` en la raíz del disco sobrevive a los resets de fábrica (solo se borra `/prefs`).
 - **Rotación de clave del mando (fix 2026-08-10)**: si un mando aparece con una clave pública distinta a la que el repetidor guarda en su DB, el repetidor acepta el cambio SIEMPRE que la nueva clave coincida con una clave de admin configurada, y lo re-marca como favorito. Esto permite re-acreditar a un mando que se registró con una clave no autorizada (p.ej. tras `db_clear` o `ign rm`): basta con que el mando reenvíe su NodeInfo con la clave correcta; el siguiente DM PKI `/nava` ya se descifra y valida. Si la clave nueva NO es admin, el NodeInfo se descarta como antes.
