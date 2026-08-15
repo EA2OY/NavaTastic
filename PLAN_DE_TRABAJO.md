@@ -172,6 +172,13 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       fábrica remotos, PERO con evaluación de riesgo pendiente (BITACORA): el factory reset
       perdería su función de purga de admins comprometidos; solo claves PÚBLICAS; slot 0
       SIEMPRE = clave del proyecto (no pisable); versionado del struct; sincronía con /prefs.
+- [ ] **F21 — `/nava wipe` (purga de compromiso, LIGADO a F20)**: erase total remoto
+      equivalente al `nrf erase` por PC: /prefs + /resilience.bin + regeneración del par PKI
+      (y a decidir: conservar o no el NodeNum). Escalera de escalado propuesta:
+      `factory_reset` (config, conserva claves+resilience) → `full_reset` F19 (+resilience,
+      conserva claves) → `wipe` F21 (todo + claves nuevas = "nodo recién flasheado"). Regla:
+      **F20 no se implementa sin F21** (necesita el botón de purga). ACK diferido antes de
+      ejecutar; idempotente (gates de arranque ya curan estados parciales, F15).
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 

@@ -640,3 +640,11 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   - **L31 — factory reset = herramienta de purga**: cualquier diseño que haga sobrevivir
     acreditaciones a un factory reset debilita su uso como "expulsar a un admin comprometido".
     Evaluar siempre esa pérdida antes de persistir claves admin fuera de /prefs.
+- **F21 — `/nava wipe` (purga de compromiso, LIGADO a F20 — decisión del operador: "mejor
+  perder las claves que otra cosa")**: erase total remoto = equivalente a `nrf erase`:
+  `/prefs` + `/resilience.bin` + regeneración del par PKI; el nodo vuelve con identidad/keys
+  nuevos y re-emite NodeInfo (los peers re-aprenden, camino H3/updateUser). Escalera:
+  `factory_reset` → `full_reset` (F19) → `wipe` (F21). Notas de riesgo: (1) si el wipe se
+  interrumpe a medias, los gates de arranque ya autocuran (F15); (2) un admin comprometido
+  también puede lanzarlo (denegación) — igual que hoy con factory_reset, no es peor; (3) a
+  decidir si conserva el NodeNum (menos disrupción) o lo regenera (identidad limpia).

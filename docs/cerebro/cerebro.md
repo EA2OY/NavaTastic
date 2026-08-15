@@ -416,6 +416,9 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   - **F20 claves admin en `/resilience.bin`**: idea a EVALUAR (hoy el factory reset las borra,
     L10). Riesgo: pierde su función de purga de admins comprometidos (L31); mitigaciones:
     solo públicas, slot 0 siempre proyecto, struct versionado. Detalle en BITACORA.
+  - **F21 `/nava wipe`** (LIGADO a F20, idea del operador: "mejor perder las claves que otra
+    cosa"): purge remota de compromiso = erase total + regeneración de par PKI (escalera
+    factory_reset → full_reset F19 → wipe F21). F20 no se implementa sin F21.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner
