@@ -138,6 +138,19 @@ almacenan en este repositorio**: se piden al compilar.
   escuchar. Solo admite consultas de lectura; los comandos críticos van por **DM cifrado PKI**.
 - Las claves admin que lleva el firmware son **públicas** (el binario nunca contiene privadas).
 
+### Gestión de claves admin (altamente recomendable)
+
+El firmware sale con una clave admin **de fábrica** (la del proyecto). Para tu red:
+
+1. **Añade DOS claves de gestión remota propias** (de tus dispositivos de mando) desde la app
+   de Meshtastic → *Radio config → Security → Admin key* (el firmware admite 3 slots).
+2. **Comprueba que funcionan**: con cada mando, envía un comando `/nava` por DM — debe
+   responder (el repetidor acredita a ese mando como admin y lo guarda en disco).
+3. **Desautoriza la clave de fábrica** una vez verificadas las tuyas: pon **una de tus claves
+   en el slot 0** (sustituyendo a la de fábrica). Ojo: si el slot 0 queda **vacío**, el
+   firmware **re-inyecta la clave de fábrica en cada arranque** (auto-recuperación anti-bloqueo),
+   así que dejarlo vacío NO la desautoriza — hay que sobreescribirlo con la tuya.
+
 ## Licencia
 
 - **Firmware (código de este repositorio)**: **GPL v3** — heredada de
