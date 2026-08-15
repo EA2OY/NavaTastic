@@ -410,6 +410,12 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   - **Decisión del operador**: SX1262 SIEMPRE a 22 dBm (no alinear con el 8 del E22P); con
     SX1262 no hace falta bajar potencia en banco. **Faketec HT-RA62 probada por el operador el
     14/08 → verificada** (4 de 6 placas verificadas; pendientes Seed y T114). Detalle: BITACORA.
+- **2026-08-15 (30ª parte) — POSIBLES AMPLIACIONES ANOTADAS (esperan orden)**:
+  - **F19 `/nava full_reset`**: revert remoto de semi-persistentes (factory_reset +
+    `/resilience.bin` a defaults) conservando claves PKI; el erase total sigue siendo por PC.
+  - **F20 claves admin en `/resilience.bin`**: idea a EVALUAR (hoy el factory reset las borra,
+    L10). Riesgo: pierde su función de purga de admins comprometidos (L31); mitigaciones:
+    solo públicas, slot 0 siempre proyecto, struct versionado. Detalle en BITACORA.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

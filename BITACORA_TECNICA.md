@@ -618,3 +618,25 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   pre-check de 3 bandas; LPCOMP/hyst/delay(3000) idénticos. El 4.3 dormía directo por PowerFSM
   sin TX previo.
 - Backups `.bak-20260815-2025` (README, cerebro, BITACORA, PLAN, subnota 04, transfer_context).
+
+### POSIBLES AMPLIACIONES (anotadas 15/08, esperan orden del operador)
+- **F19 — `/nava full_reset`**: hoy NO existe un erase total por radio (el `nrf erase` es por
+  PC: UF2 + comando USB serie). Hueco real: los semi-persistentes de `/resilience.bin`
+  (set_role/set_chem/set_vbat/set_vwake/sleepmsg/txoff/ble/fav auto) NO tienen revert remoto
+  (sobreviven al factory reset por diseño). Propuesta: comando = factory_reset + borrar
+  `/resilience.bin`, **conservando claves PKI** (el erase de claves se queda por PC — evita el
+  re-aprendizaje de L11 y el riesgo de identidad nueva en la malla). DM-PKI + diferido con ACK.
+- **F20 — claves admin en `/resilience.bin` (idea a EVALUAR, implicaciones)**:
+  - **Motivo**: hoy el factory reset borra las admin_key añadidas por app (L10) — tras un
+    reset remoto el operador debe re-acreditar sus mandos a mano. Persistirlas en
+    resilience.bin las haría sobrevivir.
+  - **Riesgo principal (seguridad)**: el factory reset perdería su función de PURGA — si un
+    admin/mando se compromete, reseteando el nodo ya no lo expulsas (volvería su clave). El
+    último recurso pasaría a ser `nrf erase` (PC).
+  - **Mitigaciones si se hiciera**: solo claves PÚBLICAS (no hay secreto en juego; ya viajan
+    en NodeInfo); slot 0 SIEMPRE = clave del proyecto (nunca pisable por resilience — conserva
+    el canal de rescate garantizado); struct versionado (gates F15); resolver la doble fuente
+    de verdad con /prefs (quién gana al sincronizar).
+  - **L31 — factory reset = herramienta de purga**: cualquier diseño que haga sobrevivir
+    acreditaciones a un factory reset debilita su uso como "expulsar a un admin comprometido".
+    Evaluar siempre esa pérdida antes de persistir claves admin fuera de /prefs.

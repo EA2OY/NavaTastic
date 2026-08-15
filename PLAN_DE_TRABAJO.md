@@ -160,6 +160,19 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       Faketec vs >10 resto). Nota: `USERPREFS_LORACONFIG_TX_POWER` es config muerta (L30);
       SX1262 = 22 dBm SIEMPRE (decisión del operador, no tocar).
 
+## Posibles ampliaciones (anotadas 15/08, esperan orden)
+- [ ] **F19 — `/nava full_reset`** (idea del operador): factory_reset + borrar también
+      `/resilience.bin` (semi-persistentes → defaults de perfil) **CONSERVANDO las claves
+      PKI** → revertir ajustes remotos sin PC y sin romper la malla (el erase total de claves
+      se queda como procedimiento por PC, `nrf erase`). DM-PKI + patrón diferido (ACK antes),
+      como factory_reset.
+- [ ] **F20 — claves admin en `/resilience.bin`** (idea a EVALUAR): hoy el factory reset
+      borra las admin_key añadidas por app (L10) — solo vuelve la del proyecto (auto-
+      recuperación). Persistirlas en resilience.bin permitiría que sobrevivan a resets de
+      fábrica remotos, PERO con evaluación de riesgo pendiente (BITACORA): el factory reset
+      perdería su función de purga de admins comprometidos; solo claves PÚBLICAS; slot 0
+      SIEMPRE = clave del proyecto (no pisable); versionado del struct; sincronía con /prefs.
+
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
 ```
