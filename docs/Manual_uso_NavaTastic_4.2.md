@@ -55,7 +55,7 @@ Para que las salvaguardas de bajo consumo y gestión de energía funcionen corre
 
 ## 3. Configuración del Nodo (Firmware Hardcoded)
 
-El firmware NavaTastic viene **hardcodeado** para la red SFNarrow (Madrid): región EU868, preset ShortFast Narrow, canal SFNarrow y canal Navadmin, potencia y umbrales de batería ya configurados por variante. **No requiere configuración del usuario** para funcionar en la malla.
+El firmware NavaTastic viene **hardcodeado** para la red SFNarrow (preset LoRa de uso nacional en España): región EU868, preset ShortFast Narrow, canal SFNarrow y canal Navadmin, potencia y umbrales de batería ya configurados por variante. **No requiere configuración del usuario** para funcionar en la malla.
 
 La única intervención opcional del operador es:
 
