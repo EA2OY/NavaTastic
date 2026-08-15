@@ -358,6 +358,11 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   resueltos el 15/08 (verificado). (5) §6 migración 80B: por diseño, riesgo 0. (6) F17: anotada
   explicación candidata (PKI estándar, clave no aprendida antes del 1er NodeInfo). Backups
   `.bak-20260815-1558`. Detalle: BITACORA "RONDA AUDITORÍA EXTERNA 15/08".
+- **2026-08-15 (25ª parte) — PUBLICACIÓN GITHUB v2.6.1**: rama huérfana regenerada (UN commit,
+  árbol saneado sin workflows) → `main` actualizada. **Release v2.6.1** (id 371073616): 26 assets
+  (12 UF2 + 12 OTA + 2 PDFs) subidos por API; v2.6 anterior conservado. Credencial: la del
+  Administrador de credenciales de Windows (recomendado rotarla, L26). Higiene: `.bak` histórico
+  untracked (L28) + L24 aplicada (distribucion\ repoblada, PDFs regenerados). Detalle: BITACORA.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

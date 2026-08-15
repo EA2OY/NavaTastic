@@ -541,3 +541,19 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   medición real (~3,8 V). Regla: dato empírico de banco > cálculo teórico.
 - Backups de esta ronda: `.bak-20260815-1558` (NavaCLIModule.cpp, BITACORA, PLAN, cerebro,
   transfer_context, subnota 04).
+
+### PUBLICACIÓN GITHUB v2.6.1 (15/08) — actualización post-auditoría
+- **Push**: rama huérfana `github-public` regenerada (UN commit `1b72b99ce`, árbol saneado
+  sin workflows upstream) → `push -f ...github-public:main`. Credencial usada: la del
+  Administrador de credenciales de Windows (`git:https://github.com`, helper manager) —
+  el token NO aparece en ningún fichero/commit; **recomendado: rotar/revocar ese token (L26)**.
+- **Release v2.6.1** (id 371073616, tag v2.6.1, target main): 26 assets subidos por API
+  (`uploads.github.com`) — 12 UF2 + 12 OTA (nombres históricos de distribucion\) + 2 PDFs.
+  El release anterior v2.6 (id 370958405) se conserva como referencia.
+- **Hallazgo de higiene (L28)**: `docs/Manual_NavaTastic.md.bak-20260814-1651` estaba
+  TRACKED en master (creado antes de la regla `.gitignore *.bak-*` del 15/08) y se colaba en
+  la rama pública → untracked con `git rm --cached` (el fichero en disco se conserva y ya
+  queda cubierto por el .gitignore). Regla: antes de publicar, comprobar
+  `git ls-tree master -r --name-only | Select-String "\.bak|_archivo"`.
+- **L24 aplicada**: tras volver a master se repobló `distribucion\` (`distribuir.ps1 -Todo`)
+  y se regeneraron los 2 PDFs (`generar_pdf.ps1`).

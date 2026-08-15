@@ -129,6 +129,12 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       banco (fuente regulable) para fijar el valor exacto del aviso (~3800).
 - [ ] Opcional: re-medición Seed en banco → fijar `navaGetLpcompWakeMv` Seed a valor
       empírico (~3800) si difiere del actual 3670.
+- [x] **GITHUB v2.6.1 (15/08)**: rama huérfana regenerada (UN commit) → `main` actualizada;
+      **release v2.6.1** con 26 assets (12 UF2 + 12 OTA + 2 PDFs) por API. v2.6 anterior
+      conservado. Higiene: `.bak` histórico untracked (git rm --cached; L28) para que no se
+      cuele en publicaciones futuras. L24: distribucion\ repoblada + PDFs regenerados.
+      Recomendado al operador: rotar/revocar el token guardado en el Administrador de
+      credenciales de Windows (L26).
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
