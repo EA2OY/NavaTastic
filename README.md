@@ -126,5 +126,30 @@ almacenan en este repositorio**: se piden al compilar.
 
 ## Licencia
 
-Código bajo la licencia de Meshtastic (GPL v3) — ver [LICENSE](LICENSE). Proyecto derivado de
-[meshtastic/firmware](https://github.com/meshtastic/firmware).
+- **Firmware (código de este repositorio)**: **GPL v3** — heredada de
+  [meshtastic/firmware](https://github.com/meshtastic/firmware), del que NavaTastic es un fork.
+  Ver [LICENSE](LICENSE). Las modificaciones de NavaTastic se publican bajo la misma licencia.
+- **Cumplimiento GPL**: los binarios distribuidos en [`distribucion/`](distribucion/) tienen su
+  código fuente completo en **este mismo repositorio, en el mismo commit** — cualquier persona
+  que descargue un binario puede obtener su fuente aquí, como exige la GPL v3. Se conservan los
+  avisos de copyright de Meshtastic en todas las fuentes.
+- **Hardware**: los diseños de placas (cuando se publiquen) se licenciarán aparte
+  (p. ej. **CERN-OHL**, Open Hardware License). Este repositorio solo contiene firmware y
+  documentación.
+
+## Descargo de responsabilidad
+
+- Este firmware se distribuye **SIN GARANTÍA DE NINGÚN TIPO** (ni implícita de comerciabilidad
+  ni de aptitud para un fin concreto), bajo los términos de la GPL v3. Úsalo **bajo tu propia
+  responsabilidad**.
+- Un repetidor solar es un dispositivo que se instala en altura, con baterías y alimentación
+  solar: el montaje, el dimensionado de batería/panel y el mantenimiento son responsabilidad
+  del instalador. Respeta las advertencias del manual de uso.
+- **Uso del espectro radioeléctrico**: los builds están configurados para la banda EU_868 con
+  el preset LoRa SFNarrow. Verifica que el uso de la frecuencia y la potencia cumplen la
+  normativa de tu país antes de transmitir.
+- La configuración por defecto (canales, PSK pública del canal Navadmin, claves admin
+  públicas) está pensada para la malla de este proyecto: revísala antes de desplegar tus
+  propios nodos.
+- Los nodos conectados a una malla pública pueden ser visibles para terceros: no envíes por
+  radio información sensible.
