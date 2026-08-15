@@ -200,6 +200,16 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
 
 ## 8. Historial de Auditoría (Resumen)
 
+*   **Ronda 2026-08-15 (Xiao×2 verificadas + hallazgos de código)**:
+  - **Verificado en banco (operador)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P hacen el
+    ciclo V2.6 completo ([Sueño] → dormir → LPCOMP ~3,8 V → [Listo] + avisos). El fallo
+    inicial del Xiao+E22P era el **pico de consumo del E22P en TX** (L29, mismo Frente A del
+    Promicro); con TX bajo en banco, OK. SX1262: 22 dBm siempre (decisión del operador).
+  - **Hallazgos anotados (NO tocados)**: contador de baja asimétrico (`>4` Promicro/Faketec vs
+    `>10` Seed/T114/Xiao×2 ≈ 100s vs 220s — candidato F18; el perfil READINGS_COUNT=5 se
+    ignora); `USERPREFS_LORACONFIG_TX_POWER` = config muerta (L30; el default real es
+    Channels.cpp 8/22, idéntico recién flasheado y tras factory reset); Xiao `isVbusIn()` por
+    tensión >4200 mV (sin VBUS real).
 *   **Ronda 2026-08-15 (documentación pública — README + manuales bilingües)**:
   - **README (ES/EN)**: la clave admin de fábrica se explica como **herramienta de rescate
     integrada**: tras un restablecimiento duro (factory reset accidental, `nrf erase`,

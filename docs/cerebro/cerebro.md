@@ -390,6 +390,25 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   **guardar/enviar** → la clave pública correcta **se regenera sola**. Si no se queda
   aplicada, repetir (bug conocido de la app de Meshtastic). PDFs regenerados. Backups
   `.bak-20260815-1812`.
+- **2026-08-15 (29ª parte) — XIAO×2 VERIFICADAS EN BANCO + hallazgos de código anotados**:
+  - **Incidente cerrado**: Xiao Kit i2c + E22P "no dormía ni mandaba [Sueño]" → **pico de consumo
+    del E22P en TX** (mismo Frente A del Promicro) que tumbaba el nodo; con TX bajo, ciclo
+    completo OK y avisos OK. **Confirmadas por el operador: Xiao Kit i2c (SX1262) y Xiao Kit
+    i2c + E22P funcionan bien** (tabla de estado del README actualizada).
+  - **Hallazgos de código (anotados, NO tocados)**:
+    1. Contador de baja ASIMÉTRICO: `>4` (≈100s) solo Promicro/Faketec vs `>10` (≈220s) en
+       Seed/T114/Xiao×2 (Power.cpp); el perfil `USERPREFS_LOW_BATTERY_READINGS_COUNT=5` lo
+       ignora el código → candidato **F18** (unificar a 5 lecturas, espera orden).
+    2. `USERPREFS_LORACONFIG_TX_POWER` de los perfiles es **configuración MUERTA** (0 refs en
+       src): el default real de TX vive en Channels.cpp (8 E22P / 22 SX1262) y es IDÉNTICO
+       recién flasheado y tras factory reset (mismo camino `resetRadioConfig`→`initDefaults`).
+    3. Xiao: `isVbusIn()` = tensión >4200 mV (sin detección VBUS real) → en banco con fuente a
+       4,2 V el contador puede resetearse silenciosamente.
+    4. Diff 4.3 (que funcionaba) → actual: el sueño pasa por `handleLowBatteryEvent` (TX del
+       [Sueño] ANTES de dormir) y el pre-check de arranque tiene 3 bandas; LPCOMP/hyst/
+       delay(3000) idénticos.
+  - **Decisión del operador**: SX1262 SIEMPRE a 22 dBm (no alinear con el 8 del E22P); con
+    SX1262 no hace falta bajar potencia en banco. Detalle: BITACORA.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

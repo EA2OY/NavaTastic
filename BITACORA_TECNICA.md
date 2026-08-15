@@ -594,3 +594,28 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   → **guardar/enviar** → la clave pública correcta **se regenera sola** (sin reinicio). Si no
   se queda aplicada al guardar, repetir la operación — bug conocido de la app de Meshtastic.
   Backups `.bak-20260815-1812` (README + manual de uso).
+
+### XIAO×2 VERIFICADAS (15/08) + HALLAZGOS DE CÓDIGO (candidatos)
+- **Incidente Xiao Kit i2c + E22P**: "no hacía el ciclo de dormir ni mandaba [Sueño]".
+  Diagnóstico + confirmación del operador: **pico de consumo del E22P en TX** que tumbaba el
+  nodo (mismo Frente A del Promicro); con TX bajo, ciclo completo y avisos OK. **L29 — el pico
+  E22P aplica a TODAS las placas con E22P, no solo al Promicro**; regla de banco = TX bajo con
+  fuente justa (con SX1262 NO hace falta: decisión del operador — SX1262 SIEMPRE 22 dBm).
+- **Verificado por el operador (15/08)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P
+  funcionan bien (tabla del README actualizada). 3ª y 4ª placas verificadas (Promicro, Xiao×2).
+- **Candidato F18 (NO tocado, espera orden)**: contador de baja ASIMÉTRICO — `>4` (~100s) solo
+  con `PROMICRO_DIY_TCXO`; Seed/T114/Xiao×2 usan `>10` (~220s) (Power.cpp:1023-1029); el perfil
+  `USERPREFS_LOW_BATTERY_READINGS_COUNT=5` lo ignora el código. Fix propuesto: unificar a la
+  macro del perfil (5 lecturas ≈ 100s) para las 6 placas.
+- **L30 — `USERPREFS_LORACONFIG_TX_POWER` de los perfiles es configuración MUERTA** (0 refs en
+  src); el default real de TX vive en `Channels.cpp:107-111` (8 E22P / 22 SX1262) y es el MISMO
+  recién flasheado y tras factory reset (mismo camino `resetRadioConfig`→`channels.initDefaults`
+  cuando no hay /prefs). No documentar "TX distinta tras reset": es falso.
+- **Nota Xiao**: `isVbusIn()` = `getBattVoltage() > 4200 mV` (sin detección VBUS real, a
+  diferencia del Promicro con `powerHAL_isVBUSConnected()`) → en banco con fuente a 4,2 V (o
+  batería cargada) el monitor puede resetearse (getHasUSB()=true).
+- **Diff 4.3 funcional → actual (Xiao)**: Power.cpp monitor idéntico (umbral y gate); las
+  diferencias son la capa V2: `handleLowBatteryEvent` (TX de [Sueño] ANTES de dormir) y el
+  pre-check de 3 bandas; LPCOMP/hyst/delay(3000) idénticos. El 4.3 dormía directo por PowerFSM
+  sin TX previo.
+- Backups `.bak-20260815-2025` (README, cerebro, BITACORA, PLAN, subnota 04, transfer_context).

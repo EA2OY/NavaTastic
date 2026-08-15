@@ -126,9 +126,11 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 | Placa | Estado |
 |---|---|
 | **Promicro + E22P (R2IG)** | **Verificado completo** (15/08): ciclo dormir/despertar, avisos, consumo ~1 mA, despertar LPCOMP, [Boot] |
+| **Xiao Kit i2c (SX1262)** | **Verificado en banco (15/08)**: ciclo + avisos OK (despertar LPCOMP ~3,8 V ya verificado en campo 11/08) |
+| **Xiao Kit i2c + E22P** | **Verificado en banco (15/08)**: ciclo + avisos OK (en banco, TX bajo: picos de corriente del E22P) |
 | **Seeed Solar Node P1** | **Semi-testeada** — pendiente de ciclo completo de resiliencia en la placa |
 | **Heltec T114** | **PENDIENTE**: testear el ciclo de dormir/despertar de resiliencia del firmware |
-| Faketec HT-RA62, Xiao Kit, Xiao + E22P | Pendientes de verificación en banco |
+| Faketec HT-RA62 | Pendiente de verificación en banco |
 
 ## Descargas (firmware compilado)
 
@@ -383,9 +385,11 @@ To **compile with a different default chemistry**: add
 | Board | Status |
 |---|---|
 | **Promicro + E22P (R2IG)** | **Fully verified** (15/08): sleep/wake cycle, notices, ~1 mA sleep, LPCOMP wake, [Boot] |
-| **Seeed Solar Node P1** | **Semi-tested** � full resilience cycle on the board still pending |
+| **Xiao Kit i2c (SX1262)** | **Bench verified (15/08)**: full cycle + notices OK (LPCOMP wake ~3.8 V already field-verified 11/08) |
+| **Xiao Kit i2c + E22P** | **Bench verified (15/08)**: full cycle + notices OK (bench: low TX — E22P current spikes) |
+| **Seeed Solar Node P1** | **Semi-tested** — full resilience cycle on the board still pending |
 | **Heltec T114** | **PENDING**: test the firmware sleep/wake resilience cycle |
-| Faketec HT-RA62, Xiao Kit, Xiao + E22P | Pending bench verification |
+| Faketec HT-RA62 | Pending bench verification |
 
 ## Downloads (prebuilt firmware)
 

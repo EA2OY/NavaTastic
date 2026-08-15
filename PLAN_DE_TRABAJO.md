@@ -150,6 +150,13 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       app actual (Play Store) cambia la clave privada; operativa: Ajustes → Seguridad → pegar
       privada → guardar/enviar → pública se regenera sola; si no se aplica, repetir (bug de la
       app). Documentado en manual de uso ES+EN y README ES+EN; PDFs regenerados.
+- [x] **XIAO×2 VERIFICADAS (15/08, operador)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P
+      funcionan bien (ciclo + avisos). El "fallo" del Xiao+E22P era el pico del E22P en TX
+      (L29). README/estado de pruebas actualizado. 3 de 6 placas verificadas.
+- [ ] **F18 (candidato, espera orden)**: unificar contador de baja a
+      `USERPREFS_LOW_BATTERY_READINGS_COUNT` (5, ≈100s) para las 6 placas (hoy: >4 Promicro/
+      Faketec vs >10 resto). Nota: `USERPREFS_LORACONFIG_TX_POWER` es config muerta (L30);
+      SX1262 = 22 dBm SIEMPRE (decisión del operador, no tocar).
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
