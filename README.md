@@ -137,12 +137,11 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 
 ## Descargas (firmware compilado)
 
-Última versión: **V2.6.1 (15/08/2026)** — ciclo sueño/despertar definitivo verificado en banco.
-**NavaTastic Eclipse V3 (4.3.2, código 15-16/08)**: etiqueta `NAVA V3` en `status`/[Boot],
+Última versión: **NavaTastic Eclipse V3 (4.3.2, 16/08/2026)** — etiqueta `NAVA V3` en `status`/[Boot],
 avisos de sueño/despertar con causa, 8 lecturas de batería baja (~160s) unificadas, resets
 remotos `/nava full_reset` (conserva claves PKI) y `/nava wipe` (purga total, par PKI nuevo),
 y **claves admin del usuario persistidas** (sobreviven a factory/full reset; regla "slot 0 =
-estado previo del usuario"; `keys_ls`/`keys_clear`; banco 7/7) — pendiente de publicar como release.
+estado previo del usuario"; `keys_ls`/`keys_clear`; banco 7/7).
 
 **Descarga los binarios desde [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
 (panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 2 manuales PDF. NIMH = mismos binarios
@@ -404,12 +403,11 @@ To **compile with a different default chemistry**: add
 
 ## Downloads (prebuilt firmware)
 
-Latest release: **V2.6.1 (15/08/2026)** — definitive sleep/wake cycle, bench verified.
-**NavaTastic Eclipse V3 (4.3.2, code 15-16/08)**: `NAVA V3` tag in `status`/[Boot], sleep/wake
+Latest release: **NavaTastic Eclipse V3 (4.3.2, 16/08/2026)** — `NAVA V3` tag in `status`/[Boot], sleep/wake
 notices with reset cause, unified 8 low-battery readings (~160 s), remote resets `/nava full_reset`
 (keeps PKI keys) and `/nava wipe` (total purge, new PKI pair), and **user admin keys persisted**
 (survive factory/full reset; "slot 0 = the user's previous state" rule; `keys_ls`/`keys_clear`;
-bench 7/7) — pending release publication.
+bench 7/7).
 
 **Download the binaries from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
 (right-hand panel — *Assets*): 12 UF2 + 12 OTA + 2 PDF manuals. NIMH = same binaries as LIPO
