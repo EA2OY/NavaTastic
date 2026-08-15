@@ -546,18 +546,14 @@ void setup()
 #else
         const uint8_t lowBattReadingsNeeded = 5;
 #endif
-        // V2: al venir de sueno por bateria (wasInSleep), el umbral de re-sueno es el
-        // despertar real del LPCOMP (no el de arranque), para distinguir:
-        //   V < corte OCV            -> re-sueno silencioso (proteccion brownout)
-        //   corte OCV <= V < LPCOMP  -> [Vivo] al canal Navadmin + re-sueno tras el envio
-        //   V >= LPCOMP              -> boot normal ([Listo] lo manda NavaCLI)
+        // V2.4 (15/08): al venir de sueno por bateria (wasInSleep), el gate es el corte OCV
+        // (no el LPCOMP): si V >= corte el nodo puede OPERAR con normalidad. Tres bandas:
+        //   V < corte - 100 mV       -> re-sueno silencioso (proteccion brownout)
+        //   [corte-100, corte)       -> [Vivo] al canal Navadmin + re-sueno tras el envio
+        //   V >= corte               -> boot normal ([Listo] lo manda NavaCLI)
+        // El despertar por LPCOMP (~3.71V) siempre cae en la banda normal (V >= corte).
         bool navaFromSleep = NavaCLIModule::peekWasInSleep();
         uint16_t lowGateMv = lowBattSleepMv;
-#ifdef NRF52840_XXAA
-        if (navaFromSleep) {
-            lowGateMv = navaGetLpcompWakeMv();
-        }
-#endif
         auto isLowNow = [&]() -> bool {
             // V2.2: force=true -> lecturas ADC REALES consecutivas (sin el throttle
             // de 5s de Power.cpp), para que la decision y el valor reportado en
@@ -581,10 +577,10 @@ void setup()
         if (consecutiveLow >= lowBattReadingsNeeded) {
             NavaCLIModule::navaSetWasInSleep(true);
             if (NavaCLIModule::peekSleepMsgsEnabled() && navaFromSleep &&
-                lastLowMv >= power->OCV[NUM_OCV_POINTS - 1]) {
-                // V2: reset externo (p. ej. ATtiny13A) con bateria en rango seguro:
-                // permitir el boot para mandar [Vivo] y volver a dormir tras el envio
-                LOG_WARN("Battery %d mV in [OCV cutoff, LPCOMP wake): boot for [Vivo] message, re-sleep after TX",
+                lastLowMv >= (int)lowBattSleepMv - 100) {
+                // V2.4: reset externo (p. ej. ATtiny13A) con bateria en la banda de aviso
+                // [corte-100, corte): permitir el boot para mandar [Vivo] y re-dormir.
+                LOG_WARN("Battery %d mV in [cutoff-100, cutoff): boot for [Vivo] message, re-sleep after TX",
                          lastLowMv);
                 NavaCLIModule::navaSetVivoPending();
             } else {

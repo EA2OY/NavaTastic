@@ -295,23 +295,39 @@ void NavaCLIModule::saveResiliencePrefs() {
 }
 
 // --- V2: mensajes de sueño/vivo/listo (canal Navadmin) ---
+// V2.4: nombre legible de la causa del ultimo reset (RESETREAS del nRF52) para [Boot]
+static const char *navaricoResetReasonName(uint32_t reason)
+{
+    if (reason & (1UL << 1)) return "WDT";        // watchdog del firmware
+    if (reason & (1UL << 3)) return "LOCKUP";     // CPU lockup
+    if (reason & (1UL << 0)) return "RESETPIN";   // pin de reset externo (ATtiny/boton)
+    if (reason & (1UL << 2)) return "SOFT";       // soft reset (reboot/storm/flash)
+    if (reason & (1UL << 17)) return "LPCOMP";    // wake de System OFF por LPCOMP
+    if (reason & (1UL << 16)) return "OFF";       // wake de System OFF (GPIO)
+    if (reason & (1UL << 20)) return "VBUS";      // deteccion de USB
+    return "?";
+}
+
 std::string NavaCLIModule::buildEnergyLine()
 {
     char buf[96];
     int adcMv = powerStatus ? powerStatus->getBatteryVoltageMv() : 0;
     std::string line = "ADC " + std::to_string(adcMv) + " mV";
-#if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
-    if (environmentTelemetryModule) {
-        meshtastic_Telemetry extTelem = meshtastic_Telemetry_init_zero;
-        if (environmentTelemetryModule->getEnvironmentTelemetry(&extTelem)) {
-            if (extTelem.which_variant == meshtastic_Telemetry_environment_metrics_tag) {
-                auto &m = extTelem.variant.environment_metrics;
-                if (m.voltage != 0.0f) {
-                    snprintf(buf, sizeof(buf), " | INA %.2f V %+.0f mA %s", m.voltage, m.current,
-                             m.current >= 0.0f ? "CARGANDO" : "DESCARGANDO");
-                    line += buf;
-                }
-            }
+    // V2.6: solo ADC + temperatura del CHIP (sensor interno del nRF52): los sensores
+    // I2C se inicializan mas tarde y no estan disponibles en estos momentos. Reintento
+    // con breve espera: a los pocos segundos del boot el SoftDevice puede rechazar la
+    // primera lectura (BUSY).
+#ifdef NRF52840_XXAA
+    {
+        int32_t tempRaw = 0;
+        uint32_t rc = sd_temp_get(&tempRaw);
+        if (rc != NRF_SUCCESS) {
+            delay(100);
+            rc = sd_temp_get(&tempRaw);
+        }
+        if (rc == NRF_SUCCESS) {
+            snprintf(buf, sizeof(buf), " | CPU %.1f C", tempRaw / 4.0f);
+            line += buf;
         }
     }
 #endif
@@ -321,13 +337,8 @@ std::string NavaCLIModule::buildEnergyLine()
 bool NavaCLIModule::handleLowBatteryEvent()
 {
     if (!prefs.sleepMsgs || sleepPending) return false;
-    // V2: si el boot viene con [Vivo] pendiente (rango intermedio), el mensaje de
-    // sueno del monitor de bateria sobra: solo programar el re-sueno.
-    if (vivoPending) {
-        sleepPending = true;
-        sleepTime = millis() + 5000;
-        return true;
-    }
+    // V2.6: sin atajos: el monitor ya confirmo las 5 lecturas bajas (~100s operando).
+    // Se anuncia [Sueno] y se duerme TODO (doDeepSleep con la cadena completa, como Eclipse).
     prefs.wasInSleep = 1;
     saveResiliencePrefs();
     char buf[220];
@@ -1417,16 +1428,17 @@ int32_t NavaCLIModule::runOnce()
         firstRunDone = true;
         if (wokeFromSleep || vivoPending) {
             if (vivoPending && prefs.sleepMsgs) {
-                // V2: despertado por reset externo (p. ej. ATtiny13A) con bateria en
-                // rango seguro (>= corte OCV): avisar y volver a dormirse al drenar la cola
+                // V2.6: despertado por reset externo con bateria en la banda [corte-100,
+                // corte): anunciar [Vivo] y SEGUIR OPERANDO con normalidad. El monitor de
+                // bateria de siempre (5 lecturas bajas, ~100s) decidira despues si dormir
+                // ([Sueno]) o seguir: el ADC puede dar lecturas puntuales erroneas en campo
+                // (RF, temperatura) y no se debe dormir sin confirmacion sostenida.
                 prefs.wasInSleep = 1;
                 saveResiliencePrefs();
                 char buf[220];
-                snprintf(buf, sizeof(buf), "[Vivo] %s id%08x | %s | sigo vivo, esperando recuperar carga",
+                snprintf(buf, sizeof(buf), "[Vivo] %s id%08x | %s | sigo vivo, al limite de carga",
                          owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
                 enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
-                sleepPending = true;
-                sleepTime = millis() + 5000;
             } else if (wokeFromSleep && prefs.sleepMsgs) {
                 // V2: despertar real por LPCOMP (solar): bateria ya cargada
                 prefs.wasInSleep = 0;
@@ -1440,6 +1452,29 @@ int32_t NavaCLIModule::runOnce()
                     prefs.wasInSleep = 0;
                     saveResiliencePrefs();
                 }
+            }
+        }
+    }
+
+    // V2.4: aviso de arranque [Boot] DIFERIDO 2 minutos (idea del operador): sirve para
+    // enterarse de reinicios externos/watchdog/brownouts, y el retraso es el anti-bucle:
+    // un nodo en ciclo de resets nunca llega a los 2 min -> no inunda la malla. Solo
+    // para arranques que NO vienen del ciclo de sueno (esos ya avisan con [Listo]/[Vivo]).
+    {
+        static bool bootNoticeSent = false;
+        static uint32_t bootNoticeAt = 0;
+        if (!bootNoticeSent && !wokeFromSleep && !vivoPending && prefs.sleepMsgs) {
+            if (bootNoticeAt == 0) {
+                bootNoticeAt = millis() + 120000;
+            }
+            if ((int32_t)(millis() - bootNoticeAt) >= 0) {
+                bootNoticeSent = true;
+                char buf[220];
+                snprintf(buf, sizeof(buf), "[Boot] %s id%08x | %s | causa: 0x%08X (%s)",
+                         owner.long_name, (unsigned int)nodeDB->getNodeNum(),
+                         buildEnergyLine().c_str(), (unsigned int)rawResetReason,
+                         navaricoResetReasonName(rawResetReason));
+                enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
             }
         }
     }
@@ -1508,12 +1543,14 @@ int32_t NavaCLIModule::runOnce()
         return 1000;
     }
 
-    // V2: sueño por bateria diferido: esperar a que la cola de mensajes drene
-    // (envia [Sueño]/[Vivo] al aire ANTES de apagar la radio).
+    // V2.6: sueño por bateria diferido: esperar a que la cola de mensajes drene
+    // (envia [Sueño]/[Vivo] al aire ANTES de apagar la radio). Se duerme por la
+    // misma puerta que Eclipse (doDeepSleep): preflight + radio->sleep + GPS +
+    // pantalla + System OFF -> apagado COMPLETO (~1 mA), para las 6 placas.
     if (sleepPending && responseQueue.empty() && (int32_t)(millis() - sleepTime) >= 0) {
         LOG_INFO("Entering battery sleep after status message");
         sleepPending = false;
-        cpuDeepSleep(portMAX_DELAY);
+        doDeepSleep(portMAX_DELAY, false, true);
         return 1000;
     }
     if (sleepPending) {

@@ -108,14 +108,17 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 ## 💤 8. Avisos de Sueño/Despertar (v4.3 V2)
 
 El nodo puede anunciar **por el canal Navadmin (slot 1)** su ciclo de batería (ON por defecto;
-NO afecta al comportamiento energético, solo a los avisos). **Verificado en banco 15/08/2026**
-(ciclo completo: [Sueño] 3375 mV → dormido → LPCOMP 3710 mV → [Listo] 3772 mV):
+NO afecta al comportamiento energético, solo a los avisos). Contenido: `ADC X mV | CPU X.X C`
+(solo sensores internos del nRF52 — los sensores I2C no están disponibles en estos momentos).
+**Verificado en banco 15/08/2026** (ciclo completo: [Vivo] → operación ~100s → [Sueño] → dormido
+~1 mA → LPCOMP ~3.7-3.8V → [Listo] → [Boot] a los 2 min):
 
 - **`/nava sleepmsg [on|off]`** — Activa/desactiva los avisos. **Sin argumento**: estado actual. Persiste en `/resilience.bin` (sobrevive a factory reset). Reparado en V2.3 (el gate nunca se activaba por comando).
-- **`[Sueño]`** — Antes de dormir por batería baja: nombre, id, ADC mV (+ INA si presente) y tensión de despertar por LPCOMP.
-- **`[Vivo]`** — Despertado por reset externo (p. ej. ATtiny13A) con batería en rango seguro (**entre el corte OCV y el umbral LPCOMP**): aviso "sigo vivo, esperando recuperar carga" y re-sueño tras el envío.
-- **`[Listo]`** — Despertar real por LPCOMP (solar) con V ≥ umbral LPCOMP: "despierto, cargando, listo para trabajar".
-- Regla de silencio: si la batería está por debajo del corte OCV (3400/3500 mV según env) NO se envía nada — re-sueño directo (protección anti-brownout).
+- **`[Sueño]`** — Antes de dormir por batería baja: nombre, id, ADC + temperatura del chip y tensión de despertar por LPCOMP. Se dispara tras **5 lecturas bajas del monitor (~100s)** — el filtro evita dormirse por lecturas ADC puntuales erróneas (RF/temperatura). Después duerme **TODO** (radio, GPS, pantalla, LED) → ~1 mA.
+- **`[Vivo]`** — Despertado por reset externo (p. ej. ATtiny13A) con batería en la **banda [corte−100 mV, corte)** (E22P: 3400-3500; SX1262: 3300-3400): aviso "sigo vivo, al límite de carga" y el nodo **sigue operando con normalidad** — el monitor decidirá dormir tras sus 5 lecturas si la baja persiste.
+- **`[Listo]`** — Despertar con **V ≥ corte OCV** (por LPCOMP solar o reset externo): "despierto, cargando, listo para trabajar" — el nodo sigue operando con normalidad.
+- **`[Boot]` (V2.4)** — Aviso de arranque **diferido 2 minutos** (anti-bucle: un nodo en ciclo de reinicios nunca llega a enviarlo). Solo en arranques que NO vienen del ciclo de sueño: power-on, reset externo, **watchdog**, brownout, flasheo, `/nava reboot`. Incluye la **causa del reset** (registro RESETREAS: `WDT` = watchdog del firmware, `RESETPIN` = ATtiny/botón, `SOFT` = reboot/storm/flash, `LOCKUP`, `LPCOMP`, `VBUS`). Todos gated por `sleepmsg`.
+- Regla de silencio: si la batería está por debajo de corte−100 mV NO se envía nada — re-sueño directo (protección anti-brownout).
 - **Para recibirlos**: el observador/mando debe tener materializado el canal Navadmin (PSK pública `{0x01}`, slot 1) y estar en la misma frecuencia/parametros LoRa.
 
 ## 🔔 9. Utilidades (SOLO DM PRIVADO CIFRADO)

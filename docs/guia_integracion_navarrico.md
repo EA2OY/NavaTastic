@@ -48,37 +48,49 @@ Documento **2 de 3** del proyecto Navarrico. Esta guía detalla el **paso a paso
 ```cpp
 #if defined(USERPREFS_LOW_BATTERY_LOWPOWER_ENABLED) && USERPREFS_LOW_BATTERY_LOWPOWER_ENABLED
     {
-#ifdef USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV
         const uint16_t lowBattSleepMv = USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV;
-#else
-        const uint16_t lowBattSleepMv = 3500;
-#endif
-#ifdef USERPREFS_LOW_BATTERY_READINGS_COUNT
         const uint8_t lowBattReadingsNeeded = USERPREFS_LOW_BATTERY_READINGS_COUNT;
-#else
-        const uint8_t lowBattReadingsNeeded = 5;
-#endif
+        // V2.6: al venir de sueno (wasInSleep), el gate es el CORTE OCV (no el LPCOMP).
+        // Bandas: V < corte-100 -> silencio + re-sueno (brownout);
+        //         [corte-100, corte) -> [Vivo] + el nodo SIGUE OPERANDO;
+        //         V >= corte -> boot normal ([Listo]).
+        bool navaFromSleep = NavaCLIModule::peekWasInSleep();
         auto isLowNow = [&]() -> bool {
-            power->readPowerStatus();
+            power->readPowerStatus(true); // force: lecturas ADC reales (el contador de baja NO cuenta con force)
             int mv = powerStatus->getBatteryVoltageMv();
             return powerStatus->getHasBattery() && !powerStatus->getHasUSB() && mv > 0 && mv < lowBattSleepMv;
         };
+        delay(500); // asentamiento post-reset
         uint8_t consecutiveLow = 0;
+        int lastLowMv = 0;
         for (uint8_t i = 0; i < lowBattReadingsNeeded; i++) {
             if (!isLowNow()) break;
+            lastLowMv = powerStatus->getBatteryVoltageMv();
             consecutiveLow++;
             delay(200);
         }
         if (consecutiveLow >= lowBattReadingsNeeded) {
-            LOG_WARN("Battery below %u mV for %u consecutive readings: entering System OFF "
-                      "(radio/BT/screen never powered this boot) - hardware LPCOMP wakes the MCU "
-                      "(full reset) once VBAT crosses BATTERY_LPCOMP_THRESHOLD, see variant.h",
-                      lowBattSleepMv, lowBattReadingsNeeded);
-            cpuDeepSleep(portMAX_DELAY);
+            NavaCLIModule::navaSetWasInSleep(true);
+            if (NavaCLIModule::peekSleepMsgsEnabled() && navaFromSleep &&
+                lastLowMv >= (int)lowBattSleepMv - 100) {
+                // banda [corte-100, corte): anunciar [Vivo] y OPERAR (~100s); el
+                // monitor runtime decidira dormir si la baja persiste
+                NavaCLIModule::navaSetVivoPending();
+            } else {
+                LOG_WARN("Battery below %u mV ... entering System OFF", lowBattSleepMv);
+                cpuDeepSleep(portMAX_DELAY); // re-sueno silencioso (radio nunca encendida)
+            }
         }
     }
 #endif
 ```
+
+**V2.6 (claves del comportamiento, verificado en banco)**: el despertar con V ≥ corte opera normal
+([Listo]); con V en [corte−100, corte) anuncia [Vivo] y **sigue operando** — el monitor runtime
+(`Power.cpp`, contador `low_voltage_counter` SOLO con `!force`, 5 lecturas a ~20s ≈ 100s) decide
+dormir ([Sueño] → `doDeepSleep`). `readPowerStatus(force=true)` NO incrementa el contador (si lo
+hiciera, el pre-check lo pre-cargaría y el nodo dormiría ~20s tras arrancar con batería baja,
+saltándose el filtro anti-falsos-positivos).
 
 ## B. Configuración de Sueño y Despertar LPCOMP (main-nrf52.cpp)
 **Archivo**: `src/platform/nrf52/main-nrf52.cpp` — En `cpuDeepSleep()`, sustituir el bloque `#ifdef BATTERY_LPCOMP_INPUT`.

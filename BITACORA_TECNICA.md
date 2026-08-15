@@ -312,6 +312,45 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   la entrada stale del test node en el observador (clave nueva) + ejecutar el test del
   sueño observando por COM9.
 
+### V2.6 (15/08): ciclo sueño/despertar DEFINITIVO — verificado en banco ("EUREKA" del operador)
+- **Correcciones sobre V2.4** (el diseño intermedio dormía mal): (1) [Vivo] ya NO re-duerme:
+  anuncia y el nodo OPERA; el monitor runtime decide (5 lecturas reales ~100s). (2) Fix
+  contador pre-cargado: `readPowerStatus(true)` (force, pre-check ×5) incrementaba
+  `low_voltage_counter` → el primer tick (~20s) dormía el nodo recién arrancado con batería
+  baja. Fix: el contador solo cuenta con `!force` (Power.cpp). (3) Dormir TODO por
+  `doDeepSleep(portMAX_DELAY, false, true)` (preflight + RadioInterface::sleep + GPS +
+  pantalla) — el `cpuDeepSleep` directo dejaba las SX1262 consumiendo ~5-10 mA dormidas.
+  (4) LED apagado antes de System OFF en cpuDeepSleep (main-nrf52.cpp, tras estabilización;
+  ~10 mA de LED enclavado). (5) Avisos con solo ADC + CPU (chip, reintento si BUSY; INA/I2C
+  fuera — no disponible en esos momentos). Verificado: [Vivo] → 100s → [Sueño] → ~1 mA →
+  LPCOMP 3.73V → [Listo] → [Boot] 2 min. **= comportamiento Eclipse V1 + avisos encima.**
+- **L19** lecturas forzadas NO pre-cargan el contador de baja. **L20** dormir por
+  `doDeepSleep`, `cpuDeepSleep` directo solo en el pre-check (radio nunca inicializada).
+  **L21** GPIO enclavados en System OFF: apagar LED justo antes de `sd_power_system_off`.
+- **L22** el nodo NO ecoa sus propios avisos a la API local (sendToMesh sin ccToPhone):
+  verificar SIEMPRE con observador externo. **L23** factory reset devuelve SFN 869.618
+  (útil tras auditorías con frecuencia privada). Backups `.bak-20260815-0301/0315/0352/
+  0418/0517`. Docs: cerebro 20ª parte, subnota 04 (comportamiento actual + referencia
+  histórica Eclipse), transfer_context (ronda V2.6 + L19-L21), guia_integracion (bloque A
+  actualizado), manuales + PDFs.
+
+### V2.4 (15/08): rediseño [Vivo] + [Boot] diferido + temp chip
+- **[Vivo] rediseñado**: el gate al despertar de sueño pasa de LPCOMP a **corte OCV**:
+  V < corte−100 → silencio+re-sueño; [corte−100, corte) → [Vivo]+re-sueño (E22P 3400-3500 /
+  SX1262 3300-3400); V ≥ corte → boot normal → [Listo] y opera. El LPCOMP solo decide el
+  despertar FÍSICO (~3.71V), no la banda.
+- **[Boot] diferido 2 min (idea del operador)**: arranques sin wasInSleep → aviso a los 2 min
+  con causa RESETREAS decodificada (WDT/RESETPIN/SOFT/LOCKUP/LPCOMP/VBUS). Anti-bucle: un
+  ciclo de resets nunca alcanza los 2 min → no inunda. Verificado: operador lo recibió por
+  Navadmin en su nodo personal (869.618 tras factory reset que devolvió SFN por defecto).
+- **Temp de chip** en los 3 avisos + [Boot] (sd_temp_get; I2C no disponible en esos momentos).
+- **L16 corregida**: el eco de TX propios NO aplica a envíos del NavaCLI (sendToMesh sin
+  ccToPhone) → verificar avisos SIEMPRE con observador externo, no con el emisor.
+- **L18**: banco con USB → TX 1 dBm (regla operador; los picos del E22P corrompen frames).
+  El factory reset devuelve la frecuencia por defecto SFNarrow 869.618 (util para volver a la
+  red nacional tras auditorías con frecuencia privada).
+- Backups código `.bak-20260815-0301/0315`; docs `.bak-20260815-0335`.
+
 ### F16a/f — FRENTES A y B (15/08, sesión de banco): CAUSA RAÍZ del FRENTE A encontrada; fix B aplicado
 - **CIERRE (15/08, tras verificación en banco)**: retirada TODA la instrumentación TEMP F15
   (0 restos en src, verificado por grep): logs F15DBG (LR/AD/SR/XX), watchdog 1s, HB-60s canal 1,

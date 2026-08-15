@@ -574,6 +574,15 @@ void cpuDeepSleep(uint32_t msecToWake)
         delay(10);
 #endif
 
+#ifdef PIN_LED1
+        // V2.4: apagar el LED de estado justo antes de System OFF: los GPIO quedan
+        // enclavados y un LED encendido consume ~10 mA en sueno profundo (el nodo
+        // dormido debe quedar en ~1 mA). Se escribe AL FINAL (tras la estabilizacion)
+        // para que el hilo del latido no lo vuelva a encender antes de apagar.
+        pinMode(PIN_LED1, OUTPUT);
+        digitalWrite(PIN_LED1, LED_STATE_ON ? LOW : HIGH);
+#endif
+
         auto ok = sd_power_system_off();
         if (ok != NRF_SUCCESS) {
             LOG_ERROR("FIXME: Ignoring soft device (EasyDMA pending?) and forcing system-off!");

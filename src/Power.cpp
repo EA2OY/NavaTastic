@@ -1011,8 +1011,13 @@ void Power::readPowerStatus(bool force)
     // have more than 10 low readings in a row. NOTE: min LiIon/LiPo voltage
     // is 2.0 to 2.5V, current OCV min is set to 3100 that is large enough.
     //
+    // V2.6: el contador SOLO cuenta en lecturas normales del monitor (force=false).
+    // Las lecturas forzadas del pre-check de arranque (force=true, 5 seguidas en
+    // ~1.5s) no deben pre-cargar el contador: el nodo despertado con bateria baja
+    // debe OPERAR el ciclo completo de 5 lecturas (~100s) antes de dormir, como en
+    // Eclipse (el ADC puede dar lecturas puntuales erroneas en campo).
 
-    if (batteryLevel && powerStatus2.getHasBattery() && !powerStatus2.getHasUSB()) {
+    if (!force && batteryLevel && powerStatus2.getHasBattery() && !powerStatus2.getHasUSB()) {
         if (batteryLevel->getBattVoltage() < OCV[NUM_OCV_POINTS - 1]) {
             low_voltage_counter++;
 #if defined(PROMICRO_DIY_TCXO) || defined(ARDUINO_NRF52_PROMICRO_DIY_TCXO)

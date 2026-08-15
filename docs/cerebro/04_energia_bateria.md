@@ -7,6 +7,49 @@
 > SEEED_XIAO_NRF52840_KIT, HELTEC_T114) los define el env. Las químicas/divisores de la
 > tabla **siguen vigentes**.
 
+## COMPORTAMIENTO ACTUAL DEL CICLO SUEÑO/DESPERTAR (V2.6, verificado en banco 15/08)
+
+> Esta sección manda sobre el ciclo completo. Reemplaza el diseño V2.4 intermedio.
+
+**Los 4 avisos automáticos** (canal Navadmin slot 1, gate `/nava sleepmsg`, contenido =
+`ADC X mV | CPU X.X C` — solo sensores internos, nada de I2C):
+
+| Aviso | Cuándo | Comportamiento |
+|---|---|---|
+| `[Sueño]` | Monitor runtime confirma V < corte (5 lecturas reales, ~100s) | Avisa + duerme **TODO** (`doDeepSleep`: preflight + radio->sleep + GPS + pantalla + System OFF) → **~1 mA** |
+| `[Vivo]` | Despertar por reset externo con V en [corte−100, corte) | Avisa y **SIGUE OPERANDO** (~100s) — el monitor decide después |
+| `[Listo]` | Despertar con V ≥ corte (LPCOMP o reset) | Opera con normalidad |
+| `[Boot]` | Cualquier arranque NO venido del ciclo de sueño, a los **2 min de uptime** | Aviso con causa del reset (RESETREAS: WDT/RESETPIN/SOFT/LOCKUP/LPCOMP/VBUS); el retraso es el anti-bucle |
+
+**Bandas del pre-check al despertar de sueño** (gate = corte OCV, no LPCOMP):
+`V < corte−100` → silencio + re-sueño (brownout) · `[corte−100, corte)` → [Vivo] ·
+`V ≥ corte` → boot normal → [Listo]. El LPCOMP (~3.71V teórico, ~3.7-3.8V real según
+hardware) solo decide el despertar FÍSICO.
+
+**Anti-falsos positivos (el porqué de las 5 lecturas)**: el contador `low_voltage_counter`
+solo cuenta en lecturas NORMALES del monitor (Power cada 20s → 5 lecturas ≈ **100s**). Las
+lecturas FORZADAS del pre-check (`readPowerStatus(true)`, force) **no incrementan el
+contador** (fix V2.6: antes pre-cargaban el contador y el nodo dormía ~20s tras arrancar
+con batería baja, saltándose el filtro). En campo, RF/temperatura/transitorios pueden dar
+lecturas ADC puntuales erróneas: una lectura buena resetea el contador.
+
+**Dormir TODO**: el sueño diferido de NavaCLI ejecuta `doDeepSleep(portMAX_DELAY, false,
+true)` (la misma puerta que Eclipse V1), NO `cpuDeepSleep` directo (que se saltaba
+`notifyDeepSleep` → `RadioInterface::sleep()`: las placas SX1262 sin corte de alimentación
+de radio se quedaban consumiendo ~5-10 mA dormidas). `cpuDeepSleep` apaga además el **LED
+de estado** antes de System OFF (V2.6: un LED enclavado consumía ~10 mA).
+
+## REFERENCIA HISTÓRICA — Eclipse V1 (12/08) vs V2
+
+- **Eclipse V1 (lo que funcionaba)**: sin mensajes de aviso. Batería baja → PowerFSM →
+  `doDeepSleep` → apagado completo (~1 mA). El pre-check llamaba `readPowerStatus()` sin
+  force, que SÍ pre-cargaba el contador (quirk); el dormir era el correcto, el ritmo no
+  (dormía a los ~20s tras un arranque con batería baja, en silencio).
+- **V2.4 intermedio (descartado)**: [Vivo] con re-sueño inmediato (~8s) y `cpuDeepSleep`
+  directo → dormía "enseguida", LED enclavado, y las SX1262 no apagaban la radio.
+- **V2.6 (actual)**: [Vivo] opera → monitor 100s → [Sueño] → `doDeepSleep` completo +
+  LED off → ~1 mA. = comportamiento de Eclipse + los avisos encima.
+
 ## PORQUÉ DE TODA LA RESILIENCIA ENERGÉTICA (brownout de ascenso solar)
 **Problema documentado (Nordic nRF52 y también ESP32)**: si la batería se sobredescarga el nodo se apaga; al día siguiente el regulador solar empieza a ascender su tensión y se genera un estado **inestable en el MCU que lo deja bloqueado**: no responde ni al botón de reset, solo lo saca un corte limpio de corriente. Es el escenario que motiva todas las medidas de NavTastic:
 - `waitUntilPowerLevelSafe()` (main.cpp:285) + `powerHAL_isPowerLevelSafe()` (main-nrf52.cpp:100): **espera en bucle** hasta que VDD ≥ umbral + histéresis (default 2.7 V + 0.2 V; T114 sin override usa el default) **antes** de inicializar radio/flash/softdevice → evita bootear en el rango inestable.

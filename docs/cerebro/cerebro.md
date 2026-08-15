@@ -277,6 +277,35 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   no existen en ningún fichero del repo** (verificado por grep, 0 restos). Para GitHub queda:
   repo nuevo con un solo commit del árbol saneado (el historial actual contiene claves de
   commits del 14/08). Backups `.bak-20260815-0200` (25 ficheros).
+- **2026-08-15 (19ª parte) — V2.4: rediseño [Vivo] + [Boot] diferido + temp de chip (verificado en banco)**:
+  (1) **Bandas de despertar rediseñadas** (el gate ya no es LPCOMP sino el corte OCV): al venir de
+  sueño: V < corte−100 → silencio+re-sueño; [corte−100, corte) → **[Vivo]** + re-sueño (E22P
+  3400-3500 / SX1262 3300-3400); V ≥ corte → boot normal → **[Listo]** y el nodo OPERA. (2)
+  **Nuevo aviso [Boot] diferido 2 min** (idea del operador): todo arranque que NO venga del ciclo
+  de sueño manda un aviso con **causa del reset** (RESETREAS: WDT/RESETPIN/SOFT/LOCKUP/LPCOMP/VBUS)
+  — el retraso es el anti-bucle (un nodo en ciclo de resets nunca llega a 2 min). **Verificado en
+  banco**: el operador recibió el [Boot] en su nodo personal por Navadmin (869.618). (3) Los 3
+  mensajes + [Boot] incluyen **temperatura del chip** (sd_temp_get del nRF52; los sensores I2C no
+  están disponibles en esos momentos). (4) TX en banco con USB = 1 dBm (regla del operador, los
+  picos del E22P corrompen frames). (5) **Corrección L16**: el eco de TX propios en la API local
+  NO aplica a los envíos del NavaCLI (sendToMesh sin ccToPhone) — para verificar avisos hay que
+  escuchar con un nodo observador, no con el emisor. Pendiente: test de la banda [Vivo]
+  (fuente 3.45V + reset) → 12 envs → distribuir → commit.
+- **2026-08-15 (20ª parte) — V2.6: ciclo sueño/despertar definitivo (verificado en banco, EUREKA del
+  operador)**: correcciones sobre el V2.4: (1) **[Vivo] ya NO re-duerme**: anuncia y el nodo OPERA;
+  el monitor runtime (5 lecturas reales a 20s ≈ **100s**) decide dormir — restaurado el filtro
+  anti-falsos positivos de Eclipse (RF/temperatura/transitorios pueden dar lecturas ADC puntuales
+  erróneas). (2) **Fix contador pre-cargado**: el pre-check llamaba `readPowerStatus(true)` ×5 y
+  pre-cargaba `low_voltage_counter` a 5 → el primer tick (~20s) dormía el nodo recién arrancado.
+  Fix: el contador solo cuenta con `!force` (Power.cpp). (3) **Dormir TODO como Eclipse**: el sueño
+  diferido ejecuta `doDeepSleep(portMAX_DELAY, false, true)` (preflight + `RadioInterface::sleep()`
+  + GPS + pantalla) en vez de `cpuDeepSleep` directo — las SX1262 sin corte de radio se quedaban a
+  ~5-10 mA dormidas. (4) **LED apagado antes de System OFF** (main-nrf52.cpp, tras la estabilización):
+  un LED enclavado consumía ~10 mA. (5) **Avisos solo con ADC + CPU** (chip; reintento si BUSY):
+  fuera la INA del contenido (el operador: el I2C no está disponible en esos momentos). Verificado
+  en banco: [Vivo] → opera 100s → [Sueño] → dormido **~1 mA** → LPCOMP ~3.7-3.8V → [Listo]; [Boot]
+  a los 2 min con causa. **Comportamiento = Eclipse V1 + avisos encima** (referencia histórica en
+  subnota 04, sección nueva). Backups `.bak-20260815-0301/0315/0352/0418/0517`.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner
