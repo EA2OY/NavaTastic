@@ -21,6 +21,40 @@ nacional en España, EU_868). Un solo repositorio genera **12 firmwares** distin
 | **Seguridad** | Acreditación admin por PKI persistente tras reboot, auto-recuperación de claves, límite de favoritos huérfanos |
 | **Rol semi-permanente** | `set_role` persiste en `/resilience.bin` y **sobrevive al factory reset** |
 
+## NavaCLI: gestiona todo desde el móvil, sin PC
+
+Con un simple mensaje de texto (DM al repetidor) manejas el nodo completo: **no hace falta
+cable, ni PC, ni abrir la interfaz normal de administración**. Toda la gestión del nodo —
+consultar su estado, ajustar energía, reiniciar o rescatar un nodo — cabe en un mensaje. Y con
+la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes predefinidos.
+
+| Comando | Qué hace | Acceso |
+|---|---|---|
+| `ping` | Latencia, batería, uptime y piso de ruido | Abierto / DM |
+| `status` | Salud del nodo: memoria, favoritos Auto/Manual, energía | Abierto / DM |
+| `env` | Batería, heap, temperatura CPU y sensores I2C | Abierto / DM |
+| `channel` · `peers` · `rxlog` | Uso del espectro · vecinos directos · últimos paquetes | Abierto / DM |
+| `afc` · `noise` · `reset_reason` | Deriva del TCXO · piso de ruido · causa del último reinicio | Abierto / DM |
+| `bat` · `power` | Química, voltaje, % OCV · métricas de energía | Abierto / DM |
+| `route !ID` · `trace !ID` | Ruta y SNR hacia un nodo · trazado de ruta | Abierto / DM |
+| `set_chem [lipo/nimh/sodium/lifepo4]` | Cambia la química y ajusta corte/despertar | DM |
+| `set_vbat [mV]` · `set_vwake [1-5]` | Corte de apagado · nivel de despertar solar | DM |
+| `set_txpower [dBm]` · `set_hops [1-7]` | Potencia de transmisión · límite de saltos | DM |
+| `set_role [client/mute/router]` | Rol **semi-permanente** (sobrevive a factory reset) | DM |
+| `set_name` · `set_mqtt` · `set_tz` · `ble` | Nombre · MQTT · zona horaria · Bluetooth | DM |
+| `txoff` / `txon` | Apagar / encender la transmisión | DM |
+| `sleepmsg [on|off]` | Activa/desactiva los avisos [Sueño]/[Vivo]/[Listo]/[Boot] | DM |
+| `fav add/rm/ls` · `fav auto` | Favoritos (bypass de saltos) y auto-favoriteo | DM |
+| `ign add/rm/ls` | Bloqueo y desbloqueo de nodos | DM |
+| `db_purge` · `db_clear` | Limpieza de la base de nodos | DM |
+| `reboot` · `factory_reset` | Reinicio y reset de fábrica diferidos (el ACK sale antes) | DM |
+| `storm [1-720]` | Hibernación por temporizador (radio apagada) | DM |
+| `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Difundir texto · alarma · posición · baliza · telemetría | DM |
+| `admin_ls` · `help` | Claves admin configuradas · ayuda de comandos | DM / Abierto |
+
+*Canal abierto (Navadmin) = solo consulta; configuración y acciones críticas = DM cifrado PKI.
+Todo comando responde ayuda con `/nava <comando> ?`.*
+
 ## Requisito de hardware: divisor ADC 1M+1M (factor 2.0)
 
 Para que la medición de batería y la protección de bajo voltaje funcionen, las placas
@@ -217,7 +251,41 @@ LPCOMP per board, role per branch, admin keys and Bluetooth per profile (`profil
 **Bluetooth**: nodes broadcast with a **fixed PIN `654321`** (FIXED_PIN mode; the app asks for
 it when pairing). Propia builds use the operator's own PIN.
 
-### Hardware requirement: ADC divider 1M+1M (ratio 2.0)
+### NavaCLI: manage everything from your phone, no PC needed
+
+A single text message (DM to the repeater) drives the whole node: **no cable, no PC, no normal
+admin interface**. Checking status, tuning energy, rebooting or rescuing a node — one message
+does it all. With the **MeshNavarra** app you do it **without typing**: commands are
+predefined messages.
+
+| Command | What it does | Access |
+|---|---|---|
+| `ping` | Latency, battery, uptime, noise floor | Open / DM |
+| `status` | Node health: memory, Auto/Manual favorites, energy | Open / DM |
+| `env` | Battery, heap, CPU temp and I2C sensors | Open / DM |
+| `channel` · `peers` · `rxlog` | Spectrum use · direct neighbors · last packets | Open / DM |
+| `afc` · `noise` · `reset_reason` | TCXO drift · noise floor · last reset cause | Open / DM |
+| `bat` · `power` | Chemistry, voltage, OCV % · power metrics | Open / DM |
+| `route !ID` · `trace !ID` | Path and SNR to a node · traceroute | Open / DM |
+| `set_chem [lipo/nimh/sodium/lifepo4]` | Switch chemistry, adjusts cutoff/wake | DM |
+| `set_vbat [mV]` · `set_vwake [1-5]` | Shutdown cutoff · solar wake level | DM |
+| `set_txpower [dBm]` · `set_hops [1-7]` | TX power · hop limit | DM |
+| `set_role [client/mute/router]` | **Semi-permanent** role (survives factory reset) | DM |
+| `set_name` · `set_mqtt` · `set_tz` · `ble` | Name · MQTT · timezone · Bluetooth | DM |
+| `txoff` / `txon` | Disable / enable transmission | DM |
+| `sleepmsg [on|off]` | Enable/disable the [Sueno]/[Vivo]/[Listo]/[Boot] notices | DM |
+| `fav add/rm/ls` · `fav auto` | Favorites (hop bypass) and auto-favoriting | DM |
+| `ign add/rm/ls` | Block / unblock nodes | DM |
+| `db_purge` · `db_clear` | Node database cleanup | DM |
+| `reboot` · `factory_reset` | Deferred reboot and factory reset (ACK first) | DM |
+| `storm [1-720]` | Timed hibernation (radio off) | DM |
+| `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Broadcast text · alarm · position · beacon · telemetry | DM |
+| `admin_ls` · `help` | Configured admin keys · command help | DM / Open |
+
+*Open channel (Navadmin) = read-only queries; configuration and critical actions = PKI-encrypted
+DM. Every command answers help with `/nava <command> ?`.*
+
+## Hardware requirement: ADC divider 1M+1M (ratio 2.0)
 
 For battery measurement and low-voltage protection to work, **NRF52 boards
 (Promicro/Faketec/Albatastic/Xiaowa)** must measure the battery through a divider made of
