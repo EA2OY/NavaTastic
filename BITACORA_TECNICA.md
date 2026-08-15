@@ -763,3 +763,24 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   claves tras full_reset) + verificar que full_reset SIGUE reseteando semi-persistentes
   (p. ej. `set_role client` antes → tras full_reset vuelve al rol del perfil).
 - Backups: `.bak-20260815-2335`. Build Faketec SUCCESS (UF2 MD5 79842458471A82629C964ECDCDAE21CE).
+
+### F20 CIERRE (16/08) — BANCO 7/7 PASS + pasada completa
+- **Banco (operador, Faketec con el fix de full_reset): 7/7 PASS**: (2a) full_reset conserva las
+  claves del usuario (S0=propia desplaza a la del proyecto, S1/S2 correctas), DM OK sin
+  re-acreditar, Master Node → NO AUTORIZADO (desautorización persistente, sin ventana de
+  secuestro) · semi-persistentes resetean (rol client→ROUTER, sleepmsg off→ON) · re-autorización
+  (slot 0=proyecto → S0 se limpia → tras reset slot 0=proyecto) · factory_reset conserva claves
+  (re-aprendizaje PKI esperado, L11) · wipe purga total (keys_ls vacío, solo proyecto, DM falla
+  hasta re-aprender) · keys_clear vacía la persistencia sin tocar config/química/rol (tras
+  full_reset las claves NO vuelven) · regresión (status NAVA V3, help con keys_ls/keys_clear,
+  canal 1 → ERR SOLO DM SEGURO).
+- **L33 — los comandos que reescriben /resilience.bin deben decidir QUÉ campos purgan**: el
+  propósito del comando define la política de campos — full_reset = defaults de perfil
+  conservando claves admin (F20); keys_clear = cero SOLO los 3 campos de claves (conserva
+  química/vbat/vwake/rol); wipe = borrar el fichero entero (purga total). Una implementación
+  que borre el fichero entero "para resetear los semi-persistentes" rompe por construcción
+  cualquier campo que un feature posterior decida persistir ahí (le pasó a full_reset con F20).
+- **12/12 envs SUCCESS** (lotes de envs distintos) + `distribuir.ps1 -Todo -V2` (32+32 ficheros)
+  + docs completas (cerebro 33ª, BITACORA, PLAN, transfer_context, guia_integracion, subnotas
+  02/03/05, manuales ES+EN con keys_ls/keys_clear/regla de claves/merge, README ES+EN, Guia) +
+  PDFs regenerados. Backups docs `.bak-20260816-0100`.

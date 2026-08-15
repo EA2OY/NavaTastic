@@ -432,6 +432,26 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   para no re-derivar todo. Estado: V2.6 verificada, 4/6 placas verificadas (Promicro, Faketec,
   Xiao×2; pendientes Seed y T114), GitHub v2.6.1 publicado. Pendientes de implementar: F18,
   Bloque R (R1 → R2), F22; anotados: F16b/d/e, F17.
+- **2026-08-16 (33ª parte) — F20 (FASE R2) COMPLETADA Y VERIFICADA EN BANCO 7/7 (V3)**:
+  **F20** = claves admin PÚBLICAS del usuario persistidas en `/resilience.bin` para que
+  sobrevivan a los resets de fábrica (hoy se perdían, L10). Struct `ResiliencePrefs` 84→180 B
+  (`keySlot1/2/0Own`, marcador "NAV3" `0x4E415633`); migración legacy con adopción (dedupe
+  contra claves del proyecto vía macros, `#ifdef` por clave); restauración en el primer tick
+  (DESPUÉS de NodeDB::init) con **regla final enmendada "slot 0 = estado previo del usuario"**
+  (`keySlot0Own` vuelve al slot 0 desplazando la del proyecto; si no existe, queda la del
+  proyecto); sincronización merge desde `AdminModule::handleSetConfig` (vaciar en la app NO
+  purga; purgar = keys_clear/wipe); comandos `/nava keys_ls` + `/nava keys_clear` (ACK
+  diferido, sin reboot). **Hallazgo de banco H1**: el full_reset de R1 borraba el fichero
+  entero (mataba las claves) → fix `navaFullResetKeepKeys()` (conserva SOLO las claves y
+  resetea el resto a defaults de perfil). **Banco 7/7 PASS (Faketec)**: full_reset conserva
+  claves (S0=propia desplaza proyecto, DM OK sin re-acreditar, Master Node NO AUTORIZADO —
+  sin ventana de secuestro) + semi-persistentes resetean (rol client→ROUTER, sleepmsg off→ON)
+  + re-autorización (S0=proyecto limpia la override) + factory_reset conserva claves (PKI
+  reaprende, L11) + wipe purga total + keys_clear vacía la persistencia sin tocar config/
+  química/rol (tras full_reset las claves NO vuelven) + regresión (status NAVA V3, help,
+  canal 1 → SOLO DM SEGURO). **12/12 envs SUCCESS + distribuir -Todo -V2** + docs completas
+  (manuales ES+EN con regla de claves y merge, transfer_context, guia_integracion, subnotas
+  02/03/05, BITACORA, PLAN, README) + PDFs. Detalle: BITACORA "F20" + "F20 H1".
 - **2026-08-15 (32ª parte) — SESIÓN DE IMPLEMENTACIÓN: F18 + BLOQUE R fase R1 + F22 (V3)**:
   FASE 1 validada por el operador (plan en lenguaje fácil + 5 respuestas del agente anterior).
   **F18**: contador de baja unificado a **8 lecturas (~160s)** para las 6 placas — 13 jsonc

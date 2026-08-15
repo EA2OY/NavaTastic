@@ -262,6 +262,23 @@ bool TransmitHistory::saveToDisk()
 ## I. Claves de Administrador Dinámicas (NodeDB.cpp)
 **Archivo**: `src/mesh/NodeDB.cpp` — Helper `loadDefaultAdminKeys(meshtastic_Config_SecurityConfig &security)` que lee `USERPREFS_USE_ADMIN_KEY_0/1/2` (inyectadas desde `userPrefs.jsonc` en compilación) y se llama en `clear()` y `loadFromDisk()` cuando la suma de la key 0 es 0. Ver el código canónico del repo.
 
+## I.2 Claves admin persistidas — F20 (NavaCLIModule + AdminModule, V3)
+**Archivos**: `src/modules/NavaCLIModule.h/.cpp` + `src/modules/AdminModule.cpp` — las claves admin
+PÚBLICAS del usuario sobreviven a los resets de fábrica guardadas en `/resilience.bin` (campos
+`keySlot1/keySlot2/keySlot0Own` en `ResiliencePrefs`, marcador "NAV3" `0x4E415633`):
+- **Sincronización**: gancho en `AdminModule::handleSetConfig` caso security → `navaCLIModule->
+  syncAdminKeysFromConfig()` (merge: slot entrante no vacío se persiste; vacío nunca borra;
+  slot 0 = proyecto limpia la override). Nunca persistir las claves del proyecto como de
+  usuario (dedupe con `#ifdef` por `USERPREFS_USE_ADMIN_KEY_0/1/2`).
+- **Restauración**: primer tick de `runOnce` (DESPUÉS de `NodeDB::init`): `keySlot0Own` → slot 0
+  (regla "slot 0 = estado previo del usuario"); `keySlot1/2` → slots vacíos; recomputa
+  `admin_key_count`; `saveToDisk(SEGMENT_CONFIG)` SOLO si cambió.
+- **Migración/adopción**: fichero legacy (84 B) → campos de claves a cero + adopción única de
+  las claves de usuario ya en la config.
+- **Purga**: `/nava keys_clear` (cero SOLO los 3 campos, ACK diferido, sin reboot) o `wipe`.
+  `full_reset` usa `navaFullResetKeepKeys()` (conserva SOLO las claves, resto a defaults de
+  perfil — NO borrar el fichero entero; L33).
+
 ## J. Gestión de Alimentación de la Radio E22P (main-nrf52.cpp)
 **Archivo**: `src/platform/nrf52/main-nrf52.cpp` — SOLO en variantes con pin de alimentación (Promicro fix y Xiao E22P). El bloque va envuelto en `#ifdef RADIO_POWER_ENABLE_PIN`:
 - En `nrf52Setup()`: `RADIO_POWER_ENABLE_PIN = HIGH`.

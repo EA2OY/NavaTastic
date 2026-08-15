@@ -161,8 +161,9 @@ Todo el código Navarrico está marcado con comentarios `NAVARICO:`.
 | src/mesh/Channels.cpp | TX base 8 (E22P) / 22 (SX1262) | NAVARICO_RADIO_* |
 | src/mesh/NodeDB.cpp | Fallback rol CLIENT (R1) vs ROUTER (R2) | NAVARICO_RAMA_1 |
 | src/Power.cpp | F18/V3: contador de baja contra `USERPREFS_LOW_BATTERY_READINGS_COUNT` (fallback 8; antes `#ifdef` `>4`/`>10`) | — (perfil) |
-| src/modules/NavaCLIModule.h | Campo `role` en ResiliencePrefs + flags `fullResetPending`/`wipePending` + `NAVATASTIC_BUILD "V3"` (bump manual por release, F22) | NAVARICO_RAMA_1 |
-| src/modules/NavaCLIModule.cpp | set_txpower 0-12/0-22 + rol semi-permanente (4 bloques) + V3: `/nava full_reset` (factoryReset(false)+remove resilience.bin) y `/nava wipe` (factoryReset(true)+remove) + etiqueta en `status`/[Boot] | NAVARICO_RADIO_* + NAVARICO_RAMA_1 |
+| src/modules/NavaCLIModule.h | Campo `role` en ResiliencePrefs + flags `fullResetPending`/`wipePending` + `NAVATASTIC_BUILD "V3"` (bump manual por release, F22) + F20: `keySlot1/2/0Own` + `NAVS_RESILIENCE_VERSION` | NAVARICO_RAMA_1 |
+| src/modules/NavaCLIModule.cpp | set_txpower 0-12/0-22 + rol semi-permanente (4 bloques) + V3: `/nava full_reset` (factoryReset(false)+`navaFullResetKeepKeys`) y `/nava wipe` (factoryReset(true)+remove) + etiqueta en `status`/[Boot] + F20: persistencia/restauración de claves admin (`keys_ls`/`keys_clear`) | NAVARICO_RADIO_* + NAVARICO_RAMA_1 |
+| src/modules/AdminModule.cpp | F20: gancho `syncAdminKeysFromConfig()` en `handleSetConfig` (caso security, merge) | — |
 | bin/platformio-custom.py | `custom_meshtastic_prefs`, `custom_meshtastic_app_env`, `NAVARICO_BUILD_EPOCH` | opciones de env / variable de entorno (inertes por defecto) |
 | platformio.ini | default_envs = 12 envs navarrico (sustituye a tbeam) | — |
 | variants/nrf52840/navarrico.ini | Los 12 envs (extienden los upstream) | — |

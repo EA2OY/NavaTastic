@@ -180,17 +180,18 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 - [x] **BLOQUE R — FASE R1 HECHA (V3, 15/08)**: F19 `full_reset` + F21 `wipe` implementados
   (ver arriba). Riesgo por pieza: F19 BAJO · F21 MEDIO (destructivo: par PKI nuevo → peers
   re-aprenden, L11).
-- [ ] **BLOQUE R — FASE R2 (F20) IMPLEMENTADA (V3, 15/08) — pendiente banco + docs**:
-      claves admin PUBLICAS del usuario persistidas en `/resilience.bin` (campos
-      `keySlot1/2/0Own`, marcador NAV3 0x4E415633, struct 180 B). Regla final de slot 0
-      (ENMIENDA del operador): "slot 0 = estado previo del usuario" — `keySlot0Own` se
-      restaura EN el slot 0; si no existe, queda la del proyecto. Auto-recuperación de
-      NodeDB INTACTA (solo configs vacías). Sincronización merge desde
-      AdminModule::handleSetConfig (vaciar en la app NO purga; purgar = keys_clear/wipe).
-      Comandos `/nava keys_ls` + `/nava keys_clear` (ACK diferido, sin reboot).
-      Build Faketec SUCCESS; pendiente: banco del operador → 12 envs → distribuir -Todo
-      -V2 → pasada de docs completa (cerebro 33ª, manuales ES+EN + PDFs, README).
-      Regla: F20 solo existe con F21 (wipe) desplegado — cumple (R1 hecho antes).
+- [x] **BLOQUE R — FASE R2 (F20) CERRADA (16/08, banco 7/7 PASS)**: claves admin PUBLICAS del
+      usuario persistidas en `/resilience.bin` (campos `keySlot1/2/0Own`, marcador NAV3
+      0x4E415633, struct 180 B). Regla final de slot 0 (ENMIENDA del operador): "slot 0 =
+      estado previo del usuario" — `keySlot0Own` se restaura EN el slot 0; si no existe,
+      queda la del proyecto. Auto-recuperación de NodeDB INTACTA (solo configs vacías).
+      Sincronización merge desde AdminModule::handleSetConfig (vaciar en la app NO purga;
+      purgar = keys_clear/wipe). Comandos `/nava keys_ls` + `/nava keys_clear` (ACK
+      diferido, sin reboot). Fix de banco H1: full_reset conserva las claves
+      (`navaFullResetKeepKeys()`). **Banco 7/7 (Faketec)**: conservación, desplazamiento de
+      slot 0 sin ventana de secuestro, re-autorización, semi-persistentes a defaults,
+      purga wipe/keys_clear, regresión OK. **12/12 envs SUCCESS + distribuir -Todo -V2 +
+      docs + PDFs**. BLOQUE R COMPLETO (R1 + R2).
 - [ ] **F22 seguimiento**: bump de `NAVATASTIC_BUILD` en cada release futuro (NavaCLIModule.h)
   + publicación GitHub (release con los 24 binarios + PDFs, flujo de la Guía §9).
 

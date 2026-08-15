@@ -24,6 +24,7 @@ Comandos destructivos/configuración/energía SOLO por DM cifrado (`mp.pki_encry
 
 ## Comandos clave
 `set_chem`, `set_vbat`, `set_vwake`, `bat`, `storm [h]`/`storm test1|test2`, `txoff`, `txon`, `ble`, `rxlog`, `afc`, `reset_reason`, `trace !ID`, `route !ID`, `msg "TXT"`, `bell`, `pos`, `nodeinfo`, `sendtel`, `admin_ls`, `power`, `noise`, `fav auto [on|off]` (12/08). Interrogación universal: `/nava <cmd> ?` / `<cmd> help` (excepto `msg`); comandos sin argumento responden estado + opciones. AVISO en persistentes (set_chem/set_vbat/set_vwake/txoff/ble): rollback SOLO con `nrf erase`. **`set_role` (12/08, Rama 1)**: además de `/prefs` guarda el rol en `/resilience.bin` (semi-permanente, sobrevive a factory reset; ver `11_rama1_plan.md` §2).
+**V3 (15/08)**: `/nava full_reset` (config + semi-persistentes a defaults, conserva par PKI/bonds/claves admin) · `/nava wipe` (purga total, par PKI nuevo) · **F20**: `/nava keys_ls` (claves admin persistidas en base64) y `/nava keys_clear` (cero solo los 3 campos persistidos; ACK diferido, sin reboot). Todos DM-PKI (fuera de la whitelist del canal 1). Regla merge: quitar una clave en la app NO purga lo persistido → purgar con `keys_clear`/`wipe`.
 
 ## Nota fix 2026-08-10
 La rotación de clave en `updateUser` permite re-acreditar un mando tras `db_clear`/`ign rm`: reenvía su NodeInfo con clave correcta y el siguiente DM ya descifra. Manual: `Manual_NavaTastic.md`.

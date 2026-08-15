@@ -56,7 +56,9 @@ la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes 
 | `reboot` · `factory_reset` · `full_reset` · `wipe` | Reinicio y resets diferidos (el ACK sale antes): fábrica (clave PKI nueva) · completo (conserva PKI y bonds) · purga total (par PKI nuevo; los peers re-aprenden) | DM |
 | `storm [1-720]` | Hibernación por temporizador (radio apagada) | DM |
 | `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Difundir texto · alarma · posición · baliza · telemetría | DM |
-| `admin_ls` · `help` | Claves admin configuradas · ayuda de comandos | DM / Abierto |
+| `admin_ls` · `keys_ls` · `keys_clear` · `help` | Claves admin configuradas · claves **persistidas** (sobreviven a resets) · borrar la copia persistida · ayuda | DM / Abierto* |
+
+*`keys_ls`/`keys_clear` = solo DM PKI.
 
 *Canal abierto (Navadmin) = solo consulta; configuración y acciones críticas = DM cifrado PKI.
 Todo comando responde ayuda con `/nava <comando> ?`.*
@@ -135,9 +137,11 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 ## Descargas (firmware compilado)
 
 Última versión: **V2.6.1 (15/08/2026)** — ciclo sueño/despertar definitivo verificado en banco.
-**V3 (código, 15/08)**: etiqueta de build `NAVA V3` en `status`/[Boot], 8 lecturas de batería
-baja (~160s) unificadas para las 6 placas y resets remotos `/nava full_reset` (conserva claves
-PKI) y `/nava wipe` (purga total, par PKI nuevo) — pendiente de publicar como release.
+**V3 (código, 15-16/08)**: etiqueta de build `NAVA V3` en `status`/[Boot], 8 lecturas de batería
+baja (~160s) unificadas para las 6 placas, resets remotos `/nava full_reset` (conserva claves
+PKI) y `/nava wipe` (purga total, par PKI nuevo), y **F20: claves admin del usuario persistidas**
+en `/resilience.bin` (sobreviven a factory/full reset; regla "slot 0 = estado previo del
+usuario"; `keys_ls`/`keys_clear`; banco 7/7) — pendiente de publicar como release.
 
 **Descarga los binarios desde [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
 (panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 2 manuales PDF. NIMH = mismos binarios
@@ -336,7 +340,9 @@ predefined messages.
 | `reboot` · `factory_reset` · `full_reset` · `wipe` | Deferred reboot and resets (ACK first): factory (new PKI key) · full (keeps PKI + bonds) · wipe (total purge, new PKI pair; peers re-learn) | DM |
 | `storm [1-720]` | Timed hibernation (radio off) | DM |
 | `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Broadcast text · alarm · position · beacon · telemetry | DM |
-| `admin_ls` · `help` | Configured admin keys · command help | DM / Open |
+| `admin_ls` · `keys_ls` · `keys_clear` · `help` | Configured admin keys · **persisted** keys (survive resets) · clear the persisted copy · command help | DM / Open* |
+
+*`keys_ls`/`keys_clear` = DM PKI only.
 
 *Open channel (Navadmin) = read-only queries; configuration and critical actions = PKI-encrypted
 DM. Every command answers help with `/nava <command> ?`.*
@@ -397,9 +403,11 @@ To **compile with a different default chemistry**: add
 ## Downloads (prebuilt firmware)
 
 Latest release: **V2.6.1 (15/08/2026)** — definitive sleep/wake cycle, bench verified.
-**V3 (code, 15/08)**: `NAVA V3` build tag in `status`/[Boot], unified 8 low-battery readings
-(~160 s) for all 6 boards and remote resets `/nava full_reset` (keeps PKI keys) and
-`/nava wipe` (total purge, new PKI pair) — pending release publication.
+**V3 (code, 15-16/08)**: `NAVA V3` build tag in `status`/[Boot], unified 8 low-battery readings
+(~160 s) for all 6 boards, remote resets `/nava full_reset` (keeps PKI keys) and
+`/nava wipe` (total purge, new PKI pair), and **F20: user admin keys persisted** in
+`/resilience.bin` (survive factory/full reset; "slot 0 = the user's previous state" rule;
+`keys_ls`/`keys_clear`; bench 7/7) — pending release publication.
 
 **Download the binaries from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
 (right-hand panel — *Assets*): 12 UF2 + 12 OTA + 2 PDF manuals. NIMH = same binaries as LIPO

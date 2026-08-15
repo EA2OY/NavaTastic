@@ -200,6 +200,32 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
 
 ## 8. Historial de Auditoría (Resumen)
 
+*   **Ronda 2026-08-16 (F20 — claves admin persistidas, FASE R2 del BLOQUE R, banco 7/7)**:
+  - **F20**: las claves admin PÚBLICAS del usuario se persisten en `/resilience.bin` (struct
+    `ResiliencePrefs` 84→180 B, marcador "NAV3" `0x4E415633`, campos `keySlot1/keySlot2/
+    keySlot0Own`) y se re-aplican al boot tras un factory/full reset. **Regla final de slot 0
+    (ENMIENDA)**: "slot 0 = estado previo del usuario" — si el dueño tenía su clave en slot 0
+    (desautorizó la de fábrica), tras el reset vuelve SU clave (sin ventana de secuestro); si
+    nunca la desautorizó, slot 0 = clave del proyecto. La auto-recuperación de NodeDB
+    (`local_sum==0`, NodeDB.cpp:1460) queda INTACTA y solo cubre configs vacías (wipe/nrf
+    erase) → canal de rescate garantizado cuando no hay estado previo.
+  - **Sincronización merge** desde `AdminModule::handleSetConfig` (caso security): slot
+    entrante no vacío se persiste (slot 0 = proyecto → limpia la override); slot vacío NUNCA
+    borra lo persistido. **Quitar una clave en la app NO la purga**: reaparece tras el próximo
+    reset. Purga real = `/nava keys_clear` (cero solo los 3 campos, sin tocar config ni
+    reiniciar) o `/nava wipe`/`nrf erase`. Comandos nuevos DM-PKI: `keys_ls` (persistidas en
+    base64) y `keys_clear` (ACK diferido).
+  - **Adopción**: al migrar un fichero legacy (84 B) se adoptan una sola vez las claves de
+    usuario ya presentes en la config (dedupe contra K0/K1 del proyecto; General solo define
+    K0). Tras wipe no adopta nada (config solo proyecto).
+  - **Fix de banco H1**: el full_reset de R1 borraba el fichero entero → mataba las claves.
+    Fix: `navaFullResetKeepKeys()` — full_reset reescribe el fichero conservando SOLO las 3
+    claves y reseteando el resto a defaults de perfil. **Banco 7/7 PASS (Faketec)**: full_reset
+    conserva claves (S0=propia desplaza proyecto, DM OK sin re-acreditar, Master Node NO
+    AUTORIZADO), semi-persistentes resetean (rol client→ROUTER, sleepmsg off→ON),
+    re-autorización OK, factory_reset conserva claves, wipe purga, keys_clear correcto,
+    regresión OK (status NAVA V3, canal 1 SOLO DM SEGURO). **L33**: los comandos que
+    reescriben `/resilience.bin` deben decidir QUÉ campos purgan según su propósito.
 *   **Ronda 2026-08-15 (4/6 placas verificadas + hallazgos de código)**:
   - **Verificado en banco (operador)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P (15/08) y
     Faketec HT-RA62 (14/08). **L29**: el pico del E22P en TX aplica a TODAS las placas E22P

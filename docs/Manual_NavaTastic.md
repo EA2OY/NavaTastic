@@ -80,9 +80,9 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 - **`/nava db_purge`** — Expulsa nodos temporales conservando favoritos y admins.
 - **`/nava db_clear`** — Vacía la base de nodos (nuclear). **Importante**: `db_clear` borra también tu propia entrada del repetidor; el DM PKI solo se descifra con tu entrada en su base de datos. Para re-acreditar: **fuerza desde tu mando el reenvío de tu propio NodeInfo (broadcast, NO DM)** antes de enviar cualquier `/nava`. Sin ese paso, el repetidor no responderá hasta el próximo NodeInfo periódico de tu mando (hasta 72 h).
 - **`/nava reboot`** — Reinicio diferido a 3s (el ACK sale antes).
-- **`/nava factory_reset`** — Reset de fábrica de emergencia restaurando canales de rescate (el ACK sale antes de ejecutarse). **Regenera el par PKI** (los peers fallan DM hasta re-aprender; L11).
-- **`/nava full_reset`** — Reset completo: configuración + semi-persistentes (`/resilience.bin`) a defaults **conservando el par PKI y los bonds BLE** → revert remoto sin PC y sin romper la malla (el ACK sale antes de ejecutarse).
-- **`/nava wipe`** — Purga de compromiso: erase total + **par PKI NUEVO** + bonds BLE borrados (equivalente remoto del `nrf erase`). **AVISO**: los peers fallarán el DM PKI hasta re-aprender la clave nueva (quitar la entrada stale con `--remove-node` y forzar NodeInfo del nodo). El NodeNum NO cambia (deriva de la MAC). Escalera de resets: `factory_reset` → `full_reset` → `wipe`.
+- **`/nava factory_reset`** — Reset de fábrica de emergencia restaurando canales de rescate (el ACK sale antes de ejecutarse). **Regenera el par PKI** (los peers fallan DM hasta re-aprender; L11). **F20**: las claves admin del usuario se conservan en `/resilience.bin` y vuelven tras el reset.
+- **`/nava full_reset`** — Reset completo: configuración + semi-persistentes (`/resilience.bin`) a defaults **conservando el par PKI, los bonds BLE y las claves admin del usuario (F20)** → revert remoto sin PC y sin romper la malla (el ACK sale antes de ejecutarse). **Verificado en banco 15/08 (7/7)**: slot 0 vuelve con la clave propia del usuario si había desautorizado la de fábrica; rol/avisos/semi-persistentes vuelven a defaults del perfil.
+- **`/nava wipe`** — Purga de compromiso: erase total + **par PKI NUEVO** + bonds BLE + **claves admin persistidas borradas** (queda solo la del proyecto — rescate garantizado) (equivalente remoto del `nrf erase`). **AVISO**: los peers fallarán el DM PKI hasta re-aprender la clave nueva (quitar la entrada stale con `--remove-node` y forzar NodeInfo del nodo). El NodeNum NO cambia (deriva de la MAC). Escalera de resets: `factory_reset` → `full_reset` → `wipe`.
 
 ## 🔋 6. Energía y Resiliencia (SOLO DM PRIVADO CIFRADO)
 
@@ -128,6 +128,9 @@ lecturas (~160s)** para todas las placas.
 
 - **`/nava bell`** — Alarma acústica para localización.
 - **`/nava admin_ls`** — Muestra las 3 claves criptográficas de admin en **base64** (para verificar contra lo configurado).
+- **`/nava keys_ls`** — Muestra las claves admin **persistidas** en `/resilience.bin` (base64, mismo formato que `admin_ls`): son las que volverán tras un factory/full reset.
+- **`/nava keys_clear`** — Borra SOLO la copia **persistida** de las claves admin (NO toca la configuración actual ni reinicia; el ACK sale antes de ejecutarse). Tras un `keys_clear`, el próximo factory/full reset volverá a dejar solo la clave del proyecto.
+  - ⚠️ **Regla (F20, merge)**: quitar una clave en la app NO la purga del nodo — la copia persistida se mantiene y reaparecerá tras el próximo reset. Para purgar de verdad una clave: `keys_clear` (borra todas las persistidas), `wipe` (purga total) o `nrf erase`.
 
 ---
 
@@ -147,12 +150,13 @@ lecturas (~160s)** para todas las placas.
 
 - La PSK del canal Navadmin es la pública de Meshtastic: cualquiera puede escuchar. Por eso el canal solo admite lectura y NUNCA responde a no-admins.
 - El canal Navadmin se identifica por slot (índice 1), no por nombre: no reordenar canales.
-- **Despliegue (nodos nuevos o reflasheados)**: el flasheo conserva los `/prefs`; un nodo nuevo de fábrica (o con firmware sin canal Navadmin) necesita **un factory reset tras flashear** para materializar el canal 1. Sin él, los avisos [Sueño]/[Vivo]/[Listo] y los comandos de consulta por canal abierto no llegarán. (El factory reset borra `debug_log_api_enabled` y las claves admin añadidas por app — re-aplicarlas si hacían falta.)
+- **Despliegue (nodos nuevos o reflasheados)**: el flasheo conserva los `/prefs`; un nodo nuevo de fábrica (o con firmware sin canal Navadmin) necesita **un factory reset tras flashear** para materializar el canal 1. Sin él, los avisos [Sueño]/[Vivo]/[Listo] y los comandos de consulta por canal abierto no llegarán. (El factory reset borra `debug_log_api_enabled` — re-activarlo si hacía falta. Las **claves admin del usuario sobreviven a los resets (F20)**: quedan en `/resilience.bin` y se re-aplican al arrancar.)
 - Las respuestas largas se fragmentan a 190 caracteres con retardo entre fragmentos (MTU LoRa SFNarrow).
 - `/resilience.bin` en la raíz del disco sobrevive a los resets de fábrica (solo se borra `/prefs`).
 - **Rotación de clave del mando (fix 2026-08-10)**: si un mando aparece con una clave pública distinta a la que el repetidor guarda en su DB, el repetidor acepta el cambio SIEMPRE que la nueva clave coincida con una clave de admin configurada, y lo re-marca como favorito. Esto permite re-acreditar a un mando que se registró con una clave no autorizada (p.ej. tras `db_clear` o `ign rm`): basta con que el mando reenvíe su NodeInfo con la clave correcta; el siguiente DM PKI `/nava` ya se descifra y valida. Si la clave nueva NO es admin, el NodeInfo se descarta como antes.
 - **Acreditación admin persistente (15/08)**: la acreditación (bitfield criptográfico + favorito) se guarda en disco en el momento de validar el PKI → el admin responde tras reboot sin esperar su próximo NodeInfo. Un `nrf erase` SIEMPRE regenera las claves del nodo: los peers con la clave vieja fallarán el DM PKI (`PKI_SEND_FAIL_PUBLIC_KEY`) — limpiar sus entradas (`--remove-node` en el peer) y reaprender.
 - **`/resilience.bin` v2 (15/08)**: fichero de 84 B con versión interna; los ficheros antiguos (80 B) o corruptos se migran solos al arrancar (defaults: `sleepMsgs=1`, rol sin fijar → rol del perfil). Un fichero corrupto ya no puede dejar el nodo en CLIENT con avisos OFF.
+- **`/resilience.bin` v3 + claves admin (15/08, F20)**: fichero de 180 B (marcador "NAV3") que además guarda las claves admin PÚBLICAS del usuario para que sobrevivan a los resets de fábrica. **Regla de slot 0**: "slot 0 = estado previo del usuario" — si el dueño puso su clave en slot 0 (desautorizando la de fábrica), tras un reset vuelve SU clave (sin ventana de secuestro); si nunca la desautorizó, slot 0 = clave del proyecto. Las claves del proyecto NUNCA se persisten como de usuario (dedupe). Tras `wipe`/`nrf erase` (fichero sin estado previo) queda solo la del proyecto: canal de rescate garantizado.
 - **Pruebas en banco**: con fuente de laboratorio, el E22P del Promicro es inestable en TX a potencias altas (picos de corriente) — usar **TX 1 dBm** para pruebas; en campo se usa la potencia del env (12 dBm E22P / 22 dBm HT-RA62). El USB conectado desactiva la detección de batería baja (`getHasUSB`) — para probar el ciclo de sueño, alimentar SOLO por fuente.
 
 ---
@@ -171,7 +175,9 @@ lecturas (~160s)** para todas las placas.
   - `helpForCommand(topic)` — ayuda por comando en español.
   - `runOnce()` — drena `responseQueue` (fragmentos de 190 chars, retardo 12s entre fragmentos), envía [Vivo]/[Listo] en el primer tick, ejecuta `txoff`/`reboot`/`factory_reset`/`full_reset`/`wipe`/`storm` diferidos.
 - **Flags internos**: `rebootScheduled`, `factoryResetPending`, `fullResetPending`, `wipePending`, `stormPending`/`stormSeconds`, `txOffScheduled`.
-- **Persistencia**: `ResiliencePrefs` en `/resilience.bin` (química, vbat, vwake, tx, ble, auto-fav, `sleepMsgs`, rol —ambas ramas—, marcador `version` 84 B). **F15**: se recrea el fichero antes de escribir (el `FILE_O_WRITE` de InternalFS no trunca) y se migran ficheros antiguos/corruptos.
+- **Persistencia**: `ResiliencePrefs` en `/resilience.bin` (química, vbat, vwake, tx, ble, auto-fav,
+  `sleepMsgs`, rol —ambas ramas—, **claves admin del usuario (F20)**, marcador `version` 180 B "NAV3"). **F15**: se recrea el fichero antes de escribir
+  (el `FILE_O_WRITE` de InternalFS no trunca) y se migran ficheros antiguos/corruptos.
 - **Avisos por canal**: los mensajes [Sueño]/[Vivo]/[Listo] se encolan SIEMPRE con `NODENUM_BROADCAST` (nunca `to=0`: no es broadcast y nadie lo entrega — fix Frente A 15/08).
 
 ### Dependencias externas del módulo
@@ -252,9 +258,9 @@ lecturas (~160s)** para todas las placas.
   DM)** before sending any `/nava` — otherwise the repeater stays silent until your next periodic
   NodeInfo (up to 72 h).
 - **`/nava reboot`** — Deferred reboot at 3 s (ACK goes out first).
-- **`/nava factory_reset`** — Emergency factory reset restoring rescue channels (ACK first). **Regenerates the PKI keypair** (peers fail DM until they re-learn; L11).
-- **`/nava full_reset`** — Full reset: config + semi-persistent (`/resilience.bin`) to defaults **keeping the PKI keypair and BLE bonds** → remote revert without a PC and without breaking the mesh (ACK first).
-- **`/nava wipe`** — Compromise purge: total erase + **NEW PKI keypair** + BLE bonds cleared (remote equivalent of `nrf erase`). **WARNING**: peers will fail PKI DM until they re-learn the new key (remove the stale entry with `--remove-node` and force the node's NodeInfo). The NodeNum does NOT change (derived from the MAC). Reset ladder: `factory_reset` → `full_reset` → `wipe`.
+- **`/nava factory_reset`** — Emergency factory reset restoring rescue channels (ACK first). **Regenerates the PKI keypair** (peers fail DM until they re-learn; L11). **F20**: the user's admin keys survive in `/resilience.bin` and come back after the reset.
+- **`/nava full_reset`** — Full reset: config + semi-persistent (`/resilience.bin`) to defaults **keeping the PKI keypair, BLE bonds and the user's admin keys (F20)** → remote revert without a PC and without breaking the mesh (ACK first). **Bench-verified 15/08 (7/7)**: slot 0 returns the user's own key if they had deauthorized the factory one; role/notices/semi-persistent values return to profile defaults.
+- **`/nava wipe`** — Compromise purge: total erase + **NEW PKI keypair** + BLE bonds + **persisted admin keys deleted** (only the project key remains — guaranteed rescue) (remote equivalent of `nrf erase`). **WARNING**: peers will fail PKI DM until they re-learn the new key (remove the stale entry with `--remove-node` and force the node's NodeInfo). The NodeNum does NOT change (derived from the MAC). Reset ladder: `factory_reset` → `full_reset` → `wipe`.
 
 ## 6. Energy & resilience (ENCRYPTED DM ONLY)
 
@@ -318,6 +324,9 @@ nRF52 sensors only — I2C sensors are unavailable at those moments). **Bench-ve
 
 - **`/nava bell`** — Acoustic alarm for localization.
 - **`/nava admin_ls`** — Shows the 3 admin keys in **base64** (to verify against configuration).
+- **`/nava keys_ls`** — Shows the **persisted** admin keys in `/resilience.bin` (base64, same format as `admin_ls`): the ones that will return after a factory/full reset.
+- **`/nava keys_clear`** — Clears ONLY the **persisted** copy of the admin keys (does NOT touch the current configuration and does not reboot; ACK first). After `keys_clear`, the next factory/full reset will leave only the project key.
+  - ⚠️ **Rule (F20, merge)**: removing a key in the app does NOT purge it from the node — the persisted copy remains and will reappear after the next reset. To truly purge a key: `keys_clear` (clears all persisted), `wipe` (total purge) or `nrf erase`.
 
 ## Batch addressing syntax (prefixes)
 
@@ -338,8 +347,16 @@ nRF52 sensors only — I2C sensors are unavailable at those moments). **Bench-ve
 - **Deployment (new or reflashed nodes)**: flashing keeps `/prefs`; a factory-new node needs
   **one factory reset after flashing** to materialize channel 1 — without it the [Sueño]/[Vivo]/
   [Listo] notices and open-channel queries will not arrive. (Factory reset also clears
-  `debug_log_api_enabled` and app-added admin keys — re-apply them.)
+  `debug_log_api_enabled` — re-enable it. The **user's admin keys survive resets (F20)**: they
+  live in `/resilience.bin` and are re-applied at boot.)
 - `/resilience.bin` survives factory resets (only `/prefs` is removed).
+- **`/resilience.bin` v3 + admin keys (15/08, F20)**: 180 B file ("NAV3" marker) that also
+  stores the user's PUBLIC admin keys so they survive factory resets. **Slot 0 rule**:
+  "slot 0 = the user's previous state" — if the owner put their own key in slot 0
+  (deauthorizing the factory key), after a reset THEIR key returns (no hijack window); if they
+  never deauthorized it, slot 0 = project key. Project keys are NEVER persisted as user keys
+  (dedupe). After `wipe`/`nrf erase` (no previous state) only the project key remains:
+  guaranteed rescue channel.
 - **Control-key rotation (fix 2026-08-10)**: a control node presenting a new public key is
   accepted whenever the new key matches a configured admin key (and re-favorited).
 - **Persistent admin accreditation (15/08)**: accreditation is saved to disk at PKI validation —
@@ -357,5 +374,5 @@ nRF52 sensors only — I2C sensors are unavailable at those moments). **Bench-ve
 > channel 1), `handleReceived()` (PKI auth, one-time replies to non-admins), `executeCommand()`
 > (lowercases before the channel whitelist), `helpForCommand()`, `runOnce()` (drains the fragment
 > queue, deferred txoff/reboot/factory_reset/full_reset/wipe/storm). Persistence: `ResiliencePrefs` in
-> `/resilience.bin` (84 B with version marker; legacy/corrupt files auto-migrate). The
+> `/resilience.bin` (180 B "NAV3" with version marker + persisted admin keys; legacy/corrupt files auto-migrate). The
 > [Sueño]/[Vivo]/[Listo] notices always enqueue with `NODENUM_BROADCAST` (never `to=0`).

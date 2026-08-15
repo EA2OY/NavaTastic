@@ -19,5 +19,13 @@ Base de datos selectiva en RAM (`USERPREFS_NODEDB_RAM_ONLY`) + escrituras mínim
 ## Admin criptográfico (inmunidad)
 Bitfield `NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK (0x08)` asignado solo tras validar PKI; `isAdminNode()` lo lee. Nunca confiar en NodeInfo en claro.
 
+## Escrituras de F20 (V3, 16/08)
+F20 añade DOS escrituras, ambas condicionales (misma filosofía anti-desgaste):
+- **Restauración de claves al boot**: `applyPersistedAdminKeys()` escribe `SEGMENT_CONFIG`
+  SOLO si cambió algo (boot normal = no-op; tras factory/full reset = 1 escritura).
+- **Sincronización**: `syncAdminKeysFromConfig()` reescribe `/resilience.bin` SOLO si cambió
+  (L7: remove antes de escribir). `/nava keys_clear` = 1 escritura. Nunca hay escrituras
+  periódicas de claves.
+
 ## Flujo fix 2026-08-10 (updateUser)
 Ver nota `02_claves_admin.md`: NodeInfo con clave nueva == admin_key → aceptar + re-favoritear. Sin esto, la DB conserva clave errónea y el DM PKI no descifra.

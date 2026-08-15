@@ -56,3 +56,30 @@ if (local_sum == 0) {
 **Detalle importante**: la condición es sobre **solo el slot 0**. Si el usuario pone su clave en K1 y deja K0 vacío → el boot re-inyecta K0 de fábrica (queda K0=fábrica + K1=usuario). Para tener SOLO su clave, debe ponerla en el **slot 0**.
 
 **Verificado en hardware (Faketec, 2026-08-11)**: tras factory reset, K0/K1 de fábrica correctas. Tras soft reset con claves borradas a mano, se re-inyectan igualmente.
+
+## 🔑 F20 — Claves admin persistidas en `/resilience.bin` (V3, banco 7/7 16/08)
+
+**Qué es**: las claves admin PÚBLICAS del usuario se guardan en `/resilience.bin` (campos
+`keySlot1/keySlot2/keySlot0Own`, struct 180 B marcador "NAV3") y se re-aplican al boot tras un
+factory/full reset — antes se perdían (L10) y el nodo quedaba solo con la del proyecto.
+
+**Regla final de slot 0 (ENMIENDA del operador, banco verificado)**: "slot 0 = estado previo
+del usuario":
+- Si el dueño puso SU clave en slot 0 (desautorizando la de fábrica) → se persiste como
+  `keySlot0Own` y tras el reset vuelve AL SLOT 0, desplazando a la del proyecto (sin ventana de
+  secuestro; el Master Node queda NO AUTORIZADO, verificado en banco).
+- Si nunca la desautorizó → slot 0 queda con la del proyecto, como estaba.
+- La auto-recuperación (arriba) queda INTACTA y solo cubre configs vacías (wipe/nrf erase):
+  ahí sí, canal de rescate garantizado.
+
+**Sincronización (merge)**: cada `set_config` de seguridad (app/CLI) sincroniza: slot entrante
+no vacío se persiste (slot 0 = proyecto → limpia `keySlot0Own`); un slot vacío NUNCA borra lo
+persistido. **Quitar una clave en la app NO la purga del nodo** — reaparece tras el próximo
+reset. Purga real: `/nava keys_clear` (cero solo los 3 campos persistidos; no toca la config
+actual ni reinicia) o `/nava wipe`/`nrf erase`.
+
+**Dedupe**: las claves del proyecto (K0/K1 del perfil, macros `USERPREFS_USE_ADMIN_KEY_*`)
+NUNCA se persisten como claves de usuario (General solo define K0 → `#ifdef` por clave).
+
+**Comandos**: `/nava keys_ls` (persistidas en base64, mismo formato que `admin_ls`) y
+`/nava keys_clear` (ACK diferido, sin reboot). DM-PKI solo (fuera de la whitelist del canal 1).

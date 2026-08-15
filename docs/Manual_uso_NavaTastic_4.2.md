@@ -227,7 +227,8 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 - El canal Navadmin usa la PSK pública por defecto de Meshtastic: **cualquiera puede escucharlo**. Por eso solo admite lectura y nunca responde a no-admins.
 - La suplantación del campo `from` en el canal es posible (PSK pública); la whitelist de solo-lectura es la mitigación. **Los comandos destructivos van SIEMPRE por DM PKI.**
 - El canal Navadmin se identifica por su slot (índice 1), no por nombre: **no reordenar canales**.
-- `/resilience.bin` (química de batería, voltajes, estado TX/BLE) se guarda en la raíz del disco y **sobrevive a los resets de fábrica**.
+- `/resilience.bin` (química de batería, voltajes, estado TX/BLE, **claves admin del usuario — F20**) se guarda en la raíz del disco y **sobrevive a los resets de fábrica**.
+- **Claves admin y resets (F20/V3)**: las claves admin PÚBLICAS del usuario se persisten en `/resilience.bin` y vuelven tras un factory/full reset (slot 0 = estado previo del usuario). **Quitar una clave en la app NO la purga del nodo** — la copia persistida reaparecerá tras el próximo reset; para purgar de verdad: `/nava keys_clear` (borra solo la copia persistida, no la config actual) o `/nava wipe` (purga total). Tras `wipe`/`nrf erase` queda solo la clave del proyecto (canal de rescate garantizado).
 
 ---
 
@@ -245,6 +246,7 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 
 | **4.4 (12/08/2026)** ⭐ **distribuido como "NavaTastic 4.3 Eclipse Edition"** (build 17:09-17:15, entregado a colegas para pruebas; referencia de regresión) | Rama 2: homogeneizado el canal Navadmin (slot 1) en las 12 variantes; fix H3 de administración remota (rotación de clave: el NodeInfo del mando acredita admin al instante, canal y DM); **`/nava fav auto [on|off]`** (control del auto-favoriteo de routers directos, persistido en `/resilience.bin`); respuestas fragmentadas por palabra/línea (nunca se parten comandos a la mitad); ayuda y consultas: cualquier comando sin argumento muestra estado y opciones, interrogación con `/nava <comando> ?` o `help`, y aviso de rollback (`nrf erase`) en comandos persistentes. || **4.2.1 / 4.4** | **Endurecimiento de la ronda de auditoría**: whitelist estricta en el canal Navadmin (solo lectura, no-admins en silencio); normalización a minúsculas antes del filtro; guardas de longitud en `substr()` (elimina crash); `help <comando>`; respuestas en español; `factory_reset` diferido; `ign add` seguro; rate-limit de no-admins por DM; `ble` real; `bat` honesto (sin sag falso); **storm real** con RTC2 y apagado de radio (`storm test1`/`test2`); Secuencia Remota 2 completa (`set_chem`, `set_vbat`, `set_vwake`, `txoff`/`txon`, `ble`, `rxlog`, `afc`, `reset_reason`, `trace`, `route`, `msg`, `bell`, `pos`, `nodeinfo`, `sendtel`, `admin_ls`, `power`, `noise`). |
 | **4.5 (12/08/2026)** | **Rama 1 (Clientes)**: nueva rama para nodos de infraestructura que no son routers — aparecen en la malla como **CLIENT** (`set_role` y el rol por defecto). El rol es ahora **semi-permanente**: `/nava set_role [client/mute/router]` se guarda en `/resilience.bin` y sobrevive al factory reset (un cliente puede convertirse en router por radio y revertirse cuando quiera; cuidado: tras un rescate, un nodo convertido a router seguirá retransmitiendo hasta que se le devuelva a client). Resto de la rama idéntico a Rama 2 (misma administración `/nava`, misma protección de Flash y energía). |
+| **V3 (15/08/2026)** | **Etiqueta de build** `NAVA V3` en `/nava status` y [Boot]; **8 lecturas de batería baja (~160s)** unificadas para las 6 placas; **resets remotos** `/nava full_reset` (conserva par PKI, bonds y claves admin) y `/nava wipe` (purga total, par PKI nuevo); **F20: claves admin del usuario persistidas** en `/resilience.bin` (sobreviven a factory/full reset; regla "slot 0 = estado previo del usuario"; comandos `/nava keys_ls`/`keys_clear`). **Verificado en banco 7/7 (Faketec)**. |
 
 ---
 
@@ -499,8 +501,14 @@ headless**, through two channels:
   mitigation. **Destructive commands ALWAYS go through DM PKI.**
 - The Navadmin channel is identified by its **slot (index 1)**, not by name: do not reorder
   channels.
-- `/resilience.bin` (chemistry, voltages, TX/BLE state) lives at the disk root and **survives
+- `/resilience.bin` (chemistry, voltages, TX/BLE state, **user admin keys — F20**) lives at the disk root and **survives
   factory resets**.
+- **Admin keys and resets (F20/V3)**: the user's PUBLIC admin keys are persisted in
+  `/resilience.bin` and return after a factory/full reset (slot 0 = the user's previous state).
+  **Removing a key in the app does NOT purge it from the node** — the persisted copy reappears
+  after the next reset; to truly purge: `/nava keys_clear` (clears only the persisted copy, not
+  the current config) or `/nava wipe` (total purge). After `wipe`/`nrf erase` only the project
+  key remains (guaranteed rescue channel).
 
 ## 9. Version changelog
 
@@ -514,4 +522,7 @@ headless**, through two channels:
 | **4.2** | Ported to Meshtastic 2.7.26 Beta, more boards supported. Added **Branch 2** for infrastructure routers (Flash protection + auto-favoriting of direct radio routers). Previous branch renamed **Branch 1**. |
 | **4.3** | Renamed **NavaTastic**; hybrid security architecture and extended remote admin commands in Branch 2: Navadmin channel (slot 1, PSK 0x01) for batch administration; `NavaCLIModule` intercepting `/nava` silently; addressing by ID/role/name with anti-collision jitter; critical access via DM PKI only; admins cannot be silenced; fixed full-DB DoS (limit 80) and 10-orphan-favorite limit; solved NodeInfo broadcast storm at boot. |
 | **4.4 (12/08/2026)** ⭐ **"NavaTastic 4.3 Eclipse Edition"** (17:09-17:15 build, handed to colleagues for testing; regression reference) | Branch 2: homogenized Navadmin channel (slot 1) across all 12 variants; remote-admin H3 fix (key rotation: the control node's NodeInfo accredits admin instantly, channel and DM); **`/nava fav auto [on|off]`**; word/line fragmentation; help & queries for every command; rollback warning (`nrf erase`) on persistent commands. 4.2.1/4.4 audit hardening: strict read-only whitelist, lowercase normalization before filtering, `substr()` length guards, Spanish replies, deferred `factory_reset`, safe `ign add`, non-admin DM rate-limit, real `ble`, honest `bat`, **real storm** (RTC2 + radio off), complete Remote Sequence 2. |
-| **4.5 (12/08/2026)** | **Branch 1 (Clients)**: new branch for non-router infrastructure nodes — they appear on the mesh as **CLIENT**. Role is now **semi-permanent**: `/nava set_role [client/mute/router]` is saved in `/resilience.bin` and survives factory reset. Rest of the branch identical to Branch 2. |
+| **4.5 (12/08/2026)** | **Branch 1 (Clients)**: new branch for non-router infrastructure nodes — they
+  appear on the mesh as **CLIENT**. Role is now **semi-permanent**: `/nava set_role [client/mute/router]` is
+  saved in `/resilience.bin` and survives factory reset. Rest of the branch identical to Branch 2. |
+| **V3 (15/08/2026)** | **Build tag** `NAVA V3` in `/nava status` and [Boot]; **8 low-battery readings (~160 s)** unified for all 6 boards; **remote resets** `/nava full_reset` (keeps PKI pair, bonds and admin keys) and `/nava wipe` (total purge, new PKI pair); **F20: user admin keys persisted** in `/resilience.bin` (survive factory/full reset; "slot 0 = the user's previous state" rule; `/nava keys_ls`/`keys_clear` commands). **Bench verified 7/7 (Faketec)**. |
