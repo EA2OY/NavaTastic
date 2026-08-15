@@ -161,7 +161,9 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
       SX1262 = 22 dBm SIEMPRE (decisión del operador, no tocar).
 
 ## Posibles ampliaciones (anotadas 15/08, esperan orden)
-- [ ] **BLOQUE R — Resets remotos** (una opción de plan, DOS fases; idea del operador):
+- [ ] **BLOQUE R — Resets remotos** (una opción de plan, DOS fases; idea del operador).
+  Riesgo por pieza: F19 BAJO · F21 MEDIO (destructivo: par PKI nuevo → peers re-aprenden,
+  L11) · F20 MEDIO-ALTO (modelo de seguridad + formato del struct):
   - **Fase R1 = F19 + F21 juntas** (comparten armazón: comandos `/nava`, patrón diferido con
     ACK, sin cambios de struct ni migración; un solo ciclo de build+banco):
     - `F19 /nava full_reset`: factory_reset + borrar `/resilience.bin` (semi-persistentes →

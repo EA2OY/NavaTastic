@@ -621,7 +621,12 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 
 ### POSIBLES AMPLIACIONES (anotadas 15/08, esperan orden del operador)
 - **BLOQUE R — Resets remotos** (agrupadas 15/08 por decisión del operador; FASE R1 = F19+F21
-  juntas, FASE R2 = F20 sola):
+  juntas, FASE R2 = F20 sola). **Riesgo por pieza (precisado 15/08): F19 BAJO** (factory_reset
+  existente + remove de un fichero que ya se borra en cada guardado; arranque sin fichero =
+  defaults verificados) · **F21 MEDIO** (el comando más destructivo: par PKI nuevo → TODOS los
+  peers fallan DM hasta re-aprender, L11; mitigaciones: secuencia idempotente borrar→regenerar
+  →reboot, gates de arranque autocuran, test de banco del ciclo completo con observador) ·
+  **F20 MEDIO-ALTO** (modelo de seguridad + formato del struct + doble fuente de verdad).
   - **F19 — `/nava full_reset`**: factory_reset + borrar `/resilience.bin` (semi-persistentes
     → defaults), **conservando claves PKI** → revert remoto sin PC y sin romper la malla.
   - **F21 — `/nava wipe`** (purga de compromiso): erase total + **regeneración del par PKI**
