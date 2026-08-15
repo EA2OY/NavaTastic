@@ -413,11 +413,13 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 - **2026-08-15 (30ª parte) — POSIBLES AMPLIACIONES ANOTADAS (esperan orden)**:
   - **BLOQUE R — Resets remotos** (agrupado por decisión del operador): FASE R1 = F19
     (`/nava full_reset`: factory_reset + `/resilience.bin` a defaults, conserva claves PKI) +
-    F21 (`/nava wipe`: erase total + regeneración del par PKI, purga de compromiso; el
+    F21     (`/nava wipe`: erase total + regeneración del par PKI, purga de compromiso; el
     NodeNum se conserva solo — deriva de la MAC del hardware, NodeDB.cpp:1269). FASE R2 =
     F20 (claves admin en `/resilience.bin`, la última: toca modelo de seguridad + formato del
     struct; SOLO puede existir con F21 desplegado — el wipe es su botón de purga; L31).
-    Detalle en BITACORA.
+    **F22** (idea del operador): etiqueta `NAVATASTIC_BUILD` compilada + línea en `/nava
+    status` (y opcional en [Boot]) para saber por radio qué versión lleva un nodo. Detalle en
+    BITACORA.
 - **2026-08-14 (3ª parte) — CEREBRO PORTADO AL REPO UNIFICADO**: `docs\` reestructurado a
   layout canónico `docs\cerebro\` (cerebro.md + subnotas 01-12 + 2 PROMPTs, copias 1:1 de
   4.3, MD5 15/15 verificados). Este cerebro pasa a ser el VIVO del repo único: banner

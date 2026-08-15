@@ -643,3 +643,9 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **L31 — factory reset = herramienta de purga**: cualquier diseño que haga sobrevivir
   acreditaciones a un factory reset debilita su uso como "expulsar a un admin comprometido".
   Evaluar siempre esa pérdida antes de persistir claves admin fuera de /prefs.
+- **F22 — etiqueta de build en `/nava status`** (idea del operador): hoy ningún comando
+  `/nava` reporta la versión NavaTastic (V2/V2.6 eran nombres de iteración no compilados; la
+  app solo ve el 2.7.26 genérico). Propuesta: macro `NAVATASTIC_BUILD` (inyectada desde
+  platformio-custom.py, inerte por defecto, bump manual por release) + línea en `status`
+  (`NAVA V2.7 | fw 2.7.26 (54e0d8d)`) + opcionalmente en el [Boot]. Coste: NavaCLIModule
+  .h/.cpp + 12 envs + banco; riesgo bajo.

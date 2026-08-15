@@ -176,6 +176,12 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
     última, evaluada con el flujo de compromiso real, y SOLO puede existir con F21 ya hecho.
     Mitigaciones: solo claves PÚBLICAS; slot 0 SIEMPRE = clave del proyecto; versionado;
     sincronía con /prefs. Regla: F20 sin F21 NO se hace (el wipe es su botón de purga).
+- [ ] **F22 — etiqueta de build en `/nava status`** (idea del operador): hoy no hay forma de
+      saber por radio qué versión NavaTastic lleva un nodo (V2/V2.6 eran nombres de iteración
+      no compilados). Propuesta: macro `NAVATASTIC_BUILD` (inyectada desde platformio-custom.py,
+      inerte por defecto, bump manual en cada release) + mostrarla en `status`
+      (`NAVA V2.7 | fw 2.7.26 (54e0d8d)`) y opcionalmente en el [Boot] junto a la causa.
+      Coste: NavaCLIModule.h/.cpp + 12 envs + banco. Riesgo bajo.
 
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
