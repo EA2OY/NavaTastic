@@ -410,6 +410,43 @@ void NavaCLIModule::applyPersistedAdminKeys()
     }
 }
 
+void NavaCLIModule::navaFullResetKeepKeys()
+{
+    // NAVARICO F20 (fix banco 2a): full_reset NO borra el fichero: conserva SOLO las 3
+    // claves admin persistidas del usuario y resetea el resto a defaults de perfil
+    // (mismo criterio que el fallback de loadResiliencePrefs). Escritura con el patron
+    // L7 (FSCom.remove antes de escribir, en saveResiliencePrefs).
+    uint8_t k1[32], k2[32], k0[32];
+    memcpy(k1, prefs.keySlot1, sizeof(k1));
+    memcpy(k2, prefs.keySlot2, sizeof(k2));
+    memcpy(k0, prefs.keySlot0Own, sizeof(k0));
+    prefs.magic = 0x52455349;
+    #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
+        prefs.chemistry = 2; // SODIUM
+        prefs.vbat_cutoff = 2600;
+        prefs.vwake_level = 1;
+    #else
+        prefs.chemistry = 0; // LIPO
+        prefs.vbat_cutoff = 3500;
+        prefs.vwake_level = 3;
+    #endif
+    prefs.tx_disabled = 0;
+    prefs.ble_disabled = 0;
+    prefs.auto_fav = 1;
+    prefs.role = 0xFF; // sin rol fijado (default: el del perfil del env)
+    prefs.autoFavCount = 0;
+    memset(prefs.autoFavIds, 0, sizeof(prefs.autoFavIds));
+    prefs.sleepMsgs = 1;
+    prefs.wasInSleep = 0;
+    prefs.reserved = 0;
+    prefs.version = NAVS_RESILIENCE_VERSION;
+    memcpy(prefs.keySlot1, k1, sizeof(k1));
+    memcpy(prefs.keySlot2, k2, sizeof(k2));
+    memcpy(prefs.keySlot0Own, k0, sizeof(k0));
+    navaAutoFavoriteEnabled = true;
+    saveResiliencePrefs();
+}
+
 void NavaCLIModule::syncAdminKeysFromConfig()
 {
     // F20: merge desde la config (set_config de seguridad de la app/CLI).
@@ -1716,12 +1753,14 @@ int32_t NavaCLIModule::runOnce()
                 factoryResetPending = false;
                 nodeDB->factoryReset(true);
             }
-            // NAVARICO V3 (FASE R1): borrar /resilience.bin SIEMPRE (el factory reset no lo
-            // toca por diseno). full_reset conserva el par PKI; wipe lo regenera.
+            // NAVARICO V3 (FASE R1): full_reset conserva el par PKI; wipe lo regenera.
             if (fullResetPending) {
                 LOG_INFO("Executing deferred full reset (PKI preserved)...");
                 fullResetPending = false;
-                FSCom.remove("/resilience.bin");
+                // NAVARICO F20 (fix banco 2a): NO borrar /resilience.bin entero (mataria
+                // las claves admin persistidas): conservar SOLO las claves y resetear el
+                // resto a defaults de perfil; el factory reset no toca el fichero.
+                navaFullResetKeepKeys();
                 nodeDB->factoryReset(false);
             }
             if (wipePending) {

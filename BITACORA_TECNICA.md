@@ -745,3 +745,21 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
     distribuir -Todo -V2 → pasada de docs completa (cerebro 33ª, BITACORA, PLAN,
     transfer_context, guia_integracion, subnotas 02/03/05, manuales ES+EN + PDFs, README).
   - Backups: `.bak-20260815-2301` (NavaCLIModule.h/.cpp, AdminModule.cpp, 2 manuales).
+
+### F20 H1 (15/08, hallazgo de banco) — full_reset borraba las claves persistidas (FIX)
+- **Síntoma (banco, operador)**: prueba 2a FALLIDA — tras `/nava full_reset`, `keys_ls`
+  VACÍA y `admin_ls` solo con la clave del proyecto. Causa: el full_reset de R1 ejecutaba
+  `FSCom.remove("/resilience.bin")` ANTES de `factoryReset(false)` → con F20 ese fichero
+  es donde viven las claves admin persistidas. `factory_reset` (que NO borra el fichero)
+  sí las conservaba (2b OK).
+- **Fix**: la ejecución diferida de full_reset ya NO borra el fichero: llama a
+  `navaFullResetKeepKeys()` (NavaCLIModule.cpp): conserva SOLO los 3 campos de claves
+  (`keySlot1/2/0Own`) y resetea el resto a defaults de perfil (química/vbat/vwake del
+  perfil, rol=0xFF, sleepMsgs=1, auto_fav=1, autoFavIds a cero, wasInSleep=0, tx/ble a
+  defaults, version=NAV3), con la escritura L7 (remove+write vía saveResiliencePrefs).
+  Después `factoryReset(false)` + reboot, como antes. wipe y keys_clear SIN cambios
+  (siguen purgando).
+- **Re-verificación banco pedida**: repetir 2a con este build (keys_ls conserva las 3
+  claves tras full_reset) + verificar que full_reset SIGUE reseteando semi-persistentes
+  (p. ej. `set_role client` antes → tras full_reset vuelve al rol del perfil).
+- Backups: `.bak-20260815-2335`. Build Faketec SUCCESS (UF2 MD5 79842458471A82629C964ECDCDAE21CE).

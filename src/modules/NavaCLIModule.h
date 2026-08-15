@@ -141,6 +141,10 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     static bool navaKeyIsEmpty(const uint8_t *key);
     static bool navaKeyIsProjectKey(const uint8_t *key);
 
+    // NAVARICO F20 (fix banco 2a): full_reset debe resetear los semi-persistentes a
+    // defaults de perfil CONSERVANDO las 3 claves admin persistidas (no borrar el fichero).
+    void navaFullResetKeepKeys();
+
     // NAVARICO F20: borrado diferido de las claves persistidas (/nava keys_clear):
     // ACK encolado -> ejecucion en runOnce con la cola vacia tras ~3s (patron ANEXO).
     bool keysClearPending = false;
