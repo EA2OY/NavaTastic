@@ -21,6 +21,39 @@ nacional en España, EU_868). Un solo repositorio genera **12 firmwares** distin
 | **Seguridad** | Acreditación admin por PKI persistente tras reboot, auto-recuperación de claves, límite de favoritos huérfanos |
 | **Rol semi-permanente** | `set_role` persiste en `/resilience.bin` y **sobrevive al factory reset** |
 
+## Requisito de hardware: divisor ADC 1M+1M (factor 2.0)
+
+Para que la medición de batería y la protección de bajo voltaje funcionen, las placas
+**NRF52 (Promicro/Faketec/Albatastic/Xiaowa)** deben medir la batería con un **divisor de dos
+resistencias de 1 MΩ** (factor 2.0).
+
+> **¿Tu placa lleva un divisor distinto?** Puedes ajustarlo antes de compilar en
+> `variants/nrf52840/diy/nrf52_promicro_diy_tcxo/variant.h` (macro `ADC_MULTIPLIER`, valor
+> `VBAT_DIVIDER_COMP`). **Aviso importante**: ese mismo divisor alimenta el comparador
+> **LPCOMP**, que decide el **despertar del modo de resiliencia por batería baja** — los niveles
+> de `set_vwake` están calibrados para divisor 2.0; con otro divisor el nodo despertará a una
+> tensión distinta (recalibrar `getActiveLpcompThreshold()` en
+> `src/platform/nrf52/main-nrf52.cpp`).
+
+## Químicas de batería
+
+Los 12 builds compilados usan **LiPo/Li-Ion por defecto** (corte 3500 mV en E22P / 3400 mV en
+SX1262). El firmware soporta **4 químicas** y se cambian **sin recompilar** con el comando
+`/nava set_chem` (por DM cifrado, persiste en el nodo):
+
+| Química | Corte | Despertar LPCOMP | Notas |
+|---|---|---|---|
+| **LiPo / Li-Ion** | 3500 mV | ~3.7 V | Default de los builds |
+| **NiMH (3 celdas)** | 3400 mV | ~3.7 V | |
+| **Sodio (Na-Ion)** | 2600 mV | ~3.7 V | Carga máx ~4.0 V |
+| **LiFePO4** | 2800 mV | ~3.3 V | **Solo Promicro y Faketec** (rechazada en Seed/Xiao/T114: su LPCOMP es fijo y no despertarían por solar) |
+
+Para **compilar con otra química como default**: añade al perfil del env
+(`profiles/<RAMA>_<Placa>.jsonc`) la macro `"USERPREFS_BATTERY_CHEMISTRY_SODIUM": "true"`
+(default sodio) y/o ajusta el corte con `"USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV"` (p. ej.
+NiMH = 3400, LiFePO4 = 2800) antes de `pio run`. El resto (umbral de despertar, curvas OCV) se
+adapta con los comandos `set_chem` / `set_vbat` / `set_vwake` ya en el nodo.
+
 ## Los 12 builds
 
 | Placa | Radio | Rama 2 (Routers) | Rama 1 (Clientes) |
