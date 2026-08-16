@@ -469,6 +469,16 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   con su persona) → el proyecto **no tiene ni opera ninguna malla**, los nodos con este
   firmware no tienen relación con el proyecto ni con su autor, y hay que revisar la
   configuración por defecto antes de desplegar. ES+EN, verificado 0 restos.
+- **Guía de compilación pública (misma sesión)**: creado `docs/Compilar_NavaTastic.md`
+  (ES+EN) adaptado del texto de compilación de la documentación oficial de Meshtastic
+  (desechados "Adding Custom Hardware" y "Hardware Model Acceptance Policy" — no aplican a
+  un fork con 6 placas fijas) y de lo que había en el README: requisitos (Git/PlatformIO/
+  raíz corta Windows MAX_PATH), clonar+submodules, actualizar, compilar (12 envs + CLI),
+  flashear (enlace), Propia (build_propia.ps1/variables de entorno), ajustes de hardware,
+  enlaces. El README (ES+EN) queda más limpio: las secciones "Compilar" y "Rama propia"
+  sustituidas por una corta con enlace a la guía. Manuales INTACTOS (norma 0.11 no aplica).
+  Guia_para_agente: una línea de enlace a la guía pública (§2, su contenido no se duplica).
+  Backups `.bak-20260816-0345/0346`.
 - **2026-08-16 (34ª parte) — NOMENCLATURA DE VERSIONES UNIFICADA (decisión del operador)**:
   el changelog del manual de uso se reestructura en 3 hitos públicos: **4.3.0** = NavaTastic +
   control remoto sin PC (auto-fav y NodeDB en RAM ya presentes) · **4.3.1 = "NavaTastic

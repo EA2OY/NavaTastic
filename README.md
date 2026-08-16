@@ -172,24 +172,10 @@ que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables
 
 ## Compilar
 
-Requisitos: PlatformIO (`pio`). Desde la raíz del repo:
-
-```bash
-pio run -e navarrico_promicro_e22p_r2ig   # un env
-pio run                                    # los 12 (default_envs)
-```
-
-Ver también: `Guia_para_agente_sobre_NavaTastic.md` (mecánica completa),
-`docs/transfer_context.md` (memoria técnica) y `docs/cerebro/` (documentación de diseño).
-
-## Rama propia (claves privadas)
-
-Los builds **Propia** (`r2ip`/`r1ip`) usan claves admin y PIN Bluetooth propios que **no se
-almacenan en este repositorio**: se piden al compilar.
-
-```powershell
-.\build_propia.ps1 -EnvName navarrico_promicro_e22p_r2ip
-```
+¿Quieres compilarlo tú mismo? La guía completa — requisitos, clonado, los 12 entornos,
+flasheo y los builds **Propia** (claves propias, no almacenadas) — está en
+**[docs/Compilar_NavaTastic.md](docs/Compilar_NavaTastic.md)**. Los binarios ya compilados
+se descargan desde [Releases](https://github.com/EA2OY/NavaTastic/releases/latest).
 
 ## Seguridad
 
@@ -449,24 +435,10 @@ bench 7/7).
 
 ## Building
 
-Requires PlatformIO (`pio`). From the repo root:
-
-```bash
-pio run -e navarrico_promicro_e22p_r2ig   # one env
-pio run                                    # all 12 (default_envs)
-```
-
-See also `Guia_para_agente_sobre_NavaTastic.md` (full mechanics),
-`docs/transfer_context.md` (technical memory) and `docs/cerebro/` (design docs) — Spanish.
-
-## Private branch (own keys)
-
-The **Propia** builds (`r2ip`/`r1ip`) use your own admin keys and Bluetooth PIN, which are
-**not stored in this repository** — they are asked at build time:
-
-```powershell
-.\build_propia.ps1 -EnvName navarrico_promicro_e22p_r2ip
-```
+Want to build it yourself? The full guide — requirements, cloning, the 12 environments,
+flashing and the **Propia** builds (own keys, not stored) — is in
+**[docs/Compilar_NavaTastic.md](docs/Compilar_NavaTastic.md)**. Prebuilt binaries are
+downloaded from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest).
 
 ## Security
 

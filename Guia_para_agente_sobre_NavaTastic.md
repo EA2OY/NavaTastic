@@ -115,6 +115,8 @@ Helpers PowerShell (Windows):
 .\verificar_paridad.ps1 -RefR2IG <carpeta> -RefR1IG <carpeta>   # MD5 12/12 contra builds originales
 ```
 
+> Guía pública de compilación para usuarios (enlazada desde el README): `docs/Compilar_NavaTastic.md`.
+
 ---
 
 ## 3. Cómo funciona la selección de versión (mecánica)

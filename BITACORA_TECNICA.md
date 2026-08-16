@@ -897,3 +897,13 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   configuración por defecto debe revisarse antes de desplegar. ES+EN (README líneas
   279-282/552-556), backup `.bak-20260816-0340`. Republicado con la misma rama huérfana;
   L24 aplicada.
+- **Guía de compilación pública (decisión del operador)**: creado `docs/Compilar_NavaTastic.md`
+  (ES+EN) — adaptación del texto de compilación de la doc oficial de Meshtastic, desechando
+  lo que no aplica (Adding Custom Hardware / Hardware Model Acceptance Policy) y absorbiendo
+  lo que estaba en el README: requisitos (Git, PlatformIO, aviso MAX_PATH de Windows),
+  clonado + `git submodule update --init` (protobufs), actualización, compilación (12 envs
+  VS Code/CLI), flasheo (enlace), Propia (build_propia.ps1 + NAVARICO_PROPIA_*), ajustes de
+  hardware, enlaces. README ES+EN: secciones "Compilar"/"Building" y "Rama propia"/
+  "Private branch" sustituidas por una sección corta con enlace a la guía (README más
+  limpio). Manuales intactos. Guia_para_agente: línea de enlace en §2 (sin duplicar).
+  Backups `.bak-20260816-0345/0346`.
