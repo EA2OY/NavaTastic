@@ -26,7 +26,7 @@ param(
     [string]$Carpeta = "$PSScriptRoot\..\docs",
     [string]$Salida = "$PSScriptRoot\..\docs\pdf",
     [string]$Plantilla = "$PSScriptRoot\plantilla_navatastic.tex",
-    [string[]]$Excluir = @("transfer_context.md", "guia_integracion_navarrico.md", "GUIA_AGENTE_NAVTASTIC.md", "INSTRUCCION_AUDITORIA_CLAUDE.md", "Compilar_NavaTastic.md")
+    [string[]]$Excluir = @("transfer_context.md", "guia_integracion_navarrico.md", "GUIA_AGENTE_NAVTASTIC.md", "INSTRUCCION_AUDITORIA_CLAUDE.md", "Compilar_NavaTastic.md", "Guia_para_agente_sobre_NavaTastic.md", "BITACORA_TECNICA.md", "PLAN_DE_TRABAJO.md", "PORTING_NUEVO_FORK.md")
 )
 
 $ErrorActionPreference = "Continue"
@@ -88,7 +88,7 @@ if (Test-Path -LiteralPath $Plantilla) {
 # Cartel del operador como PRIMERA pagina de los manuales (norma: flyer NavaTastic Eclipse V3).
 # Se copia a %TEMP% (ruta sin espacios, segura para \includegraphics de XeLaTeX; la imagen
 # queda embebida en el PDF, la copia temporal solo existe durante la generacion).
-$flyerHd = Join-Path $PSScriptRoot "..\flyer_navatastic_eclipse_v3_hd.jpg"
+$flyerHd = Join-Path $PSScriptRoot "..\branding\flyer_navatastic_eclipse_v3_hd.jpg"
 if (Test-Path -LiteralPath $flyerHd) {
     $flyerTmp = Join-Path $env:TEMP "navatastic_flyer_hd.jpg"
     Copy-Item -LiteralPath $flyerHd -Destination $flyerTmp -Force

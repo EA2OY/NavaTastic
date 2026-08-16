@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="cartel_navatastic_github.jpg" alt="Cartel NavaTastic Eclipse V3" width="640"/>
+<img src="branding/cartel_navatastic_github.jpg" alt="Cartel NavaTastic Eclipse V3" width="640"/>
 
 <br/>
 

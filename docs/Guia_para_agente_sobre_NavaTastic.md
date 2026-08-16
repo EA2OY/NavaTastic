@@ -39,7 +39,7 @@ Heredadas del cerebro 4.3 (`PROMPT_INICIALIZACION.md`). Son obligatorias en toda
     (`docs\Manual_NavaTastic.md`, `docs\Manual_uso_NavaTastic_4.2.md` u otro documento de
     entrega), crear copia `nombre.md.bak-AAAAMMDD-HHMM` (misma convención de la norma 9) para
     poder revertir si se detecta un error tras el cambio. Tras editar el manual, regenerar el
-    PDF con `.\HerramientasPropiasIA\generar_pdf.ps1` y verificar la salida.
+    PDF con `.\herramientas\generar_pdf.ps1` y verificar la salida.
 12. **Distribución V2 al Desktop (norma 14/08)**: los builds NUEVOS (cambios posteriores al
     snapshot baseline "NavaTastic 4.3 Eclipse Edition - Unificado") se distribuyen con
     `distribuir.ps1 -V2` a `Desktop\NavaTastic Eclipse Edition V2` (misma estructura
@@ -226,10 +226,10 @@ Está gitignored y no forma parte del código.
 
 ## 8. Documentación
 
-- `HerramientasPropiasIA\generar_pdf.ps1` + `plantilla_navatastic.tex` — genera los PDFs de
-  los manuales (Pandoc + MiKTeX) en `docs\pdf\` (gitignored). Excluye los docs de contexto
+- `herramientas\generar_pdf.ps1` + `plantilla_navatastic.tex` — genera los PDFs de
+  los manuales (Pandoc + MiKTeX) en `docs\pdf\` (gitignored). Excluye los docs de desarrollo
   por defecto (norma 11/08: solo manuales de firmware y comandos). Uso:
-  `.\HerramientasPropiasIA\generar_pdf.ps1` o con `-Archivo Manual_NavaTastic.md`.
+  `.\herramientas\generar_pdf.ps1` o con `-Archivo Manual_NavaTastic.md`.
 - `Manual_NavaTastic.md` (docs/) — manual de comandos `/nava`.
 - `profiles/README.md` — perfiles.
 - Este fichero es la guía de retoma para agentes.

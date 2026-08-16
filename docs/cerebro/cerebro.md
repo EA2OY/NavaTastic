@@ -504,6 +504,12 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     autoriza y no se persiste. (3) Re-persistir = escribir desde la app.
   - **Pendiente de publicación**: `generar_pdf.ps1` ($Excluir, commit 8b5824fed) + esta
     ronda de docs irán en la próxima publicación.
+- **2026-08-16 (40ª parte) — REORGANIZACIÓN Y LIMPIEZA DEL REPO (TIDY UP)**:
+  `Guia_para_agente_sobre_NavaTastic.md`, `BITACORA_TECNICA.md`, `PLAN_DE_TRABAJO.md` y
+  `PORTING_NUEVO_FORK.md` movidos a `docs/`. `cartel_navatastic_github.jpg` y
+  `flyer_navatastic_eclipse_v3_hd.jpg` movidos a `branding/`. `HerramientasPropiasIA/` renombrada a
+  `herramientas/`. `AGENTS.md` canónico en la raíz apuntando a `docs/`. `README.md` y `generar_pdf.ps1`
+  actualizados. Raíz del repositorio 100% limpia y profesional.
 - **2026-08-16 (39ª parte) — KO-FI Y PATROCINIO VOLUNTARIO ALTRUISTA**: integrado
   Ko-fi (`https://ko-fi.com/ea2oy`) en `README.md` (badge superior + secciones dedicadas ES/EN
   tras Agradecimientos) y `.github/FUNDING.yml` (`ko_fi: ea2oy` → botón «💖 Sponsor» de GitHub).
@@ -759,10 +765,10 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 
 ### 5.5 Handover (estado actual y siguiente paso)
 
-- **Estado (16/08/2026, Ko-fi y patrocinio voluntario integrado)**: "NavaTastic Eclipse V3" (4.3.2)
-  CERRADA y publicada. Sesión documental: README actualizado con Ko-fi (`https://ko-fi.com/ea2oy`,
-  badge superior + secciones ES/EN con nota de altruismo 100% explícita y voluntaria) +
-  `.github/FUNDING.yml` configurado con `ko_fi: ea2oy`. Código V3 intacto (0 cambios).
+- **Estado (16/08/2026, Reorganización y limpieza completada)**: "NavaTastic Eclipse V3" (4.3.2)
+  CERRADA y publicada. Sesión de limpieza completada: raíz del repositorio despejada (solo archivos
+  esenciales de compilación y README); documentación interna agrupada en `docs/`; carteles en `branding/`;
+  herramientas en `herramientas/`. PDFs y compilaciones 100% operativas.
 - **Siguiente paso** (nueva sesión, cuando el operador la abra): (1) banco de Seed Solar
   P1 y Heltec T114 (ciclo de resiliencia completo); (2) candidatos anotados F16b (BLE tras
   shutdown)/F16d (jitter quick)/F16e (whitelist sleepmsg)/F17 (PKI_SEND_FAIL_PUBLIC_KEY
@@ -770,6 +776,7 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   Meshtastic España, decisión del operador); (5) siguiente release: bump de
   `NAVATASTIC_BUILD` en `NavaCLIModule.h` + mismos pasos de publicación (rama huérfana,
   release API, L24); (6) nuevas rondas Propia con el `PROMPT_BUILD_PROPIA.md` de la
-  carpeta del Desktop; (7) próxima publicación a GitHub incorporará el README con Ko-fi y FUNDING.yml.
-  Leer el PROMPT DE RETOMA de `PLAN_DE_TRABAJO.md` y las lecciones L34-L36 de BITACORA antes de tocar nada.
+  carpeta del Desktop. Leer el PROMPT DE RETOMA de `docs/PLAN_DE_TRABAJO.md` y las lecciones
+  L34-L36 de `docs/BITACORA_TECNICA.md` antes de tocar nada.
+
 

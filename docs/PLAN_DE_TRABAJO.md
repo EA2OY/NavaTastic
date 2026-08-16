@@ -242,14 +242,14 @@ sesión solo ejecuta lo que el operador pida. ANTES de escribir código: LEER, A
 explicar el plan en lenguaje fácil y PEDIR PERMISO (FASE 1 → confirmación → FASE 2).
 
 PASO 0 (OBLIGATORIO, apertura canónica, en este orden):
-  0. AGENTS.md (bloque NAVARICO) → Guia_para_agente_sobre_NavaTastic.md §0 REGLAS OPERATIVAS.
-  1. Guia_para_agente_sobre_NavaTastic.md COMPLETA (12 envs + Propia, perfiles, scripts,
+  0. AGENTS.md (bloque NAVARICO) → docs\Guia_para_agente_sobre_NavaTastic.md §0 REGLAS OPERATIVAS.
+  1. docs\Guia_para_agente_sobre_NavaTastic.md COMPLETA (12 envs + Propia, perfiles, scripts,
      §5 flujo Propia del Desktop, §9 GitHub).
-  2. BITACORA_TECNICA.md: F1-F20 (H1), V2.2-V2.6, L1-L36, publicación v4.3.2, carteles,
-     nomenclatura, RETOMA 16/08 (ronda Propia #1, F20 aclarado, cierre).
-  3. PLAN_DE_TRABAJO.md: estado (V3 + retoma + Ko-fi) + "Posibles ampliaciones" + este PROMPT.
-  4. docs\cerebro\cerebro.md SECCIÓN 5 (partes 24ª-39ª; 5.4 VIGENTE vs OBSOLETO, 5.5 handover).
-  5. PORTING_NUEVO_FORK.md + docs de contexto según el caso. C:\Firmware Navarrico 4.3 y 4.2 =
+  2. docs\BITACORA_TECNICA.md: F1-F20 (H1), V2.2-V2.6, L1-L36, publicación v4.3.2, carteles,
+     nomenclatura, RETOMA 16/08, Ko-fi, Tidy Up.
+  3. docs\PLAN_DE_TRABAJO.md: estado (V3 + retoma + Ko-fi + Tidy Up) + "Posibles ampliaciones" + este PROMPT.
+  4. docs\cerebro\cerebro.md SECCIÓN 5 (partes 24ª-40ª; 5.4 VIGENTE vs OBSOLETO, 5.5 handover).
+  5. docs\PORTING_NUEVO_FORK.md + docs de contexto según el caso. C:\Firmware Navarrico 4.3 y 4.2 =
      SOLO LECTURA.
 
 POSIBLES TRABAJOS (el operador decidirá; NO son órdenes):
@@ -293,13 +293,12 @@ REGLAS Y TRAMPAS VIGENTES:
       20260816 (HEAD 55db4d4f5).zip` + cerebro 35ª parte + handover §5.5 + PROMPT DE RETOMA
       reescrito. Estado: V3 cerrada y publicada; pendientes para la próxima sesión: banco
       Seed/T114, F16b/d/e, F17, rotación token (L26), Telegram, siguientes releases.
-- [x] **KO-FI Y PATROCINIO VOLUNTARIO ALTRUISTA (16/08)**:
-      Integrado Ko-fi (`https://ko-fi.com/ea2oy`) en `README.md` (badge superior + secciones
-      dedicadas ES/EN tras Agradecimientos) y `.github/FUNDING.yml` (`ko_fi: ea2oy` → botón
-      «💖 Sponsor» de GitHub). Texto explicita que el proyecto es y será **100% libre,
-      gratuito y totalmente altruista**; donar es estrictamente voluntario para colaborar con
-      gastos personales de placas y laboratorio. **Publicado a GitHub (main)** con formato de
-      commit público limpio y regla L24 ejecutada. Backups `.bak-20260816-1411`. Docs y cerebro al día.
+- [x] **REORGANIZACIÓN Y LIMPIEZA DEL REPOSITORIO (TIDY UP, 16/08)**:
+      Raíz despejada. Documentación interna trasladada a `docs/` (`Guia_para_agente_sobre_NavaTastic.md`,
+      `BITACORA_TECNICA.md`, `PLAN_DE_TRABAJO.md`, `PORTING_NUEVO_FORK.md`). Carteles movidos a `branding/`.
+      Herramientas renombradas a `herramientas/` (`generar_pdf.ps1` con exclusiones ampliadas). `AGENTS.md`
+      en la raíz apuntando a `docs/`. Backups `.bak-20260816-1423`. Verificado: PDFs 2/2 y scripts 100% operativos.
+
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

@@ -962,3 +962,10 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Cláusula de altruismo explícita (decisión del operador)**: texto enfatiza que el proyecto es y será **100% libre, abierto, gratuito y desarrollado de forma totalmente altruista y desinteresada**; no es necesario aportar nada para usarlo ni disfrutarlo; las aportaciones son estrictamente voluntarias para quien desee colaborar con gastos personales de hardware/placas de laboratorio.
 - **`.github/FUNDING.yml`**: actualizado a `ko_fi: ea2oy` (activa el botón nativo «💖 Sponsor» de GitHub). Backups `.bak-20260816-1411`.
 - **Publicado a GitHub (main)**: rama huérfana regenerada (UN commit `779c9e813`, título público limpio: `NavaTastic v4.3.2 — Actualización 16/08/2026 14:15 (Ko-fi y ajustes documentales)`) → push -f a main. L24 aplicada (distribucion\ 32 ficheros repoblados + 2 PDFs regenerados).
+
+### REORGANIZACIÓN Y LIMPIEZA DEL REPOSITORIO (TIDY UP, 16/08)
+- **Documentación interna movida a `docs/`**: `Guia_para_agente_sobre_NavaTastic.md`, `BITACORA_TECNICA.md`, `PLAN_DE_TRABAJO.md`, `PORTING_NUEVO_FORK.md` trasladados a `docs/` para despejar la raíz del repositorio.
+- **`AGENTS.md` canónico en la raíz**: único punto de entrada para agentes IA en la raíz, actualizados todos los enlaces hacia `docs/`.
+- **Branding**: `cartel_navatastic_github.jpg` y `flyer_navatastic_eclipse_v3_hd.jpg` movidos a `branding/`. `README.md` actualizado (`src="branding/cartel_navatastic_github.jpg"`).
+- **Herramientas**: `HerramientasPropiasIA/` renombrada a `herramientas/`. `herramientas/generar_pdf.ps1` actualizado (ruta flyer a `branding/` y `$Excluir` ampliado con los `.md` de desarrollo). Verificado: 2 PDFs generados con 0 errores.
+- **Raíz limpia**: solo `README.md`, `LICENSE`, `platformio.ini`, `version.properties`, `userPrefs.jsonc`, `AGENTS.md`, scripts `.ps1` y carpetas de código/perfiles. Backups `.bak-20260816-1423`.

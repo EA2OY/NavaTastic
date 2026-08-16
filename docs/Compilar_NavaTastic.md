@@ -85,9 +85,9 @@ Promicro/Faketec): sección [Requisito de hardware del README](../README.md#requ
 
 ## Más documentación
 
-- `Guia_para_agente_sobre_NavaTastic.md` — mecánica completa del repo (orientada a agentes).
-- `docs/transfer_context.md` — memoria técnica de comportamiento.
-- `docs/cerebro/` — documentación de diseño (en español).
+- [Guia_para_agente_sobre_NavaTastic.md](Guia_para_agente_sobre_NavaTastic.md) — mecánica completa del repo (orientada a agentes).
+- [transfer_context.md](transfer_context.md) — memoria técnica de comportamiento.
+- [cerebro/](cerebro/) — documentación de diseño (en español).
 
 ---
 
@@ -175,6 +175,6 @@ Physical values (ADC divider, power, LPCOMP) live in each board's `variant.h` un
 
 ## More documentation
 
-- `Guia_para_agente_sobre_NavaTastic.md` — full repo mechanics (agent-oriented).
-- `docs/transfer_context.md` — technical behavior memory.
-- `docs/cerebro/` — design documentation (Spanish).
+- [Guia_para_agente_sobre_NavaTastic.md](Guia_para_agente_sobre_NavaTastic.md) — full repo mechanics (agent-oriented).
+- [transfer_context.md](transfer_context.md) — technical behavior memory.
+- [cerebro/](cerebro/) — design documentation (Spanish).
