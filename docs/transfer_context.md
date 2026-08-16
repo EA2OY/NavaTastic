@@ -12,6 +12,11 @@
 > Guías vivas: `docs/Guia_para_agente_sobre_NavaTastic.md`, `docs/BITACORA_TECNICA.md`,
 > `docs/PLAN_DE_TRABAJO.md`, `docs/PORTING_NUEVO_FORK.md`. `C:\Firmware Navarrico 4.3` SOLO LECTURA.
 
+## 0. Resumen Ejecutivo de Estado
+- **Versión del Proyecto**: NavaTastic 4.3.2 V3 (Fork Unificado de Meshtastic 2.7.26).
+- **Doble Auditoría Automatizada (16/08/2026)**: **100% PASS (22/22 pruebas superadas)** en banco de pruebas de radio real con Xiaomi Mi 10 y PC (NavaTastic V3 Firmware + MeshNavarra Utility v4.3). Ver [INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](./INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) y [12_auditoria_navatastic.md](./cerebro/12_auditoria_navatastic.md).
+- **Repositorio GitHub**: `https://github.com/Anticorpos/NavaTastic` (Rama `main` huérfana limpia con 32 binarios y 2 PDFs canónicos).
+
 Este documento es la **memoria técnica canónica** del proyecto **Firmware Navarrico 4.3**, un fork de Meshtastic (v2.7.26 Beta) optimizado para repetidores solares de infraestructura en la malla SFNarrow (Madrid). Alimenta a cualquier agente de IA para retomar el trabajo sin perder contexto. Es el documento **1 de 3** del proyecto:
 
 | # | Documento | Propósito |

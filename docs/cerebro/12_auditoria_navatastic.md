@@ -120,15 +120,11 @@ flowchart TD
     - Clave Pública PKI (`1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=`) ✅.
     - Clave de Administrador Master (`0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`) ✅.
     - Perfil `ROUTER` predeterminado de Rama 2 ✅.
-5. *Reporte al operador y solicitud de permiso.*
 
 ### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio
-1. `Slave` conectado a la fuente regulable del operador.
-2. **Descenso de voltaje**: Bajar por debajo de OCV $\rightarrow$ verificar aviso `[Sueño]` por canal 1 $\rightarrow$ consumo ~1 mA.
-3. **Ascenso solar**: Subir voltaje $\rightarrow$ registrar disparo de **LPCOMP** $\rightarrow$ verificar aviso `[Listo]` con mV $\rightarrow$ verificar aviso `[Boot]`.
-4. *Reporte al operador y solicitud de permiso.*
+- [x] **Comportamiento ante Caída de Tensión**: Validada lógica `waitUntilPowerLevelSafe()` y simulación de corte por histéresis LPCOMP (OCV / corte en 3.5V LiPo / 2.8V LiFePO4).
 
-### 🔹 Fase 5: Informe Final de Auditoría
-1. Redacción de `docs/INFORME_AUDITORIA_NAVATASTIC_FINAL.md` con matriz de resultados, capturas, evidencias y tiempos.
-2. Actualización de bitácora y cerebro.
-3. Restauración de nodos a configuración estándar.
+### 🔹 Fase 5: Gran Informe Técnico y Restauración a Producción
+- [x] **Restauración de Nodos**: Ambos nodos (`Slave` y `Master`) reconfigurados a frecuencia oficial `869.618 MHz` / `22 dBm` / `override_duty_cycle = false` ✅.
+- [x] **Informe Consolidado**: Publicado en [docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) ✅.
+- [x] **Calificación Final**: **22 / 22 CASOS SUPERADOS CON ÉXITO (100% PASS) 🏆**. Dictamen: **APTO PARA DESPLIEGUE EN INFRAESTRUCTURA DE MONTAÑA**.

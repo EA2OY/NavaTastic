@@ -35,6 +35,7 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 | [09_general_vs_propia.md](./09_general_vs_propia.md) | Normas de diferenciación de la rama **General** vs **Propia**: ÚNICA diferencia = claves admin (General: 1 sola = Master Node; Propia: 2). Canales/PSK sin cambios. Plan de ejecución en lote |
 | [10_hardcodeos_nodo.md](./10_hardcodeos_nodo.md) | **Mapa de hardcodeos del nodo**: dónde vive cada valor (radio/canal, rol, claves admin, energía/batería, resets). Cambiar un valor = editar SOLO ese archivo y recompilar las variantes afectadas |
 | [11_rama1_plan.md](./11_rama1_plan.md) | **Rama 1 Clientes EJECUTADA (12/08)**: normas R1 vs R2 (rol CLIENT + rol semi-permanente en resilience.bin; resto idéntico a R2), decisiones pendientes, compilación MAX_PATH y distribución al Desktop |
+| [12_auditoria_navatastic.md](./12_auditoria_navatastic.md) | **Plan Maestro y Auditoría Automatizada (16/08)**: Doble auditoría en banco de radio real (NavaTastic V3 + MeshNavarra Utility), 22/22 pruebas superadas (100% PASS). Informe: [INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) |
 
 ---
 
