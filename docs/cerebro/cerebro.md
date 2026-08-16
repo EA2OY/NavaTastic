@@ -464,6 +464,11 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   "última bala" de rescate, con instrucciones claras para desautorizarla/cambiarla al
   recuperar el nodo; respuesta lista si lo critican en el grupo. Republicado: rama huérfana
   UN commit → main; L24 aplicada (distribucion\ + PDFs repoblados).
+- **README descargo (misma sesión)**: reescrito el punto "pensada para la malla de este
+  proyecto" (decisión del operador: aunque existan nodos montados por él, no deben asociarse
+  con su persona) → el proyecto **no tiene ni opera ninguna malla**, los nodos con este
+  firmware no tienen relación con el proyecto ni con su autor, y hay que revisar la
+  configuración por defecto antes de desplegar. ES+EN, verificado 0 restos.
 - **2026-08-16 (34ª parte) — NOMENCLATURA DE VERSIONES UNIFICADA (decisión del operador)**:
   el changelog del manual de uso se reestructura en 3 hitos públicos: **4.3.0** = NavaTastic +
   control remoto sin PC (auto-fav y NodeDB en RAM ya presentes) · **4.3.1 = "NavaTastic

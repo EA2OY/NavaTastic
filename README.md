@@ -277,8 +277,10 @@ la operación (bug conocido de la app).
   el preset LoRa SFNarrow. Verifica que el uso de la frecuencia y la potencia cumplen la
   normativa de tu país antes de transmitir.
 - La configuración por defecto (canales, PSK pública del canal Navadmin, claves admin
-  públicas) está pensada para la malla de este proyecto: revísala antes de desplegar tus
-  propios nodos.
+  públicas) es la del desarrollo del proyecto y **no está asociada a ninguna malla ni
+  instalación**: el proyecto no opera ni mantiene ninguna red de nodos, y los nodos que
+  puedan estar funcionando con este firmware no tienen relación con él ni con su autor.
+  Revísala y adáptala antes de desplegar tus propios nodos.
 - Los nodos conectados a una malla pública pueden ser visibles para terceros: no envíes por
   radio información sensible.
 
@@ -549,7 +551,10 @@ key **regenerates by itself**. If it does not stick, repeat the operation (known
 - **Radio spectrum use**: the builds are configured for the EU_868 band with the SFNarrow
   LoRa preset. Check that the frequency and power comply with your country's regulations
   before transmitting.
-- The default configuration (channels, public Navadmin PSK, public admin keys) is meant for
-  this project's mesh: review it before deploying your own nodes.
+- The default configuration (channels, public Navadmin PSK, public admin keys) is the
+  project's development default and is **not tied to any mesh or deployment**: the project
+  does not operate or maintain any node network, and nodes that may be running this
+  firmware have no relationship with it or its author. Review and adjust it before
+  deploying your own nodes.
 - Nodes connected to a public mesh may be visible to third parties: do not send sensitive
   information over the air.

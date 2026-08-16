@@ -891,3 +891,9 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   (credencial del Administrador de credenciales de Windows, en memoria, sin ficheros de
   token); L24 aplicada (distribucion\ repoblada + PDFs regenerados). Backups
   `.bak-20260816-0335` (README + BITACORA + cerebro).
+- **Descargo del README (decisión del operador)**: reescrito el punto de "la malla de este
+  proyecto" — el proyecto NO tiene ni opera ninguna malla; los nodos que corran este
+  firmware no se asocian al proyecto ni a su autor (aunque los haya montado él); la
+  configuración por defecto debe revisarse antes de desplegar. ES+EN (README líneas
+  279-282/552-556), backup `.bak-20260816-0340`. Republicado con la misma rama huérfana;
+  L24 aplicada.
