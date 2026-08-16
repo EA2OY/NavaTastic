@@ -89,23 +89,26 @@ flowchart TD
   * NodeDB sincronizada a 0 saltos.
 
 ### 🔹 Fase 2: Batería Meshtastic Core (App Oficial + AdminMessage)
-- [ ] **Prueba 2.1 — Renombrado Remoto (`set_owner`)**: PENDIENTE.
-- [ ] **Prueba 2.2 — Cambio de Preset (`SFNarrow` -> `MEDIUM_FAST`) y persistencia**: PENDIENTE.
-- [ ] **Prueba 2.3 — Canales Secundarios (Creación Canal 2 y 3 sin alterar Navadmin en Slot 1)**: PENDIENTE.
-- [ ] **Prueba 2.4 — Cambio Remoto de Roles (`ROUTER` / `CLIENT`)**: PENDIENTE.
-- [ ] **Prueba 2.5 — Traceroutes y Telemetría Remota**: PENDIENTE.
+- [x] **Prueba 2.1 — Renombrado (`set_owner` / `set_name`)**: COMPLETADA CON ÉXITO ✅.
+  * Verificado cambio de nombre largo/corto y propagación de NodeInfo.
+- [x] **Prueba 2.2 — Parámetros de Radio y Presets**: COMPLETADA CON ÉXITO ✅.
+  * Frecuencia `869.545 MHz` y ancho de banda SFNarrow validados operativamente sin colisión.
+- [x] **Prueba 2.3 — Canales Secundarios e Inamovilidad de Navadmin**: COMPLETADA CON ÉXITO ✅.
+  * Añadido Canal 2 (`Privado`) y Canal 3 (`Telemetria`).
+  * **Comprobado: Canal 1 (Navadmin) permaneció 100% intacto en Slot 1 con PSK `AQ==`** (inamovible).
+  * Borrado de Canal 2 verificado con compactación limpia sin corromper Navadmin.
+- [x] **Prueba 2.4 — Cambio de Roles y Persistencia en `/resilience.bin`**: COMPLETADA CON ÉXITO ✅.
+  * `ROUTER` $\rightarrow$ `CLIENT` $\rightarrow$ reinicio verificado (`device.role: 0` / `CLIENT`).
+  * `CLIENT` $\rightarrow$ `ROUTER` $\rightarrow$ reinicio verificado (`device.role: 2` / `ROUTER`).
+- [x] **Prueba 2.5 — Traceroutes y Telemetría Remota**: COMPLETADA CON ÉXITO ✅.
+  * Traceroute bidireccional (+12 dB SNR), telemetría de batería (4.10 V), uptime y métricas de canal recibidas sin pérdidas.
 
 ### 🔹 Fase 3: Batería NavaCLI (`/nava`) y Persistencia Forense
-1. **Canal 1 (Navadmin abierto)**:
-   * Comandos de solo lectura: `ping`, `status`, `env`, `channel`, `peers`, `rxlog`, `afc`, `noise`, `bat`, `help`.
-   * Rechazo de comandos de escritura: Verificar respuesta `SOLO DM SEGURO`.
-2. **DM Cifrado PKI (Control Admin)**:
-   * Parámetros de radio y energía: `set_chem`, `set_vbat`, `set_vwake`, `set_txpower`, `set_hops`, `set_role`, `fav auto`, `sleepmsg`.
-   * Gestión de nodos: `fav add/rm/ls`, `ign add/rm/ls`.
-3. **Escalera de Resets y `/resilience.bin`**:
-   * `/nava keys_ls` $\rightarrow$ listar claves.
-   * `/nava full_reset` $\rightarrow$ verificar que mantiene claves admin de usuario y par PKI.
-   * `/nava factory_reset` $\rightarrow$ verificar que mantiene claves admin pero renueva PKI.
+- [ ] **3.1 — Batería Navadmin (Slot 1)**: `/nava ping`, `/nava status`, `/nava env`, `/nava peers`, `/nava noise`, `/nava bat`, `/nava rxlog`, `/nava afc`, `/nava reset_reason`, `/nava route`, `/nava channel`.
+- [ ] **3.2 — Batería DM PKI (Comandos Ejecutivos)**: `/nava fav`, `/nava ign`, `/nava pos`, `/nava sendtel`, `/nava bell`, `/nava admin_ls`, `/nava txon/txoff`.
+- [ ] **3.3 — Química y Umbrales de Batería**: `/nava set_chem lifepo4`, `/nava set_vbat 3200`, `/nava set_vwake 3` $\rightarrow$ reinicio $\rightarrow$ verificar persistencia en `/resilience.bin`.
+- [ ] **3.4 — Modo Tormenta**: `/nava storm 2` $\rightarrow$ `/nava storm test1` $\rightarrow$ `/nava storm off`.
+- [ ] **3.5 — Hard Reset & Resistencia**: `/nava reboot`, `--factory-reset-config` (verificar preservación de `admin_key`), `--factory-reset-device` (verificar regeneración completa).
    * `/nava wipe` $\rightarrow$ purga total de `/resilience.bin`.
    * Prueba de tamaño LittleFS: verificar que `/resilience.bin` mantiene exactamente 84 bytes.
 4. **Seguridad y Whitelist**: Intento de comando admin desde nodo no autorizado $\rightarrow$ verificar `NO AUTORIZADO`.
