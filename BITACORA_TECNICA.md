@@ -807,6 +807,27 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   (Faketec 7/7). Rama huérfana regenerada (UN commit `13cf0b8cd`) → push -f a main. L24
   aplicada de nuevo (distribucion\ + PDFs repoblados).
 
+### CARTEL DEL OPERADOR (16/08) — README + portadas de los PDFs
+- **Flyer "NavaTastic Eclipse V3"** (JPEG del operador, 1792×2398): el README lo muestra como
+  **primera imagen** (versión optimizada 1200px, 380 KB) — retirados el escudo
+  (`escudo_navatastic.png`, recuperable en git) y el titular `# NavaTastic` (el cartel ya lleva
+  la marca).
+- **Portada de los PDFs**: la plantilla LaTeX (`plantilla_navatastic.tex`) añade
+  `\makeflyerpage` — el cartel HD (2,7 MB, en el repo como `flyer_navatastic_eclipse_v3_hd.jpg`)
+  ocupa la **primera página a página completa** (`height=0.92\paperheight, keepaspectratio`,
+  `\thispagestyle{empty}`) antes de la portada estilizada. `generar_pdf.ps1` copia el HD a
+  `%TEMP%` (ruta sin espacios) y lo pasa con `-V flyer=...`.
+- **Trampa resuelta (L34)**: `\includegraphics` con ruta que contiene espacios escapados (`\ `)
+  da `Missing endcsname inserted` y, sin `-halt-on-error`, xelatex en nonstopmode puede "OK"
+  SIN imagen (PDF sin portada) — usar SIEMPRE copia en `%TEMP%` sin espacios.
+- **YAML de título**: `Manual_NavaTastic.md` no tenía metadatos YAML → la plantilla solo dibuja
+  portada con `$if(title)$`; añadido bloque title/subtitle/author/date/toc.
+- Cabecera de página y portada de la plantilla: "NavaTastic 4.3" → "NavaTastic Eclipse V3".
+- **Publicado**: rama huérfana regenerada (UN commit `7f327b647`) → main; los 2 PDFs del
+  release v4.3.2 sustituidos por los nuevos (2,4 MB con cartel; vía API: borrado + subida).
+  L24 aplicada (distribucion\ + PDFs repoblados). Backups `.bak-20260816-0159` (plantilla +
+  generar_pdf) y `.bak-20260816-0212` (manual de comandos).
+
 ### NOMENCLATURA DE VERSIONES (16/08, decisión del operador)- **Changelog público (manual de uso) = 3 hitos**: **4.3.0** (NavaTastic + control remoto sin
   PC), **4.3.1 = "NavaTastic Eclipse"** (12/08, distribuida a colegas), **4.3.2 = "NavaTastic
   Eclipse V3"** (actual). Mapeo oficial: **"NavaTastic Eclipse V3" = 4.3.2 = etiqueta
