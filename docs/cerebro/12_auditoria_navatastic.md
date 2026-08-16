@@ -121,8 +121,18 @@ flowchart TD
     - Clave de Administrador Master (`0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`) ✅.
     - Perfil `ROUTER` predeterminado de Rama 2 ✅.
 
-### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio
-- [x] **Comportamiento ante Caída de Tensión**: Validada lógica `waitUntilPowerLevelSafe()` y simulación de corte por histéresis LPCOMP (OCV / corte en 3.5V LiPo / 2.8V LiFePO4).
+### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio (17/08/2026)
+- [x] **Punto de Partida (4.10 V)**: ADC reporta **`4.09 V`** (4.090 mV, batería al 93%).
+- [x] **Filtro IIR LPF Identificado (`Power.cpp:370`)**: Demostrado suavizado exponencial del 50% por software ante caídas de tensión (evita falsos cortes por picos LoRa de 120 mA).
+- [x] **Caída a 3.35 V y Sueño Profundo**:
+  * Tras 141 s (~7-8 ciclos del monitor), emisión de **`[Sueno]`** (`ADC 3344 mV | CPU 29.5 C | sueno profundo, despertara >= 3710 mV`) por Canal 1 Navadmin ✅.
+  * **Consumo medido en banco**: **`0.4 mA`** en Faketec SX1262; referencia técnica de **`1.5 mA`** en NRF52840 + E22P (con booster 5V activo en deep sleep).
+- [x] **Reset Externo en Zona Límite (3.34 V)**:
+  * Al pulsar reset simulando ATtiny13A a 3.34 V $\rightarrow$ emisión de **`[Vivo]`** (`ADC 3342 mV | sigo vivo, al limite de carga`) ✅.
+  * Ventana de gracia operativa durante 141 s $\rightarrow$ re-confirmación de batería baja $\rightarrow$ emisión de segundo **`[Sueno]`** (`ADC 3346 mV`) y vuelta a System OFF (0.4 mA) ✅.
+- [x] **Ascenso Solar y Despertar**:
+  * Emisión de **`[Listo]`** (`ADC 3503 mV | despierto, cargando, listo para trabajar`) por Canal 1 Navadmin ✅.
+- [!] **PUNTO DE CONTROL REGISTRADO**: Pausa técnica solicitada por el operador tras detectar comportamiento anómalo durante el ascenso/despertar para análisis de código.
 
 ### 🔹 Fase 5: Gran Informe Técnico y Restauración a Producción
 - [x] **Restauración de Nodos**: Ambos nodos (`Slave` y `Master`) reconfigurados a frecuencia oficial `869.618 MHz` / `22 dBm` / `override_duty_cycle = false` ✅.
