@@ -6,8 +6,8 @@
 > conserva íntegro como conocimiento técnico**, y lo nuevo (log de la sesión 14/08,
 > errores F1-F12, VIGENTE vs OBSOLETO, handover) está en la **sección 5**. El original
 > `C:\Firmware Navarrico 4.3` es ARCHIVO HISTÓRICO SOLO LECTURA. Guías vivas del repo:
-> `Guia_para_agente_sobre_NavaTastic.md` (cómo funciona), `BITACORA_TECNICA.md` (receta
-> de paridad y fixes F1-F12), `PLAN_DE_TRABAJO.md` (estado), `PORTING_NUEVO_FORK.md`
+> `docs/Guia_para_agente_sobre_NavaTastic.md` (cómo funciona), `docs/BITACORA_TECNICA.md` (receta
+> de paridad y fixes F1-F12), `docs/PLAN_DE_TRABAJO.md` (estado), `docs/PORTING_NUEVO_FORK.md`
 > (guía maestra para portar a un fork nuevo).
 
 Capa de conocimiento portable del proyecto. Inicializa contexto en cualquier agente sin reenviar documentación original.

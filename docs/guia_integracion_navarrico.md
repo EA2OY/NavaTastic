@@ -4,7 +4,7 @@
 > carpetas de 4.3 (**obsoletas**): vive en **`C:\NavaTastic Codigo completo\src\`** y
 > `variants\` (un solo repo, 12 envs). Esta guía sigue siendo la referencia técnica de
 > los bloques; para PORTAR a un fork nuevo usar la guía maestra
-> **`PORTING_NUEVO_FORK.md`** (raíz del repo: inventario con anclas, catálogo de
+> **`docs/PORTING_NUEVO_FORK.md`** (inventario con anclas, catálogo de
 > bloques con dependencias, procedimiento y checklist de trampas). `C:\Firmware
 > Navarrico 4.3` es SOLO LECTURA (archivo histórico).
 

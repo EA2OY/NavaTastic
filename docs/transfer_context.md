@@ -9,8 +9,8 @@
 > (Eclipse Edition R2IG + R1IG). Mapa de equivalencias: `Rama 2 Infraestructura\
 > Infraestructura General\<carpeta>` → env `navarrico_<placa>_<radio>_r2ig` + perfil
 > `R2IG_<Placa>.jsonc`; `Rama 1 Clientes...R1IG` → `..._r1ig` + `R1IG_*.jsonc`.
-> Guías vivas: `Guia_para_agente_sobre_NavaTastic.md`, `BITACORA_TECNICA.md`,
-> `PLAN_DE_TRABAJO.md`, `PORTING_NUEVO_FORK.md`. `C:\Firmware Navarrico 4.3` SOLO LECTURA.
+> Guías vivas: `docs/Guia_para_agente_sobre_NavaTastic.md`, `docs/BITACORA_TECNICA.md`,
+> `docs/PLAN_DE_TRABAJO.md`, `docs/PORTING_NUEVO_FORK.md`. `C:\Firmware Navarrico 4.3` SOLO LECTURA.
 
 Este documento es la **memoria técnica canónica** del proyecto **Firmware Navarrico 4.3**, un fork de Meshtastic (v2.7.26 Beta) optimizado para repetidores solares de infraestructura en la malla SFNarrow (Madrid). Alimenta a cualquier agente de IA para retomar el trabajo sin perder contexto. Es el documento **1 de 3** del proyecto:
 
@@ -20,7 +20,7 @@ Este documento es la **memoria técnica canónica** del proyecto **Firmware Nava
 | 2 | `guia_integracion_navarrico.md` | Cómo replicar/portar los parches (bloques copy-paste + código) |
 | 3 | `Manual_NavaTastic.md` | Manual de comandos `/nava` para operadores |
 | — | `Manual_uso_NavaTastic_4.2.md` — el `.md` vive en `Contexto y Manuales\` de 4.3 (corregido 11/08: químicas por placa); original en `C:\Firmware Navarrico 4.2\Manual_uso_NavaTastic_4.2.md` | Manual de uso del firmware (para distribuir en PDF) |
-| — | `HerramientasPropiasIA\plantilla_navatastic.tex` + `HerramientasPropiasIA\generar_pdf.ps1` | Sistema de generación de PDF (Pandoc + MiKTeX) |
+| — | `herramientas\plantilla_navatastic.tex` + `herramientas\generar_pdf.ps1` | Sistema de generación de PDF (Pandoc + MiKTeX) |
 
 > Los documentos históricos y de versiones anteriores se conservan en `OLD_CONTEXT/` en **`C:\Firmware Navarrico 4.2\OLD_CONTEXT`** (raíz 4.2; no copiado a 4.3).
 
