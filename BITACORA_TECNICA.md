@@ -875,3 +875,19 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   técnico de esta bitácora/cerebro; nunca en manuales ni en la etiqueta.
 - Docs actualizadas ES+EN (manual de uso changelog, manual de comandos adenda 16/08 con el
   tip `/nava help` por nodo, README) + PDFs. Backups `.bak-20260816-0128`.
+
+### RETOMA 16/08 — README EN: mojibake corregido + republicación (publicación post-V3)
+- **Síntoma**: el README público (release v4.3.2, rama huérfana) mostraba 10 caracteres rotos
+  "�" (U+FFFD, bytes EF BF BD en el fichero) en la sección EN: guiones largos (9×) y el "×"
+  de "6 boards/radios × 2 branches" (1×) — mal grabados en la traducción EN del 15/08.
+- **Fix**: `README.md` con backup `.bak-20260816-0335`; los 10 U+FFFD sustituidos por
+  U+2014 (—) y U+00D7 (×) según contexto (verificado por códigos de carácter: 0 restos de
+  U+FFFD, 44 em-dash + 6 × totales en el fichero, coherente con el original ES).
+- **Nota de diseño (decisión del operador)**: la clave privada del Master Node expuesta en
+  los PDFs públicos NO es un fallo — es la "última bala" de rescate, con instrucciones
+  claras de desautorización/cambio al recuperar el nodo; si lo critican en el grupo de
+  Telegram, la respuesta es esa.
+- **Publicado**: rama huérfana `github-public` regenerada (UN commit) → push -f a main
+  (credencial del Administrador de credenciales de Windows, en memoria, sin ficheros de
+  token); L24 aplicada (distribucion\ repoblada + PDFs regenerados). Backups
+  `.bak-20260816-0335` (README + BITACORA + cerebro).

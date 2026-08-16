@@ -455,6 +455,15 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     Pendientes: banco Seed y T114, F16b (BLE)/F16d/F16e/F17, rotación del token GitHub (L26),
     publicación en el grupo de Telegram (decisión del operador), próximos releases (bump de
     `NAVATASTIC_BUILD` en NavaCLIModule.h por release).
+- **2026-08-16 (36ª parte) — README EN: 10 caracteres mojibake corregidos (publicación retoma)**:
+  el README público mostraba 10 caracteres rotos "�" (U+FFFD, bytes EF BF BD) en la sección
+  EN — guiones largos y el "×" de "6 boards/radios × 2 branches" grabados mal en la
+  traducción del 15/08. Fix: `README.md` (backup `.bak-20260816-0335`) sustituyendo los 10
+  U+FFFD por U+2014 (—) ×9 y U+00D7 (×) ×1 (verificado: 0 restos). Decisión del operador:
+  la clave privada del Master Node publicada en los PDFs NO es un fallo de diseño — es la
+  "última bala" de rescate, con instrucciones claras para desautorizarla/cambiarla al
+  recuperar el nodo; respuesta lista si lo critican en el grupo. Republicado: rama huérfana
+  UN commit → main; L24 aplicada (distribucion\ + PDFs repoblados).
 - **2026-08-16 (34ª parte) — NOMENCLATURA DE VERSIONES UNIFICADA (decisión del operador)**:
   el changelog del manual de uso se reestructura en 3 hitos públicos: **4.3.0** = NavaTastic +
   control remoto sin PC (auto-fav y NodeDB en RAM ya presentes) · **4.3.1 = "NavaTastic
