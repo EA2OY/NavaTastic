@@ -298,7 +298,8 @@ REGLAS Y TRAMPAS VIGENTES:
       dedicadas ES/EN tras Agradecimientos) y `.github/FUNDING.yml` (`ko_fi: ea2oy` → botón
       «💖 Sponsor» de GitHub). Texto explicita que el proyecto es y será **100% libre,
       gratuito y totalmente altruista**; donar es estrictamente voluntario para colaborar con
-      gastos personales de placas y laboratorio. Backups `.bak-20260816-1411`. Docs y cerebro al día.
+      gastos personales de placas y laboratorio. **Publicado a GitHub (main)** con formato de
+      commit público limpio y regla L24 ejecutada. Backups `.bak-20260816-1411`. Docs y cerebro al día.
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

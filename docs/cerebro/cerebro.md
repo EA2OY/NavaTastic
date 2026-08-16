@@ -509,6 +509,8 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   tras Agradecimientos) y `.github/FUNDING.yml` (`ko_fi: ea2oy` → botón «💖 Sponsor» de GitHub).
   Texto explicita que el proyecto es y será **100% libre, gratuito y totalmente altruista**;
   donar es estrictamente voluntario para cubrir costes de hardware/banco de pruebas.
+  **Publicado a GitHub (main)**: rama huérfana regenerada con título público limpio (`NavaTastic v4.3.2 — Actualización 16/08/2026 14:15...`)
+  y regla L24 ejecutada (distribucion\ repoblada + 2 PDFs regenerados).
 - **2026-08-16 (38ª parte) — CIERRE DE LA RETOMA (sesión documental post-V3)**: sesión
   cerrada: commits locales en master (README + docs), publicación final con rama huérfana
   regenerada → main (lleva el $Excluir pendiente y toda la ronda de docs). Nada de código
