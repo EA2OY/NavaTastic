@@ -50,6 +50,7 @@ $endif$
 
 % --- Fuentes (Segoe UI: sans-serif moderna similar a Roboto) ---
 \usepackage{fontspec}
+\usepackage{graphicx}   % NAVARICO: cartel/flyer como primera pagina de los manuales
 \setmainfont{Segoe UI}[
   BoldFont=Segoe UI Bold,
   ItalicFont=Segoe UI Italic,
@@ -109,7 +110,7 @@ $endif$
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\footnotesize\color{navGold}\sffamily NavaTastic 4.3}
+\fancyhead[L]{\footnotesize\color{navGold}\sffamily NavaTastic Eclipse V3}
 \fancyhead[R]{\footnotesize\color{navNeon}\sffamily Firmware Meshtastic}
 \fancyfoot[C]{\footnotesize\color{navText}\thepage}
 \renewcommand{\headrulewidth}{0.4pt}
@@ -170,7 +171,7 @@ $if(title)$
     \pagecolor{navBg}
     \centering
     \vspace*{2cm}
-    {\Huge\bfseries\sffamily\color{navGold} NavaTastic 4.3 \par}
+    {\Huge\bfseries\sffamily\color{navGold} NavaTastic Eclipse V3 \par}
     \vspace{0.3cm}
     {\color{navNeon}\rule{0.6\textwidth}{1.2pt}\par}
     \vspace{0.8cm}
@@ -187,11 +188,25 @@ $if(title)$
 }
 $endif$
 
+% --- Cartel del operador como PRIMERA pagina (a pagina completa) ---
+$if(flyer)$
+\newcommand{\makeflyerpage}{
+  \begin{titlepage}
+    \thispagestyle{empty}
+    \centering
+    \noindent\includegraphics[height=0.92\paperheight, keepaspectratio]{$flyer$}
+  \end{titlepage}
+}
+$endif$
+
 \begin{document}
 $if(has-frontmatter)$
 \frontmatter
 $endif$
 $if(title)$
+$if(flyer)$
+\makeflyerpage
+$endif$
 \maketitlepage
 $if(abstract)$
 \begin{abstract}

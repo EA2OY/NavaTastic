@@ -1,3 +1,13 @@
+---
+title: "Manual de Administracion Remota /nava"
+subtitle: "NavaTastic Eclipse V3 - comandos completos de gestion remota del nodo"
+author: "NavaTastic - EA2OY"
+date: "Agosto 2026"
+colorlinks: true
+toc: true
+toc-title: "Indice"
+---
+
 # Manual de Administración Remota NavaTastic (v4.2.1)
 
 > **ADENDA 16/08/2026 — "NavaTastic Eclipse V3" (4.3.2)**: este manual describe la versión

@@ -1,9 +1,5 @@
 <div align="center">
 
-<img src="escudo_navatastic.png" alt="Escudo Meshtastic Navarra" width="180"/>
-
-# NavaTastic
-
 <img src="flyer_navatastic_eclipse_v3.jpg" alt="Cartel NavaTastic Eclipse V3" width="480"/>
 
 </div>

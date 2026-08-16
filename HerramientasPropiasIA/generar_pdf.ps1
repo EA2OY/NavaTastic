@@ -85,6 +85,20 @@ if (Test-Path -LiteralPath $Plantilla) {
     $templateArgs = @()
 }
 
+# Cartel del operador como PRIMERA pagina de los manuales (norma: flyer NavaTastic Eclipse V3).
+# Se copia a %TEMP% (ruta sin espacios, segura para \includegraphics de XeLaTeX; la imagen
+# queda embebida en el PDF, la copia temporal solo existe durante la generacion).
+$flyerHd = Join-Path $PSScriptRoot "..\flyer_navatastic_eclipse_v3_hd.jpg"
+if (Test-Path -LiteralPath $flyerHd) {
+    $flyerTmp = Join-Path $env:TEMP "navatastic_flyer_hd.jpg"
+    Copy-Item -LiteralPath $flyerHd -Destination $flyerTmp -Force
+    $flyerVar = $flyerTmp -replace '\\', '/'
+    $flyerArgs = @("-V", "flyer=$flyerVar")
+} else {
+    Write-Host "AVISO: flyer HD no encontrado ($flyerHd) - portadas sin cartel." -ForegroundColor Yellow
+    $flyerArgs = @()
+}
+
 Write-Host "== Generador de PDF NavaTastic ==" -ForegroundColor Cyan
 Write-Host "Pandoc: $pandoc"
 Write-Host "XeLaTeX: $xelatex"
@@ -99,7 +113,7 @@ foreach ($md in $archivos) {
     Write-Host "-> $([System.IO.Path]::GetFileName($md))" -ForegroundColor White
     try {
         $env:Path = "$([System.IO.Path]::GetDirectoryName($xelatex));$([System.IO.Path]::GetDirectoryName($pandoc));" + $env:Path
-        & $pandoc $md -o $pdf --pdf-engine=xelatex @templateArgs -V colorlinks=true -V linkcolor=navGold -V urlcolor=navNeon -V geometry:margin=2.5cm -V toc=true 2>$null
+        & $pandoc $md -o $pdf --pdf-engine=xelatex @templateArgs @flyerArgs -V colorlinks=true -V linkcolor=navGold -V urlcolor=navNeon -V geometry:margin=2.5cm -V toc=true 2>$null
         if ($LASTEXITCODE -ne 0) { throw "Pandoc fallo con codigo $LASTEXITCODE" }
         $size = [math]::Round((Get-Item $pdf).Length/1KB)
         Write-Host "   OK -> $([System.IO.Path]::GetFileName($pdf)) ($size KB)" -ForegroundColor Green
