@@ -83,15 +83,17 @@ flowchart TD
   * Clave Pública PKI: `1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=`.
   * Clave Admin inyectada en Slot 0: `0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=` (Clave del Master) ✅.
   * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · `override_duty_cycle = true` · Canal 1 `Navadmin` (`AQ==`).
-- [ ] **PASO C (Montaje definitivo y Test de Enlace Radio)**: EN PROGRESO.
+- [x] **PASO C (Montaje definitivo y Test de Enlace Radio)**: COMPLETADO CON ÉXITO ✅.
+  * Traceroute bidireccional por radio OK:
+    `!3a89ac94 --> 8289015a` (12.75 dB) | `8289015a --> !3a89ac94` (11.5 dB).
+  * NodeDB sincronizada a 0 saltos.
 
 ### 🔹 Fase 2: Batería Meshtastic Core (App Oficial + AdminMessage)
-1. **Renombrado Remoto**: `set_owner` (nombre largo/corto) $\rightarrow$ verificar persistencia tras soft reboot.
-2. **Presets de Modem**: Cambiar de SFNarrow a `MEDIUM_FAST` $\rightarrow$ verificar persistencia tras reboot $\rightarrow$ verificar restauración a SFN tras hard reset.
-3. **Canales Secundarios**: Crear Canal 2 ("Privado") y Canal 3 ("Telemetría") $\rightarrow$ comprobar que el Canal 1 (Navadmin) permanece en Slot 1 $\rightarrow$ borrar Canal 2 y comprobar integridad.
-4. **Roles**: Cambiar rol remoto a `ROUTER`, `CLIENT`, `REPEATER`.
-5. **Traceroutes y Telemetría**: Traza a nodo real vs traza a nodo no registrado (`/nava route !ID`) $\rightarrow$ solicitud de telemetría remota.
-6. *Reporte al operador y solicitud de permiso.*
+- [ ] **Prueba 2.1 — Renombrado Remoto (`set_owner`)**: PENDIENTE.
+- [ ] **Prueba 2.2 — Cambio de Preset (`SFNarrow` -> `MEDIUM_FAST`) y persistencia**: PENDIENTE.
+- [ ] **Prueba 2.3 — Canales Secundarios (Creación Canal 2 y 3 sin alterar Navadmin en Slot 1)**: PENDIENTE.
+- [ ] **Prueba 2.4 — Cambio Remoto de Roles (`ROUTER` / `CLIENT`)**: PENDIENTE.
+- [ ] **Prueba 2.5 — Traceroutes y Telemetría Remota**: PENDIENTE.
 
 ### 🔹 Fase 3: Batería NavaCLI (`/nava`) y Persistencia Forense
 1. **Canal 1 (Navadmin abierto)**:
