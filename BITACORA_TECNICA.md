@@ -832,6 +832,19 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   anterior) y el flyer de portada de los PDFs actualizado (1792×2398, sobre
   `flyer_navatastic_eclipse_v3_hd.jpg`). PDFs regenerados y sustituidos en el release v4.3.2
   (vía API). Rama huérfana `6a44fd022` → main. L24 aplicada de nuevo.
+- **FIX README roto (16/08, L35)**: la edición del README (cartel) quedó SIN STAGEAR — el
+  commit llevaba el `git rm` del flyer viejo pero no el cambio de README; el `git checkout
+  master` posterior restauró la referencia antigua → imagen 404 en GitHub. Regla (L35): tras
+  editar ficheros, `git add` explícito de CADA fichero editado y verificar con
+  `git show HEAD:<fichero>` antes de publicar. Fix: README → `cartel_navatastic_github.jpg`,
+  main `418768227`.
+- **FIX portada PDF (16/08, L36)**: el entorno `titlepage` de la portada-cartel emitía un
+  `\newpage` inicial → primera página EN BLANCO y el cartel en la 2ª. Fix: `\makeflyerpage` sin
+  `titlepage` (`\thispagestyle{empty}` + `\vfill` + `center` + `\includegraphics[width=\textwidth,
+  height=\textheight, keepaspectratio]` + `\vfill` + `\clearpage`) → cartel en la página 1,
+  ajustado al área de texto (margen de geometry) y centrado en ambos ejes. Verificado con
+  pypdf: pag1=imagen sin texto, pag2=portada, pag3=índice, sin páginas en blanco. PDFs del
+  release v4.3.2 sustituidos; rama huérfana `71b7eee31` → main; L24 aplicada.
 
 ### NOMENCLATURA DE VERSIONES (16/08, decisión del operador)- **Changelog público (manual de uso) = 3 hitos**: **4.3.0** (NavaTastic + control remoto sin
   PC), **4.3.1 = "NavaTastic Eclipse"** (12/08, distribuida a colegas), **4.3.2 = "NavaTastic
