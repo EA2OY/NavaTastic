@@ -8,7 +8,7 @@ toc: true
 toc-title: "Indice"
 ---
 
-# Manual de Administración Remota NavaTastic (v4.2.1)
+# Manual de Administración Remota NavaTastic — NavaTastic Eclipse V3
 
 > **ADENDA 16/08/2026 — "NavaTastic Eclipse V3" (4.3.2)**: este manual describe la versión
 > actual. El nodo muestra su generación en `/nava status` y en el aviso [Boot] (`NAVA V3`).
@@ -204,7 +204,7 @@ lecturas (~160s)** para todas las placas.
 
 ---
 
-# NavaTastic Remote Administration Manual (v4.2.1) — English
+# NavaTastic Remote Administration Manual — Eclipse V3 (English)
 
 > **ADDENDUM 16/08/2026 — "NavaTastic Eclipse V3" (4.3.2)**: this manual describes the current
 > version. The node shows its generation in `/nava status` and in the [Boot] notice (`NAVA V3`).

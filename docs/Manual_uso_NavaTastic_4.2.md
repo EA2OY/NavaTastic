@@ -1,5 +1,5 @@
 ---
-title: "Manual de Uso — Firmware NavaTastic 4.2"
+title: "Manual de Uso — Firmware NavaTastic Eclipse V3"
 subtitle: "Desarrollo optimizado para infraestructura solar en ubicaciones de difícil acceso"
 author: "Modificación inicial por JBAU92 · Desarrollo continuado por EA2OY"
 date: "Agosto 2026"
@@ -8,10 +8,10 @@ toc: true
 toc-title: "Índice"
 ---
 
-# Manual de Uso — Firmware NavaTastic 4.2
+# Manual de Uso — Firmware NavaTastic Eclipse V3
 
 > **ADENDA 14/08/2026 — REPO UNIFICADO**: manual de usuario **VIGENTE** (comportamiento
-> del firmware; la versión actual es NavaTastic 4.3 = repo unificado, 12 builds
+> del firmware; la versión actual es NavaTastic Eclipse V3 (4.3.2) = repo unificado, 12 builds
 > `navarrico_*`). Los binarios se distribuyen desde `distribucion\` del repo (32
 > ficheros, nombres históricos). El PDF de este manual no se regenera en el repo.
 
@@ -248,7 +248,7 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 
 ---
 
-# NavaTastic User Manual 4.2 — English
+# NavaTastic User Manual — Eclipse V3 (English)
 
 > English translation of the Spanish manual above. **The Spanish original is the authoritative
 > version.** The firmware is designed for autonomous, isolated **Meshtastic** network nodes; its
