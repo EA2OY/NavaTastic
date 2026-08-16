@@ -945,3 +945,14 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Pendiente de publicación (16/08)**: `generar_pdf.ps1` ($Excluir += Compilar_NavaTastic.md,
   commit 8b5824fed) y esta ronda de docs saldrán en la próxima publicación. Backups
   `.bak-20260816-1326`.
+
+### CIERRE RETOMA 16/08 (sesión documental post-V3)
+- **Publicado a GitHub (cierre)**: rama huérfana regenerada (UN commit) → push -f a main —
+  incluye el `generar_pdf.ps1` con $Excluir y la ronda de docs completa (BITACORA,
+  cerebro 36ª-38ª, transfer_context §8, Guia §5, PLAN con PROMPT DE RETOMA actualizado).
+  README con agradecimientos/mallas cercanas y nota del autor ya publicado en rondas
+  anteriores. L24 aplicada (distribucion\ 32 ficheros + 2 PDFs).
+- **Estado final**: V3 (4.3.2) cerrada y publicada; retoma documental cerrada (0 cambios
+  de código). Pendientes para la próxima sesión: banco Seed/T114, F16b/d/e, F17, rotación
+  del token GitHub (L26), Telegram, siguiente release (bump `NAVATASTIC_BUILD`), nuevas
+  rondas Propia (PROMPT_BUILD_PROPIA.md en el Desktop).
