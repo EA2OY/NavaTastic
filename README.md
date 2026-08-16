@@ -134,6 +134,10 @@ emparejar). Los builds Propia usan un PIN propio del operador.
 | **Heltec T114** | **PENDIENTE**: testear el ciclo de dormir/despertar de resiliencia del firmware |
 | **Faketec HT-RA62** | **Verificada por el operador (14/08) + resets remotos y claves admin persistidas verificados en banco 7/7 (16/08)** |
 
+*Nota del autor: algo podría fallar, algo podría funcionar mal — pero es reparable: solo
+hace falta un poquito de aptitud. Y recuerda: cuando se añade alguna función extra, el
+firmware puede tener... "un poquito de sueño".*
+
 ## Descargas (firmware compilado)
 
 Última versión: **NavaTastic Eclipse V3 (4.3.2, 16/08/2026)** — etiqueta `NAVA V3` en `status`/[Boot],
@@ -401,6 +405,10 @@ To **compile with a different default chemistry**: add
 | **Seeed Solar Node P1** | **Semi-tested** — full resilience cycle on the board still pending |
 | **Heltec T114** | **PENDING**: test the firmware sleep/wake resilience cycle |
 | **Faketec HT-RA62** | **Operator-verified (14/08) + remote resets and persisted admin keys bench-verified 7/7 (16/08)** |
+
+*Author's note: something might fail, something might not work as expected — but it is all
+repairable: it just takes a little aptitude. And remember: when an extra feature gets
+added, the firmware might get... "a little sleepy".*
 
 ## Downloads (prebuilt firmware)
 
