@@ -910,3 +910,7 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **generar_pdf.ps1**: `Compilar_NavaTastic.md` añadido a `$Excluir` (norma 11/08: solo
   manuales de firmware y comandos; el PDF extra de la guía se retiró — la rama pública ya
   solo lleva los 2 PDFs). Se publicará en la próxima publicación.
+- **Agradecimientos (texto del operador)**: sección "Agradecimientos"/"Acknowledgments" al
+  pie del README (ES+EN): JBAU92 y su firmware_solar_fix (origen del proyecto, enlazado),
+  amig@s y conocid@s de la malla de Navarra y el grupo Meshtastic España (Telegram).
+  Backup `.bak-20260816-0350`.

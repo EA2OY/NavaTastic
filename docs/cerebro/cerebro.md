@@ -481,6 +481,10 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   Backups `.bak-20260816-0345/0346`. `generar_pdf.ps1`: `Compilar_NavaTastic.md` a
   `$Excluir` (norma 11/08 — solo manuales; el PDF extra se retiró, la rama pública lleva
   los 2 PDFs).
+- **Agradecimientos en el README (misma sesión, texto del operador)**: nueva sección
+  "Agradecimientos"/"Acknowledgments" al pie (ES y EN): JBAU92 y su firmware_solar_fix
+  (https://github.com/JBAU92/firmware_solar_fix, origen del proyecto) + amig@s y conocid@s
+  de la malla de Navarra + grupo Meshtastic España (Telegram). Backup `.bak-20260816-0350`.
 - **2026-08-16 (34ª parte) — NOMENCLATURA DE VERSIONES UNIFICADA (decisión del operador)**:
   el changelog del manual de uso se reestructura en 3 hitos públicos: **4.3.0** = NavaTastic +
   control remoto sin PC (auto-fav y NodeDB en RAM ya presentes) · **4.3.1 = "NavaTastic

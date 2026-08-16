@@ -270,6 +270,10 @@ la operación (bug conocido de la app).
 - Los nodos conectados a una malla pública pueden ser visibles para terceros: no envíes por
   radio información sensible.
 
+## Agradecimientos
+
+Este proyecto nació gracias a **JBAU92** y su [firmware_solar_fix](https://github.com/JBAU92/firmware_solar_fix): sin esa base e inspiración, NavaTastic no existiría. Gracias también a tod@s l@s amig@s y conocid@s de la **malla de Navarra**, a los que guardo mucho aprecio y valoro enormemente su apoyo. He hecho grandes amistades gracias a todo esto, y a toda la gente del grupo **Meshtastic España** (Telegram) que me ha echado una mano, probado el firmware e inspirado en este camino. Este proyecto también es vuestro.
+
 ---
 
 # NavaTastic (English)
@@ -530,3 +534,7 @@ key **regenerates by itself**. If it does not stick, repeat the operation (known
   deploying your own nodes.
 - Nodes connected to a public mesh may be visible to third parties: do not send sensitive
   information over the air.
+
+## Acknowledgments
+
+This project was born thanks to **JBAU92** and his [firmware_solar_fix](https://github.com/JBAU92/firmware_solar_fix): without that base and inspiration, NavaTastic would not exist. Thanks too to all the friends and acquaintances of the **Navarra mesh**, for whom I hold great affection and whose support I deeply value. This whole journey has brought me great friendships. And thanks to everyone in the **Meshtastic España** group (Telegram) who has lent a hand, tested the firmware and inspired this path. This project is partly yours too.
