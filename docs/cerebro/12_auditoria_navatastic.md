@@ -1,54 +1,118 @@
-# 12 — AUDITORÍA NAVATASTIC (operativa + estado, sesión 14/08/2026)
+# 12 — PLAN MAESTRO DE AUDITORÍA Y BANCO DE PRUEBAS (NavaTastic V3)
 
-> **ESTADO 14/08/2026 — REPO UNIFICADO**: documento de operativa de banco **VIGENTE**
-> (la fuente de detalle `Faketec Auditoria\auditoria\` sigue en 4.3, SOLO LECTURA; si se
-> quiere migrar la carpeta de auditoría al repo, hacerlo con orden expresa). El firmware
-> de banco (Eclipse Edition) corresponde al build R2IG del repo unificado (paridad 12/12).
+> **ESTADO 16/08/2026 — VIGENTE**: Especificación canónica para la auditoría y testeo automatizado
+> end-to-end de NavaTastic V3. Topología de banco con dos nodos reales (Faketec) enlazados por LoRa
+> en frecuencia de aislamiento, controlados por PC (USB) y Xiaomi Mi 10 (OTG + ADB WiFi).
 
-> Neurona nueva creada en sesión de auditoría (14/08). Fuente de verdad de detalle: `Rama 2 Infraestructura\Infraestructura Propia\Faketec Auditoria\auditoria\` (FIX_LOG.md, OPERATIVA.md, evidencias). La operación se llama **Auditoría NavaTastic** (independiente del hardware de banco: hoy dos Faketec).
+---
 
-## Topología de banco (auditoría NavaTastic)
-| Rol | Hardware | Conexión | Firmware |
-|---|---|---|---|
-| Nodo de montaña (prueba) | Faketec 1 | USB → PC (COM9) | NavaTastic 4.3 Rama 2 Propia = **Eclipse Edition** (12/08 17:09-17:15; MD5 sanity: NodeDB `5234C510`, NavaCLIModule.h `B3565F59`, NavaCLIModule.cpp `6C2EE6AB` 22dBm, jsonc `30B258CD`) |
-| Nodo admin (mando) | Faketec 2 "Timonel" | OTG → Mi 10 | **2.7.7.5ae4ff9 (NO es stock 2.7.26 ni Navarrico)**; acreditado como admin en la malla (su clave pública `PzgE...` = K1 del `admin_key[]` de fábrica del de montaña). Regla operador: **solo se le toca la frecuencia** |
-| Control del admin | Mi 10 (app oficial `com.geeksville.mesh`) | adb WiFi `192.168.3.141:5555` | activity: `com.geeksville.mesh/org.meshtastic.app.MainActivity` |
+## 0. REGLAS DE ORO OPERATIVAS (INNEGOCIABLES)
 
-- Banda de pruebas (aislamiento): **869.545 MHz / hop 1 / duty ON / SFN PSK `AQ==`** en ambos nodos. Restaurar `override_duty_cycle false` al cierre.
-- Limitación banco: ambos por USB → no probar deep sleep/storm largo/anti-brownout (storm solo test1/test2). Anotar "no probado por banco".
-- Mi 10: pantalla suspende a ~10 min; el agente NO desbloquea → pedir al operador. Nada se borra en el Mi 10 (datos del operador).
+1. **Seguridad Absoluta del Xiaomi Mi 10 (Teléfono del Padre del Operador)**:
+   * **Cero perrerías**: Ningún comando afectará al sistema de archivos del teléfono (`/sdcard/DCIM`, fotos, descargas, etc. son 100% intocables).
+   * **Aislamiento ADB**: Solo interactuar con los paquetes de las aplicaciones autorizadas (`com.geeksville.mesh` y `com.meshkachoutility`).
+   * **Prohibido cualquier wipe/reset en Android**.
+2. **Prohibido Tocar Código de Firmware sin Orden Explícita**:
+   * La auditoría es de diagnóstico, prueba y recolección de evidencias.
+   * Si se detecta un comportamiento anómalo o bug, **se reporta al operador**, se documenta en el FIX LOG y se espera confirmación antes de tocar una sola línea de código en `src/` o `variants/`.
+3. **Antiespeculación y Pragmatismo Técnico**:
+   * No asumir que NavaTastic falla ante el primer error de configuración remota.
+   * Si la configuración remota por radio se atasca, reportar y conectar el nodo Master al PC para configurarlo directamente por USB (lección F-02).
+4. **Respeto Estricto de Tiempos y Cooldowns**:
+   * Dejar pausas adecuadas entre comandos: $\ge 2$ s para consultas normales, $\ge 15$ s tras cambios de radio, $\ge 30$ s tras reboots/resets para permitir re-sintonización y re-conexión de malla.
+5. **Dieta de Tokens y Handover Permanente**:
+   * Mantener el cerebro y bitácora actualizados en caliente; snapshot previo creado en `_archivo/` antes de iniciar pruebas.
 
-## Estado al inicio de sesión
-- Montaña: factory reset hecho (claves nuevas, DB 1 nodo), re-aislada 869.545/hop1/duty ON, canal 0 SFNarrow + canal 1 Navadmin `AQ==` en slot 1 (el fork lo crea al factory reset ✓).
-- Rollback local: `auditoria\rollback\UF2_PREVIO_Eclipse_20260814.uf2` (MD5 `D39940D341E78D09EA6DE29F44C5BD5A`).
-- Timonel: se le conectó por USB vía app oficial del Mi 10 (permiso USB aceptado); pendiente pasar su frecuencia a 869.545.
+---
 
-## Re-key / re-acreditación (matriz, plan Desktop\Auto_debug_NavaTastic.md §5)
-- Caso A (factory reset montaña): `--factory-reset-device` → clave nueva; el admin ya es válido si su pubkey está en `admin_key[]` del de montaña (K1 `PzgE...` de fábrica ✓). Forzar NodeInfo del admin → H3 (a2) acredita (primera clave = admin_key → bitfield directo). Fallback pre-H3: un AdminMessage PKI (set-favorite) desde el admin.
-- Caso B/C (db_clear / ign rm): forzar NodeInfo broadcast del admin (reboot/set-owner); NO basta un DM.
-- Caso D (mismatch): NodeInfo con clave == admin_key → acepta + estrella + bitfield (H3).
-- Caso E (primera toma): DB limpia + clave admin en admin_key[] → solo NodeInfo del mando acredita canal+DM sin DM previo.
-- ⚠️ Si la clave del mando NO está en admin_key[] → DM descifra pero `NO AUTORIZADO` (1 vez) y bitfield jamás se otorga.
+## 1. TOPOLOGÍA Y ROLES DE BANCO
 
-## FIX LOG acumulado (detalle en carpeta auditoria)
-- **F-00** (Bajo, herramienta CLI): `--set` encadenados en ráfaga → 3º falla PermissionError 13 (puerto ocupado). Solución: pausa ≥2 s o repetir. No es firmware. Verificado: duty reintentado OK.
-- **F-01** (Medio, app oficial Mi 10): campo "Sobreescribir frecuencia" (LoRa→Avanzado) NO persiste el valor en el nodo al confirmar (ENTER): queda en la UI local pero el nodo sigue en la frecuencia anterior. Además `input text "."` se convierte en "0"; **`input keyevent 56` (KEYCODE_PERIOD) SÍ inserta el punto**. Método que funciona para ver el valor en el campo: borrar del final (tap en borde derecho del campo + DEL×N) hasta dejar vacío real `[]`, escribir dígitos + keyevent 56 + dígitos, verificar con dump, ENTER. **Pero el guardado no vale → vía fiable: CLI del PC** (F-02).
-- **F-02** (Alto, operativa — admin remota por radio): `--set X Y --dest !ID` desde el de montaña a Timonel (2.7.7.5ae4ff9): 1ª vez ACK de entrega SIN aplicar el cambio; 2ª vez NAK `NO_CHANNEL`. Conclusión: **el ACK de entrega no prueba el procesamiento** (lección del plan) y el admin remoto de config a ese firmware no es fiable → **mover el nodo al PC y usar CLI local** (funcionó a la 1ª).
+| Rol | Hardware | Conexión | Firmware / Software | Control |
+|---|---|---|---|---|
+| **`Slave`** (Montaña / Bajo Prueba) | Faketec 1 (HT-RA62) | **USB → PC (COMx)** | NavaTastic 4.3.2 V3 (Rama 2 Propia / General) | Meshtastic CLI Python / Serial API directo |
+| **`Master`** (Admin / Timonel) | Faketec 2 (HT-RA62) | **USB OTG → Mi 10** | Meshtastic Oficial / NavaTastic Banco | App Meshtastic + MeshNavarra Utility |
+| **Control Remoto Móvil** | Xiaomi Mi 10 | **WiFi ADB (`192.168.3.141:5555`)** | Android 12 / MIUI | `adb shell am broadcast` (`RemoteControlReceiver`) |
 
-## Flujo de preparación de banco (documentado 14/08, para auditorías futuras)
-1. Montaña (PC): factory reset + aislamiento (869.545/hop1/duty ON) — CLI local.
-2. Timonel (PC): CLI local `--set lora.override_frequency 869.545` + `--reboot` (la app oficial NO persiste ese campo — F-01; el admin remoto por radio no aplica — F-02).
-3. Cruz de claves: clave pública del de montaña en `admin_key[]` de Timonel (app Mi 10: Ajustes → Seguridad → Claves administración → Añadir → pegar base64). Timonel en la DB del de montaña: URL de contacto de Timonel desde la app (Detalles → Compartir contacto → URL `https://meshtastic.org/v/#...`) + `--add-contact "<URL>"` en el de montaña.
-4. Verificación de enlace: `--trace !4e311ab3` (debe devolver ruta ida/vuelta).
-5. Si se tocan claves (factory reset del de montaña): re-añadir su clave nueva en Timonel (o restaurar la privada antigua del de montaña para regenerar la pública anterior).
+- **Banda de aislamiento**: **869.545 MHz** / hop 1 / TX power **1 dBm** / duty-cycle override ON.
+- **Canal 0**: SFNarrow (PSK default `AQ==`).
+- **Canal 1**: Navadmin (PSK pública `{0x01}` = `AQ==`, slot 1 inamovible).
 
-## Reglas de la sesión
-- Solo escritura en `Faketec Auditoria\auditoria\`; fallos grandes → documentar + **proponer y auditar antes de aplicar**; rollback UF2+MD5+backup antes de cada cambio; nunca factory_reset al admin.
+---
 
-## Operativa detallada (tiempos, flujos adb/app/CLI)
-→ Ver `OPERATIVA.md` en la carpeta auditoria (copy-paste en sesiones nuevas).
+## 2. HERRAMIENTAS Y CANALES DE CONTROL
 
-## Estado (14/08, actualización parcial)
-- Montaña (COM9): factory reset + 869.545/hop1/duty ON; quedó a 869.618 (override 0) al inicio del discriminador F-03 (volver a 545 al reanudar).
-- Timonel: 869.545 + canal Navadmin slot 1 añadido + clave de la montaña en admin_key[2]; DESCONECTADO del PC (COM11 caído) — pendiente reconectar (VM en despliegue).
-- **F-03 abierto**: DM Timonel->montana = NAK NO_CHANNEL (asimetria vs traceroute OK). Discriminador pendiente: ambos a 869.618 sin override -> DM; si persiste: borrar tarjeta de la montana en Timonel (--remove-node !3a89ac94); plan B: 2.7.26 oficial a Timonel (oferta del operador).
+### 2.1 Control del `Slave` (PC)
+* `meshtastic --port COMx --info` (lectura completa de estado, canales y NodeDB).
+* Inspección de `/resilience.bin` y LittleFS por USB.
+* Volcado de logs serie en tiempo real.
+
+### 2.2 Control del `Master` (Xiaomi Mi 10 vía ADB)
+* **MeshNavarra Utility (`RemoteControlReceiver`)**:
+  * Envío de comandos `/nava` sin tocar la pantalla:
+    `adb -s 192.168.3.141:5555 shell am broadcast -n com.meshkachoutility/.RemoteControlReceiver -a com.meshkachoutility.REMOTE --es cmd send_nava --es arg "<cmd>" --es arg2 "!<ID_SLAVE>"`
+  * Volcado de estado de la app: `cmd state` $\rightarrow$ `remote_state.json`.
+  * Volcado de nodos: `cmd nodes` $\rightarrow$ `nodes_dump.json`.
+  * Activación de pestaña Debug: `cmd debug_tab --es arg "on"`.
+* **App Oficial Meshtastic**:
+  * Pruebas de configuración remota por AdminMessage Protobuf PKI (cambio de presets, canales secundarios, roles, traceroutes).
+
+---
+
+## 3. MATRIZ EXTENDIDA DE PRUEBAS (5 FASES)
+
+```mermaid
+flowchart TD
+    F0["Fase 0: Preparación y Verificación de Conectividad (ADB/USB/OTG)"] --> F1["Fase 1: Flasheo Firmware de Banco y Claves Cruzadas"]
+    F1 --> F2["Fase 2: Batería Meshtastic Core (Canales/Presets/Roles/AdminMessage)"]
+    F2 --> F3["Fase 3: Batería NavaCLI /nava (Navadmin + DMs PKI + resilience.bin + Resets)"]
+    F3 --> F4["Fase 4: Resiliencia Energética y Ciclo Solar (Fuente Regulable)"]
+    F4 --> F5["Fase 5: Generación del Informe Exhaustivo de Auditoría"]
+```
+
+### 🔹 Fase 0: Preparación y Verificación de Conectividad
+1. Conexión WiFi ADB al Mi 10 (`adb connect 192.168.3.141:5555`) y verificación de respuesta.
+2. Detección del `Slave` por USB en el PC (`COMx`).
+3. Detección del `Master` por OTG en el Mi 10.
+4. Verificación de broadcast de prueba con MeshNavarra (`cmd state`).
+5. *Reporte al operador y solicitud de permiso.*
+
+### 🔹 Fase 1: Firmware de Laboratorio y Emparejamiento Limpio
+1. Flasheo de ambos Faketecs con firmware limpio en 869.545 MHz / 1 dBm.
+2. Inyección de claves cruzadas (`admin_key[]` mutuas).
+3. Intercambio de NodeInfo y verificación de Traceroute bidireccional (`--trace !ID`).
+4. *Reporte al operador y solicitud de permiso.*
+
+### 🔹 Fase 2: Batería Meshtastic Core (App Oficial + AdminMessage)
+1. **Renombrado Remoto**: `set_owner` (nombre largo/corto) $\rightarrow$ verificar persistencia tras soft reboot.
+2. **Presets de Modem**: Cambiar de SFNarrow a `MEDIUM_FAST` $\rightarrow$ verificar persistencia tras reboot $\rightarrow$ verificar restauración a SFN tras hard reset.
+3. **Canales Secundarios**: Crear Canal 2 ("Privado") y Canal 3 ("Telemetría") $\rightarrow$ comprobar que el Canal 1 (Navadmin) permanece en Slot 1 $\rightarrow$ borrar Canal 2 y comprobar integridad.
+4. **Roles**: Cambiar rol remoto a `ROUTER`, `CLIENT`, `REPEATER`.
+5. **Traceroutes y Telemetría**: Traza a nodo real vs traza a nodo no registrado (`/nava route !ID`) $\rightarrow$ solicitud de telemetría remota.
+6. *Reporte al operador y solicitud de permiso.*
+
+### 🔹 Fase 3: Batería NavaCLI (`/nava`) y Persistencia Forense
+1. **Canal 1 (Navadmin abierto)**:
+   * Comandos de solo lectura: `ping`, `status`, `env`, `channel`, `peers`, `rxlog`, `afc`, `noise`, `bat`, `help`.
+   * Rechazo de comandos de escritura: Verificar respuesta `SOLO DM SEGURO`.
+2. **DM Cifrado PKI (Control Admin)**:
+   * Parámetros de radio y energía: `set_chem`, `set_vbat`, `set_vwake`, `set_txpower`, `set_hops`, `set_role`, `fav auto`, `sleepmsg`.
+   * Gestión de nodos: `fav add/rm/ls`, `ign add/rm/ls`.
+3. **Escalera de Resets y `/resilience.bin`**:
+   * `/nava keys_ls` $\rightarrow$ listar claves.
+   * `/nava full_reset` $\rightarrow$ verificar que mantiene claves admin de usuario y par PKI.
+   * `/nava factory_reset` $\rightarrow$ verificar que mantiene claves admin pero renueva PKI.
+   * `/nava wipe` $\rightarrow$ purga total de `/resilience.bin`.
+   * Prueba de tamaño LittleFS: verificar que `/resilience.bin` mantiene exactamente 84 bytes.
+4. **Seguridad y Whitelist**: Intento de comando admin desde nodo no autorizado $\rightarrow$ verificar `NO AUTORIZADO`.
+5. *Reporte al operador y solicitud de permiso.*
+
+### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio
+1. `Slave` conectado a la fuente regulable del operador.
+2. **Descenso de voltaje**: Bajar por debajo de OCV $\rightarrow$ verificar aviso `[Sueño]` por canal 1 $\rightarrow$ consumo ~1 mA.
+3. **Ascenso solar**: Subir voltaje $\rightarrow$ registrar disparo de **LPCOMP** $\rightarrow$ verificar aviso `[Listo]` con mV $\rightarrow$ verificar aviso `[Boot]`.
+4. *Reporte al operador y solicitud de permiso.*
+
+### 🔹 Fase 5: Informe Final de Auditoría
+1. Redacción de `docs/INFORME_AUDITORIA_NAVATASTIC_FINAL.md` con matriz de resultados, capturas, evidencias y tiempos.
+2. Actualización de bitácora y cerebro.
+3. Restauración de nodos a configuración estándar.
