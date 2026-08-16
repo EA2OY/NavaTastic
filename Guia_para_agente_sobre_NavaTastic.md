@@ -182,6 +182,10 @@ Para claves/canales/rol → perfil jsonc. Para añadir una rama (Propia) → per
 - Las claves Propia (K0/K1 del operador + PIN BT) **NO existen en el repo**: se piden al
   compilar los envs `R2IP_*/R1IP_*` (variables de entorno, script `build_propia.ps1`), nunca
   se almacenan. Los patrones `profiles/*R2IP*`/`*R1IP*` están gitignored por si acaso.
+  **Flujo operativo de rondas Propia (16/08)**: carpeta
+  `Desktop\Navatastic V3 Eclipse Infraestructura Propia` con `PROMPT_BUILD_PROPIA.md`
+  reutilizable (huecos `<K0>/<K1>/<PIN>/<ENVS>`, sin claves; registro de rondas); el
+  operador pega el prompt relleno en una sesión nueva.
 - El JSON con la clave privada del Master Node NO debe distribuirse nunca.
 - El fuzzer (`.clusterfuzzlite/router_fuzzer.cpp`) usa la clave General (1 clave, Master Node).
 

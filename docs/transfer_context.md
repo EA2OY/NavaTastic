@@ -200,6 +200,24 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
 
 ## 8. Historial de Auditoría (Resumen)
 
+*   **Ronda 2026-08-16 (retoma post-V3: builds Propia R2IP #1 + F20 aclarado en banco)**:
+  - **Builds Propia R2IP #1**: 4 envs compilados con las claves del operador y PIN propio
+    vía variables de entorno en memoria (nada en disco): `navarrico_promicro_e22p_r2ip`,
+    `navarrico_xiao_e22p_r2ip`, `navarrico_xiao_kit_sx1262_r2ip`, `navarrico_faketec_sx1262_r2ip`
+    (4/4 SUCCESS). Verificación por byte-scan de K0/K1/PIN (uint32 LE) en los UF2.
+    Destino: `Desktop\Navatastic V3 Eclipse Infraestructura Propia\Rama 2 Routers\UF2|OTA`
+    + `PROMPT_BUILD_PROPIA.md` reutilizable (huecos `<K0>/<K1>/<PIN>/<ENVS>`, sin claves).
+    Nada commiteado ni subido; repo intacto.
+  - **F20 aclarado en banco (preguntas del operador, confirmado por código)**:
+    (1) `keys_clear` borra SOLO la copia persistida de `/resilience.bin`; la clave sigue
+    autorizada en la config (`/prefs`) hasta que se resetee — para volver a las claves de
+    fábrica: `full_reset` (conserva PKI/bonds, recomendado) / `factory_reset` (PKI nuevo)
+    / `wipe` (purga total). (2) **No existe el slot 3**: nanopb `admin_key[3]`
+    (`src/mesh/generated/meshtastic/config.pb.h:649-650`); una 4ª clave se descarta en la
+    decodificación, no autoriza (los checks solo miran slots 0-2: AdminModule.cpp:100-105,
+    NavaCLIModule.cpp:1010-1012) y no se persiste (merge F20 `syncAdminKeysFromConfig`
+    solo slots 0-2). (3) Re-persistir una clave = escribirla desde la app (el merge la
+    persiste automáticamente); no hay comando `/nava` para ello.
 *   **Ronda 2026-08-16 (F20 — claves admin persistidas, FASE R2 del BLOQUE R, banco 7/7)**:
   - **F20**: las claves admin PÚBLICAS del usuario se persisten en `/resilience.bin` (struct
     `ResiliencePrefs` 84→180 B, marcador "NAV3" `0x4E415633`, campos `keySlot1/keySlot2/

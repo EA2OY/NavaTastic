@@ -489,6 +489,21 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   (ES+EN), nota en cursiva del operador: "algo podría fallar... es reparable... el firmware
   puede tener 'un poquito de sueño'" (guiño al ciclo de sueño/despertar, frase entre
   comillas). Backup `.bak-20260816-0355`.
+- **2026-08-16 (37ª parte) — RETOMA: builds Propia R2IP #1 + F20 aclarado en banco**:
+  - **Propia R2IP #1**: compilados 4 envs con las claves del operador y PIN propio vía
+    variables de entorno en memoria (`navarrico_promicro_e22p_r2ip`,
+    `navarrico_xiao_e22p_r2ip`, `navarrico_xiao_kit_sx1262_r2ip`,
+    `navarrico_faketec_sx1262_r2ip`; 4/4 SUCCESS; K0/K1/PIN verificados por byte-scan en
+    los UF2). Destino: `Desktop\Navatastic V3 Eclipse Infraestructura Propia\Rama 2
+    Routers\UF2|OTA` + `PROMPT_BUILD_PROPIA.md` reutilizable (sin claves). Nada commiteado
+    ni subido; repo intacto.
+  - **F20 aclarado (operador en banco + confirmado por código)**: (1) `keys_clear` solo
+    purga la copia persistida; la config sigue autorizando hasta el reset — volver a
+    fábrica = `full_reset` (conserva PKI/bonds) / `factory_reset` (PKI nuevo) / `wipe`.
+    (2) **No existe el slot 3** (nanopb `admin_key[3]`): una 4ª clave se descarta, no
+    autoriza y no se persiste. (3) Re-persistir = escribir desde la app.
+  - **Pendiente de publicación**: `generar_pdf.ps1` ($Excluir, commit 8b5824fed) + esta
+    ronda de docs irán en la próxima publicación.
 - **2026-08-16 (34ª parte) — NOMENCLATURA DE VERSIONES UNIFICADA (decisión del operador)**:
   el changelog del manual de uso se reestructura en 3 hitos públicos: **4.3.0** = NavaTastic +
   control remoto sin PC (auto-fav y NodeDB en RAM ya presentes) · **4.3.1 = "NavaTastic

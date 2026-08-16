@@ -918,3 +918,30 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   (ES+EN), nota en cursiva: "algo podría fallar, algo podría funcionar mal — pero es
   reparable... el firmware puede tener 'un poquito de sueño'" (guiño al ciclo
   sueño/despertar; "un poquito de sueño" entre comillas). Backup `.bak-20260816-0355`.
+- **Agradecimientos + mallas cercanas (16/08)**: README ES+EN añade "y de las mallas
+  cercanas amigas" / "and the nearby friendly meshes" al párrafo de agradecimientos.
+- **Ronda Propia R2IP #1 (16/08, SIN claves en el repo)**: compilados 4 envs Propia con
+  las claves del operador y PIN propio vía variables de entorno en memoria (conversión
+  base64→hex en la sesión, nada en disco): `navarrico_promicro_e22p_r2ip` (UF2 MD5
+  8E1BA7DF), `navarrico_xiao_e22p_r2ip` (7EC195C6), `navarrico_xiao_kit_sx1262_r2ip`
+  (0817EC68), `navarrico_faketec_sx1262_r2ip` (33E92928) — 4/4 SUCCESS (~3 min cada uno,
+  lotes de 2 envs distintos). Verificación por byte-scan: K0/K1 (secuencias de 32 bytes)
+  y PIN (uint32 LE) presentes en los 4 UF2. Destino:
+  `Desktop\Navatastic V3 Eclipse Infraestructura Propia\Rama 2 Routers\UF2|OTA` (8
+  ficheros, nombres históricos con sufijo R2IP) + `PROMPT_BUILD_PROPIA.md` (prompt
+  reutilizable con huecos `<K0>/<K1>/<PIN>/<ENVS>` y registro de rondas; sin claves).
+  Flujo: setear las 3 variables en el proceso → `pio run -e <env>` → verificación →
+  copiar el artefacto MÁS RECIENTE (L6) → limpiar variables. Nada commiteado ni subido;
+  repo intacto (0 cambios).
+- **F20 aclarado en banco (16/08, preguntas del operador + código)**: (1) `keys_clear`
+  purga SOLO la copia persistida (`/resilience.bin`); la clave sigue autorizada en la
+  config (`/prefs`) hasta que se resetee — para volver a las claves de fábrica:
+  `full_reset` (conserva PKI/bonds; recomendado) / `factory_reset` (PKI nuevo) / `wipe`.
+  (2) **No existe el slot 3**: nanopb `admin_key[3]` (config.pb.h:649-650); una 4ª clave
+  se descarta en la decodificación, no autoriza (checks solo slots 0-2: AdminModule.cpp:
+  100-105, NavaCLIModule.cpp:1010-1012) y no se persiste (merge solo slots 0-2).
+  (3) Re-persistir una clave = escribirla desde la app (merge automático); no hay comando
+  `/nava` para ello.
+- **Pendiente de publicación (16/08)**: `generar_pdf.ps1` ($Excluir += Compilar_NavaTastic.md,
+  commit 8b5824fed) y esta ronda de docs saldrán en la próxima publicación. Backups
+  `.bak-20260816-1326`.
