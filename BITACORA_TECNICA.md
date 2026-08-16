@@ -914,3 +914,7 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   pie del README (ES+EN): JBAU92 y su firmware_solar_fix (origen del proyecto, enlazado),
   amig@s y conocid@s de la malla de Navarra y el grupo Meshtastic España (Telegram).
   Backup `.bak-20260816-0350`.
+- **Nota del autor (texto del operador)**: tras la tabla de estado de pruebas del README
+  (ES+EN), nota en cursiva: "algo podría fallar, algo podría funcionar mal — pero es
+  reparable... el firmware puede tener 'un poquito de sueño'" (guiño al ciclo
+  sueño/despertar; "un poquito de sueño" entre comillas). Backup `.bak-20260816-0355`.
