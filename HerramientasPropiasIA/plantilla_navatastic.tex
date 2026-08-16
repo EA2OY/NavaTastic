@@ -188,14 +188,18 @@ $if(title)$
 }
 $endif$
 
-% --- Cartel del operador como PRIMERA pagina (a pagina completa) ---
+% --- Cartel del operador como PRIMERA pagina (ajustado al lienzo con margen logico, centrado) ---
+% NOTA: sin entorno titlepage (su \newpage inicial crea una primera pagina en blanco);
+% se encaja la imagen en el area de texto (margen de geometry) centrada en ambos ejes.
 $if(flyer)$
 \newcommand{\makeflyerpage}{
-  \begin{titlepage}
-    \thispagestyle{empty}
-    \centering
-    \noindent\includegraphics[height=0.92\paperheight, keepaspectratio]{$flyer$}
-  \end{titlepage}
+  \thispagestyle{empty}
+  \vspace*{\fill}
+  \begin{center}
+    \noindent\includegraphics[width=\textwidth, height=\textheight, keepaspectratio]{$flyer$}
+  \end{center}
+  \vspace*{\fill}
+  \clearpage
 }
 $endif$
 
