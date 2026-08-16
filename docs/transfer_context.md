@@ -226,6 +226,17 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
     re-autorización OK, factory_reset conserva claves, wipe purga, keys_clear correcto,
     regresión OK (status NAVA V3, canal 1 SOLO DM SEGURO). **L33**: los comandos que
     reescriben `/resilience.bin` deben decidir QUÉ campos purgan según su propósito.
+*   **Ronda 2026-08-16 (cierre "NavaTastic Eclipse V3" — publicación + presentación)**:
+  - **Publicado a GitHub**: release v4.3.2 (26 assets: 12 UF2 + 12 OTA V3 + 2 PDFs) desde
+    rama huérfana UN commit; verificado **0 tokens** en el árbol público (scan del clon);
+    releases v2.6/v2.6.1 conservados. Nomenclatura oficial: 4.3.0 / 4.3.1 "Eclipse" /
+    4.3.2 "Eclipse V3" = etiqueta `NAVA V3`.
+  - **Presentación**: README con el cartel del operador como primera imagen; PDFs con el
+    cartel HD como **página 1** (ajustado al área de texto, centrado) y títulos
+    "NavaTastic Eclipse V3". Lecciones L34-L36 (rutas con espacios en `\includegraphics`,
+    ediciones sin stagear, `titlepage` con página en blanco) en BITACORA.
+  - **Cierre**: snapshot en `_archivo\`, cerebro 35ª parte + handover §5.5, PROMPT DE
+    RETOMA de PLAN reescrito para la próxima sesión.
 *   **Ronda 2026-08-15 (4/6 placas verificadas + hallazgos de código)**:
   - **Verificado en banco (operador)**: Xiao Kit i2c (SX1262) y Xiao Kit i2c + E22P (15/08) y
     Faketec HT-RA62 (14/08). **L29**: el pico del E22P en TX aplica a TODAS las placas E22P

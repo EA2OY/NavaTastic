@@ -195,7 +195,10 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 - [ ] **F22 seguimiento**: bump de `NAVATASTIC_BUILD` en cada release futuro (NavaCLIModule.h)
   + publicación GitHub (release con los 24 binarios + PDFs, flujo de la Guía §9).
 
-## GUÍA PARA LA SESIÓN DE IMPLEMENTACIÓN (F18 / BLOQUE R / F22)
+## GUÍA PARA LA SESIÓN DE IMPLEMENTACIÓN (F18 / BLOQUE R / F22) — COMPLETADA 16/08 (histórica)
+
+> La sesión de implementación terminó: F18, BLOQUE R (R1+R2) y F22 están cerrados, verificados
+> y publicados (estado arriba). Esta sección queda como referencia histórica de diseño.
 
 > **Instrucción del operador (15/08)**: estas propuestas NO son órdenes quirúrgicas ciegas.
 > La sesión que las implemente tiene LIBERTAD para analizar la viabilidad ANTES de tocar
@@ -230,67 +233,60 @@ Un solo repositorio (C:\NavaTastic Codigo completo) que genere las 12 compilacio
 ## PROMPT DE RETOMA (pegar tal cual en una sesión nueva)
 
 ```
-NUEVA SESIÓN — NavaTastic (repo unificado C:\NavaTastic Codigo completo) — sesión de
-IMPLEMENTACIÓN (15/08/2026): F18 (8 lecturas de baja), BLOQUE R fase R1 (full_reset + wipe)
-y/o F22 (etiqueta de build). ANTES de escribir código: LEER, ANALIZAR, explicar el plan en
-lenguaje fácil y PEDIR PERMISO. Puedes PREGUNTAR lo que necesites: el operador trasladará
-tus preguntas (copia-pega) al agente de la sesión anterior, que tiene más contexto.
+NUEVA SESIÓN — NavaTastic (repo unificado C:\NavaTastic Codigo completo, rama master).
+Estado de partida: "NavaTastic Eclipse V3" (4.3.2) CERRADA, verificada en banco y PUBLICADA
+a GitHub (release v4.3.2, 26 assets, rama huérfana 1 commit). Nada pendiente de V3. Esta
+sesión es de RETOMA: solo ejecutar lo que el operador pida. ANTES de escribir código: LEER,
+ANALIZAR, explicar el plan en lenguaje fácil y PEDIR PERMISO (FASE 1 → confirmación → FASE 2).
 
 PASO 0 (OBLIGATORIO, apertura canónica, en este orden):
-  0. AGENTS.md (bloque NAVARICO) → Guia_para_agente_sobre_NavaTastic.md §0 REGLAS
-     OPERATIVAS: dieta de tokens, flujo en dos fases (FASE 1 plan → esperar confirmación
-     → FASE 2 ejecución), backup/rollback `.bak-AAAAMMDD-HHMM`, solo se escribe en este
-     repo, commits locales por hito, normas 0.11 (manuales+PDF) y 0.12 (distribución V2).
-  1. Guia_para_agente_sobre_NavaTastic.md COMPLETA: 12 envs navarrico_* (+12 Propia),
-     perfiles, macros, scripts, mapa de cambios, seguridad de claves, SECCIÓN 9 (GitHub).
-  2. BITACORA_TECNICA.md: F1-F17, V2.2-V2.6, L1-L31, publicación GitHub, candidatos.
-  3. PLAN_DE_TRABAJO.md: estado + "Posibles ampliaciones" (F18, BLOQUE R, F22) + sección
-     "GUÍA PARA LA SESIÓN DE IMPLEMENTACIÓN" (pistas de diseño por cada ítem) + este PROMPT.
-  4. docs\cerebro\cerebro.md SECCIÓN 5 PRIMERO (24ª-31ª partes) y lo que necesites
-     (5.4 VIGENTE vs OBSOLETO, 5.5 handover).
-  5. PORTING_NUEVO_FORK.md + docs de contexto según el caso (transfer_context,
-     guia_integracion, manuales, subnotas 01-12). C:\Firmware Navarrico 4.3 y 4.2 = SOLO
-     LECTURA (referencias para diffear).
+  0. AGENTS.md (bloque NAVARICO) → Guia_para_agente_sobre_NavaTastic.md §0 REGLAS OPERATIVAS.
+  1. Guia_para_agente_sobre_NavaTastic.md COMPLETA (12 envs + Propia, perfiles, scripts, §9 GitHub).
+  2. BITACORA_TECNICA.md: F1-F20 (H1), V2.2-V2.6, L1-L36, publicación v4.3.2, carteles, nomenclatura.
+  3. PLAN_DE_TRABAJO.md: estado (V3 cerrada) + "Posibles ampliaciones" + este PROMPT.
+  4. docs\cerebro\cerebro.md SECCIÓN 5 (partes 24ª-35ª; 5.4 VIGENTE vs OBSOLETO, 5.5 handover).
+  5. PORTING_NUEVO_FORK.md + docs de contexto según el caso. C:\Firmware Navarrico 4.3 y 4.2 =
+     SOLO LECTURA.
 
-TRABAJO PROPUESTO (ANALÍZALO ANTES DE EJECUTAR — no es orden ciega):
-- F18: 8 lecturas de batería baja para TODAS las placas (monitor runtime Y pre-check):
-  perfiles ×12 a "USERPREFS_LOW_BATTERY_READINGS_COUNT": "8" + Power.cpp comparando contra
-  la macro (hoy: #ifdef >4 Promicro/Faketec vs >10 resto, Power.cpp ~1020-1041; el
-  pre-check de main.cpp ~544-548 ya la lee). Manuales/docs: "5 lecturas" → "8" (~160s).
-- BLOQUE R fase R1: /nava full_reset (factory_reset + borrar /resilience.bin, CONSERVA
-  claves PKI) y /nava wipe (erase total + regeneración del par PKI; el NodeNum NO cambia,
-  deriva de la MAC — NodeDB.cpp:1269). Patrón diferido con ACK como factory_reset; DM-PKI.
-  F20 (claves admin en resilience.bin) NO se toca — es fase R2, solo después de R1.
-- F22: etiqueta NAVATASTIC_BUILD compilada (patrón NAVARICO_* de platformio-custom.py o
-  #define con bump manual por release) + línea en /nava status + opcional en [Boot].
+POSIBLES TRABAJOS (el operador decidirá; NO son órdenes):
+- Banco: ciclo de resiliencia completo en Seed Solar P1 y Heltec T114 (las 2 placas pendientes).
+- Candidatos anotados: F16b (BLE no reaparece tras shutdown), F16d (jitter quick muerto,
+  cosmético), F16e (sleepmsg fuera de whitelist canal 1 — decisión tomada: dejarlo), F17
+  (PKI_SEND_FAIL_PUBLIC_KEY esporádico ~uptime 243s; explicación candidata en BITACORA).
+- Publicación en Telegram (grupo Meshtastic España, decisión del operador).
+- Rotación/revocación del token GitHub del Administrador de credenciales (L26).
+- Siguiente release: bump de `NAVATASTIC_BUILD` en NavaCLIModule.h + compilar 12 envs +
+  distribuir -Todo -V2 + flujo de publicación de la Guía §9 (rama huérfana → push -f main →
+  release por API → L24: repoblar distribucion\ y regenerar PDFs).
 
-REGLAS ESPECIALES DE ESTA SESIÓN:
-- Las NORMAS del proyecto (dos fases, backups, commits, AÑADIR en docs, documentar EN
-  CALIENTE, dieta de tokens) siguen vigentes.
-- Las propuestas de arriba son PUNTOS DE PARTIDA con pistas (ver la GUÍA en PLAN): si al
-  analizar ves un problema o una vía mejor, DÍLO en la FASE 1. No improvises en silencio.
-- FASE 1 = diagnóstico + plan técnico + método de verificación (p. ej. pio run -e <env>),
-  explicado en lenguaje FÁCIL para el operador, SIN editar archivos; esperar permiso
-  explícito → FASE 2 = ejecución.
-- DUDAS: pregunta todo lo que haga falta; el operador trasladará las preguntas al agente
-  de la sesión anterior (que diseñó estas opciones). Si algo no cuadra, NO sigas.
-- NO TOCAR sin orden expresa: LPCOMP (main-nrf52.cpp), delay(3000) pre-sueño,
-  delay(500)+force del pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), SX1262=22dBm,
-  F16d/e. F16b BLE y F17 PKI: pendientes anotados, no son trabajo de esta sesión.
-
-TRAMPAS CONOCIDAS: reboot automático 7s tras --set (esperar ≥30s); polls --info lentos;
-factory reset borra debug_log_api_enabled y claves admin añadidas; FILE_O_WRITE no trunca
-(remove antes de escribir); nrf erase regenera claves (limpiar peers); serialEnter apaga
-baliza BLE con USB; TX bajo en banco con E22P (picos); los avisos NO se ecoan en la API del
-propio emisor (verificar con observador); al alternar rama master↔github-public el checkout
-BORRA del disco los ficheros force-add (repoblar con distribuir.ps1 -Todo); no paralelizar
-dos builds del MISMO env.
+REGLAS Y TRAMPAS VIGENTES:
+- Normas del proyecto: dos fases, backups `.bak-AAAAMMDD-HHMM` antes de tocar archivos
+  críticos, commits locales por hito, AÑADIR en docs, documentar EN CALIENTE, PDFs tras tocar
+  manuales (norma 0.11), distribución -V2 (norma 0.12).
+- NO TOCAR sin orden expresa: LPCOMP (main-nrf52.cpp), delay(3000), delay(500)+force del
+  pre-check, OCV/cortes, NodeDB.cpp (paridad/__LINE__), SX1262=22dBm, F16d/e.
+- Trampas recientes: L34 (includegraphics con espacios → %TEMP%), L35 (git add explícito de
+  CADA fichero editado + verificar con `git show HEAD:<fichero>` antes de publicar), L36
+  (titlepage de LaTeX crea página en blanco), L24 (checkout entre ramas borra ficheros
+  force-add → distribuir.ps1 -Todo + generar_pdf tras volver a master), no paralelizar dos
+  builds del MISMO env, TX 1 dBm en banco con E22P, avisos solo verificables con observador.
+- GitHub: NUNCA subir el historial local (claves Propia del 14/08) — siempre rama huérfana
+  con UN commit; el token de la API en memoria (fichero temporal borrado al terminar).
 ```
 
 - [x] **NOMENCLATURA DE VERSIONES (16/08, decisión del operador)**: changelog público
       reestructurado en 4.3.0 / 4.3.1 "NavaTastic Eclipse" / 4.3.2 "NavaTastic Eclipse V3"
       (actual = etiqueta compilada `NAVA V3`; iteraciones internas solo en BITACORA/cerebro).
       Manuales ES+EN, README y PDFs actualizados.
+- [x] **PUBLICACIÓN GITHUB "NavaTastic Eclipse V3" (16/08)**: release **v4.3.2** con 26
+      assets (12 UF2 + 12 OTA V3 + 2 PDFs con cartel HD de portada y títulos Eclipse V3);
+      main = rama huérfana UN commit (sin historial local); **verificado 0 tokens** en el
+      árbol público (scan del clon). README con cartel del operador. L24 aplicada tras cada
+      publicación. Lecciones L34-L36 en BITACORA.
+- [x] **CIERRE ECLIPSE V3 (16/08)**: snapshot `_archivo\NavaTastic Eclipse V3 - FINAL
+      20260816 (HEAD …).zip` + cerebro 35ª parte + handover §5.5 + PROMPT DE RETOMA
+      reescrito. Estado: V3 cerrada y publicada; pendientes para la próxima sesión: banco
+      Seed/T114, F16b/d/e, F17, rotación token (L26), Telegram, siguientes releases.
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

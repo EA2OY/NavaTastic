@@ -432,6 +432,29 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   para no re-derivar todo. Estado: V2.6 verificada, 4/6 placas verificadas (Promicro, Faketec,
   Xiao×2; pendientes Seed y T114), GitHub v2.6.1 publicado. Pendientes de implementar: F18,
   Bloque R (R1 → R2), F22; anotados: F16b/d/e, F17.
+- **2026-08-16 (35ª parte) — CIERRE "NavaTastic Eclipse V3" (4.3.2) + PUBLICACIÓN COMPLETA**:
+  - **Publicado a GitHub**: release **v4.3.2** (id 371184462) con **26 assets** — 12 UF2 + 12
+    OTA (builds V3, 12/12 SUCCESS) + 2 PDFs (cartel HD como portada + títulos "NavaTastic
+    Eclipse V3"). Rama huérfana UN commit (`1f07ddeaa`) → main; releases v2.6/v2.6.1
+    conservados. **Verificación de seguridad final**: clon del repo público escaneado — **0
+    tokens** (ghp_/github_pat_/gho_/ghs_/AWS), main = 1 solo commit (historial local con
+    claves Propia NUNCA subido), `build_propia.ps1` solo referencia variables de entorno.
+  - **Carteles del operador**: README con `cartel_navatastic_github.jpg` (1024×572) como
+    primera imagen (escudo retirado); PDFs con el flyer HD (1792×2398) como **página 1**
+    (ajustado al área de texto, centrado, sin página en blanco — L36) y portada estilizada
+    "NavaTastic Eclipse V3" en la 2ª. Plantilla LaTeX + `generar_pdf.ps1` (copia del HD a
+    `%TEMP%`, ruta sin espacios — L34).
+  - **Títulos de los manuales**: "NavaTastic Eclipse V3" (antes 4.2/4.2.1/4.3) en portada,
+    H1 ES/EN y adenda de versión; el tip `/nava help` por nodo en manual y README.
+  - **Lecciones**: L34 (`\includegraphics` con espacios escapados → `Missing endcsname`;
+    nonstopmode puede dar "OK" sin imagen — usar %TEMP%), L35 (edición sin stagear → commit
+    incompleto → imagen 404; verificar con `git show HEAD:<fichero>` antes de publicar),
+    L36 (`titlepage` emite `\newpage` → primera página en blanco; portada-cartel con página
+    simple + `\vfill`). Verificación PDF con pypdf (pag1=imagen, pag2=portada, pag3=índice).
+  - **Estado**: BLOQUE R completo (R1+R2), F18/F22/F20 cerrados y verificados, GitHub al día.
+    Pendientes: banco Seed y T114, F16b (BLE)/F16d/F16e/F17, rotación del token GitHub (L26),
+    publicación en el grupo de Telegram (decisión del operador), próximos releases (bump de
+    `NAVATASTIC_BUILD` en NavaCLIModule.h por release).
 - **2026-08-16 (34ª parte) — NOMENCLATURA DE VERSIONES UNIFICADA (decisión del operador)**:
   el changelog del manual de uso se reestructura en 3 hitos públicos: **4.3.0** = NavaTastic +
   control remoto sin PC (auto-fav y NodeDB en RAM ya presentes) · **4.3.1 = "NavaTastic
@@ -676,11 +699,19 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 
 ### 5.5 Handover (estado actual y siguiente paso)
 
-- **Estado**: repo unificado autónomo y documentado (cerebro VIVO + guías + bitácora +
-  plan + PORTING_NUEVO_FORK.md). Paridad 12/12 conseguida. `distribucion\` poblada
-  (32 ficheros). Propia y GitHub pendientes (solo General; claves Propia no subir).
-- **Siguiente paso** (sesión nueva, en orden — detalle en las 14ª-17ª partes y PLAN):
-  (1) flashear el build LIMPIO en banco (pio -t upload) + smoke (ping/sleepmsg);
-  (2) compilar los 12 envs (lotes paralelos de envs DISTINTOS); (3) `distribuir.ps1 -Todo -V2`;
-  (4) manual/PDF ya actualizados (17ª parte); (5) docs cierre + commit local; (6) después:
-  Propia (perfiles+envs), GitHub (solo General), opcional progname OTA, regresión Eclipse en campo.
+- **Estado (16/08/2026, cierre "NavaTastic Eclipse V3")**: V3 COMPLETA y CERRADA — F18
+  (8 lecturas), BLOQUE R completo (full_reset/wipe + F20 claves admin persistidas, banco
+  7/7 Faketec), F22 (etiqueta `NAVA V3`). 12/12 envs SUCCESS + distribución -Todo -V2.
+  **Publicado a GitHub**: release v4.3.2 (26 assets) desde rama huérfana (1 commit,
+  sin historial local, 0 tokens verificado). README con cartel del operador; PDFs con
+  cartel HD como portada y títulos "NavaTastic Eclipse V3". Manuales ES/EN, cerebro,
+  BITACORA, PLAN, transfer_context, guia_integracion, subnotas 02/03/05 y Guía al día.
+  Nomenclatura oficial: 4.3.0 / 4.3.1 "Eclipse" / 4.3.2 "Eclipse V3" (= `NAVA V3`).
+- **Siguiente paso** (nueva sesión, cuando el operador la abra): (1) banco de Seed Solar
+  P1 y Heltec T114 (ciclo de resiliencia completo); (2) candidatos anotados F16b (BLE tras
+  shutdown)/F16d (jitter quick)/F16e (whitelist sleepmsg)/F17 (PKI_SEND_FAIL_PUBLIC_KEY
+  esporádico); (3) rotación del token GitHub (L26); (4) publicación en Telegram (grupo
+  Meshtastic España, decisión del operador); (5) siguiente release: bump de
+  `NAVATASTIC_BUILD` en `NavaCLIModule.h` + mismos pasos de publicación (rama huérfana,
+  release API, L24). Leer el PROMPT DE RETOMA de `PLAN_DE_TRABAJO.md` (ya apunta a este
+  estado) y las lecciones L34-L36 de BITACORA antes de tocar nada.

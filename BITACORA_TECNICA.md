@@ -846,6 +846,25 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   pypdf: pag1=imagen sin texto, pag2=portada, pag3=índice, sin páginas en blanco. PDFs del
   release v4.3.2 sustituidos; rama huérfana `71b7eee31` → main; L24 aplicada.
 
+### CIERRE "NAVASTASTIC ECLIPSE V3" (16/08) — build/commit cerrado, sesión lista para retoma
+- **Títulos de los manuales** → "NavaTastic Eclipse V3" (portada, H1 ES/EN, adenda de
+  versión en Manual_uso; antes 4.2/4.2.1/4.3). PDFs regenerados y sustituidos en el release
+  v4.3.2 (verificado con pypdf: pag1=cartel sin texto, pag2=portada Eclipse V3, pag3=índice,
+  sin páginas en blanco).
+- **Verificación de seguridad del repo público**: clon de main escaneado — **0 tokens**
+  (ghp_/github_pat_/gho_/ghs_/AWS), main = UN commit huérfano (el historial local con claves
+  Propia del 14/08 nunca sube), `build_propia.ps1` solo referencia variables de entorno.
+- **Docs de cierre**: cerebro 35ª parte + handover §5.5 actualizado (estado V3 cerrada y
+  publicada; siguientes pasos), PLAN (cierre + PROMPT DE RETOMA reescrito para retoma; la
+  GUÍA DE IMPLEMENTACIÓN queda histórica), transfer_context ronda de cierre.
+- **Snapshot**: `_archivo\NavaTastic Eclipse V3 - FINAL 20260816 (HEAD <sha>).zip`
+  (git archive del árbol limpio: fuentes + config + perfiles + scripts + docs/cerebro +
+  carteles, SIN .pio/.git/binarios/distribucion/PDFs/baks — mismo criterio de los
+  snapshots anteriores).
+- **Pendientes para la próxima sesión** (ver PLAN/cerebro §5.5): banco Seed y T114, F16b/d/e,
+  F17, rotación del token GitHub (L26), Telegram (decisión del operador), próximos releases
+  (bump `NAVATASTIC_BUILD`). Backups del día: `.bak-20260816-0100/0128/0159/0212/0227/0230/0259`.
+
 ### NOMENCLATURA DE VERSIONES (16/08, decisión del operador)- **Changelog público (manual de uso) = 3 hitos**: **4.3.0** (NavaTastic + control remoto sin
   PC), **4.3.1 = "NavaTastic Eclipse"** (12/08, distribuida a colegas), **4.3.2 = "NavaTastic
   Eclipse V3"** (actual). Mapeo oficial: **"NavaTastic Eclipse V3" = 4.3.2 = etiqueta
