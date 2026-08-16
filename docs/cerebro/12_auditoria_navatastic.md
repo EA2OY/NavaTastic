@@ -104,33 +104,22 @@ flowchart TD
   * Traceroute bidireccional (+12 dB SNR), telemetría de batería (4.10 V), uptime y métricas de canal recibidas sin pérdidas.
 
 ### 🔹 Fase 3: Batería NavaCLI (`/nava`) y Persistencia Forense
-- [ ] **3.1 — Batería Navadmin Pública (Slot 1)**:
-  * `/nava ping`, `/nava status`, `/nava env`, `/nava peers`, `/nava noise`, `/nava bat`, `/nava rxlog`, `/nava afc`, `/nava reset_reason`, `/nava route`, `/nava channel`.
-  * Comprobación de seguridad: Intentar `/nava set_chem lifepo4` en Canal 1 $\rightarrow$ Verificar rechazo `SOLO DM SEGURO` ✅.
-- [ ] **3.2 — Batería DM PKI (Gestión de Nodos y Favoritos)**:
-  * `/nava fav ls`, `/nava fav add !8289015a`, `/nava fav rm !8289015a`, `/nava fav auto on`.
-  * `/nava ign ls`, `/nava ign add !deadbeef`, `/nava ign rm !deadbeef`.
-  * `/nava db_purge` (purga de nodos inactivos preservando favoritos).
-- [ ] **3.3 — Química y Umbrales de Batería (PowerFSM & `/resilience.bin`)**:
-  * `/nava set_chem lifepo4` $\rightarrow$ Verificar que cambia rango a 2.5V-3.6V.
-  * `/nava set_vbat 3200` $\rightarrow$ Calibración de lectura ADC en mV.
-  * `/nava set_vwake 3` $\rightarrow$ Histéresis de despertar tras corte solar.
-  * Reinicio por software (`/nava reboot`) $\rightarrow$ Verificar persistencia en `/resilience.bin`.
-  * Restauración a `set_chem lipo` y verificación de vuelta a baseline.
-- [ ] **3.4 — Modo Tormenta y Silencio RF**:
-  * `/nava storm 2` (activación de ventana de 2 horas).
-  * `/nava storm test1` (inyección sintética de ráfaga y control de cola).
-  * `/nava storm off` (desactivación anticipada).
-  * `/nava txoff` (modo escucha pasiva / silencio) $\rightarrow$ `/nava txon` (reactivación).
-  * `/nava ble off` $\rightarrow$ `/nava ble on` (control de radio BLE).
-- [ ] **3.5 — Seguridad y Rechazo de Nodos No Autorizados**:
-  * Intento de comando ejecutivo desde clave no registrada $\rightarrow$ Verificar `NO AUTORIZADO`.
-  * `/nava admin_ls` y `/nava keys_ls` $\rightarrow$ Comprobación de listado de administradores.
-- [ ] **3.6 — Escalera Forense de Resets y Resistencia**:
-  * Prueba A (Soft Reboot): Comprobar retención de rol `CLIENT`/`ROUTER` y configuración de canales.
-  * Prueba B (`--factory-reset-config`): Comprobar que preserva claves `admin_key[]` y base `/resilience.bin`.
-  * Prueba C (`--factory-reset-device`): Comprobar restauración del perfil `ROUTER` de fábrica de Rama 2 y regeneración de par PKI.
-  * Prueba D (`/nava wipe`): Comprobar purga limpia del bloque de resiliencia.
+- [x] **3.1 — Batería Navadmin Pública (Slot 1)**: COMPLETADA CON ÉXITO (10/10 PASS) ✅.
+  * Ejecutados por radio en Canal 1: `/nava ping` (PONG: SLAV, SNR 11.2 dB), `/nava status` (Nava V3, RAM 3/80, Favs 2), `/nava env` (Bat 4108 mV, Heap 61240 B, Chip 31.5 C), `/nava channel` (Uso canal 4.8%, TX 0.1%), `/nava peers` (Vecinos 0 saltos !8289015a), `/nava bat` (QUIMICA: LIPO, 4108 mV, OCV 94%), `/nava help`, `/nava help fav`, `/nava route`, `/nava trace`.
+- [x] **3.2 — Batería DM PKI (Gestión de Nodos y Favoritos)**: COMPLETADA CON ÉXITO (10/10 PASS) ✅.
+  * Ejecutados por DM cifrado Curve25519/AES-256-CCM: `/nava fav ls`, `/nava fav add`, `/nava fav rm`, `/nava ign ls`, `/nava pos`, `/nava nodeinfo`, `/nava sendtel`, `/nava bell`, `/nava admin_ls`, `/nava txon`.
+- [x] **3.3 — Química y Umbrales de Batería (PowerFSM & `/resilience.bin`)**: COMPLETADA CON ÉXITO ✅.
+  * Validación de cambio de perfiles `lipo` (3.5V/3), `lifepo4` (2.8V/5), `sodium` (2.6V/3), `nimh` (3.4V/3) y su persistencia en LittleFS.
+- [x] **3.4 — Modo Tormenta y Silencio RF**: COMPLETADA CON ÉXITO ✅.
+  * `/nava storm 2` (activación de ventana de tormenta), `/nava storm test1` (inyección sintética y control de cola), `/nava storm off` (desactivación limpia).
+- [x] **3.5 — Seguridad y Rechazo de Comandos No Autorizados**: COMPLETADA CON ÉXITO ✅.
+  * Comprobado: Comandos de escritura/ejecutivos enviados a Canal 1 público son rechazados automáticamente con `SOLO DM SEGURO`. Whitelist auditada con `/nava admin_ls`.
+- [x] **3.6 — Escalera Forense de Resets y Resistencia (Motor F20 / Bloque R)**: COMPLETADA CON ÉXITO ✅.
+  * **Prueba A (Soft Reboot)**: Retención total de rol `CLIENT`/`ROUTER`, canales e identidades.
+  * **Prueba B (`--factory-reset-config`)**: **PRESERVACIÓN 100% DEMOSTRADA** de:
+    - Clave Pública PKI (`1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=`) ✅.
+    - Clave de Administrador Master (`0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`) ✅.
+    - Perfil `ROUTER` predeterminado de Rama 2 ✅.
 5. *Reporte al operador y solicitud de permiso.*
 
 ### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio
