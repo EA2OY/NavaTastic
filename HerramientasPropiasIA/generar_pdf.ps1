@@ -26,7 +26,7 @@ param(
     [string]$Carpeta = "$PSScriptRoot\..\docs",
     [string]$Salida = "$PSScriptRoot\..\docs\pdf",
     [string]$Plantilla = "$PSScriptRoot\plantilla_navatastic.tex",
-    [string[]]$Excluir = @("transfer_context.md", "guia_integracion_navarrico.md", "GUIA_AGENTE_NAVTASTIC.md", "INSTRUCCION_AUDITORIA_CLAUDE.md")
+    [string[]]$Excluir = @("transfer_context.md", "guia_integracion_navarrico.md", "GUIA_AGENTE_NAVTASTIC.md", "INSTRUCCION_AUDITORIA_CLAUDE.md", "Compilar_NavaTastic.md")
 )
 
 $ErrorActionPreference = "Continue"

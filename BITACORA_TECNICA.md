@@ -907,3 +907,6 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   "Private branch" sustituidas por una sección corta con enlace a la guía (README más
   limpio). Manuales intactos. Guia_para_agente: línea de enlace en §2 (sin duplicar).
   Backups `.bak-20260816-0345/0346`.
+- **generar_pdf.ps1**: `Compilar_NavaTastic.md` añadido a `$Excluir` (norma 11/08: solo
+  manuales de firmware y comandos; el PDF extra de la guía se retiró — la rama pública ya
+  solo lleva los 2 PDFs). Se publicará en la próxima publicación.

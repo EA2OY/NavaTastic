@@ -478,7 +478,9 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   enlaces. El README (ES+EN) queda más limpio: las secciones "Compilar" y "Rama propia"
   sustituidas por una corta con enlace a la guía. Manuales INTACTOS (norma 0.11 no aplica).
   Guia_para_agente: una línea de enlace a la guía pública (§2, su contenido no se duplica).
-  Backups `.bak-20260816-0345/0346`.
+  Backups `.bak-20260816-0345/0346`. `generar_pdf.ps1`: `Compilar_NavaTastic.md` a
+  `$Excluir` (norma 11/08 — solo manuales; el PDF extra se retiró, la rama pública lleva
+  los 2 PDFs).
 - **2026-08-16 (34ª parte) — NOMENCLATURA DE VERSIONES UNIFICADA (decisión del operador)**:
   el changelog del manual de uso se reestructura en 3 hitos públicos: **4.3.0** = NavaTastic +
   control remoto sin PC (auto-fav y NodeDB en RAM ya presentes) · **4.3.1 = "NavaTastic
