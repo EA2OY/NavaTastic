@@ -38,6 +38,7 @@ bool navaAutoFavoriteEnabled = true; // Auto-favoriteo de routers directos 0-hop
 
 // V2: flag estatico intermedio: lo pone el pre-check de main.cpp ANTES de que el modulo exista
 static bool navaVivoPendingGlobal = false;
+static bool navaReservaPendingGlobal = false;
 
 NavaCLIModule::NavaCLIModule()
     : SinglePortModule("nava_cli", meshtastic_PortNum_TEXT_MESSAGE_APP),
@@ -55,6 +56,7 @@ NavaCLIModule::NavaCLIModule()
     // V2: flags de sueño (los puso el pre-check de main.cpp antes de construir el modulo)
     wokeFromSleep = (prefs.wasInSleep != 0);
     vivoPending = navaVivoPendingGlobal;
+    reservaPending = navaReservaPendingGlobal;
 }
 
 void NavaCLIModule::loadResiliencePrefs() {
@@ -298,6 +300,16 @@ void NavaCLIModule::navaSetVivoPending()
 bool NavaCLIModule::navaGetVivoPending()
 {
     return navaVivoPendingGlobal;
+}
+
+void NavaCLIModule::navaSetReservaPending()
+{
+    navaReservaPendingGlobal = true;
+}
+
+bool NavaCLIModule::navaGetReservaPending()
+{
+    return navaReservaPendingGlobal;
 }
 
 void NavaCLIModule::saveResiliencePrefs() {
@@ -1649,18 +1661,24 @@ int32_t NavaCLIModule::runOnce()
     // directos actuales (persiste solo si cambia algo, max 1 escritura/60s).
     reconcileAutoFavs();
 
-    // V2: primer tick tras el boot: mensajes [Vivo]/[Listo] segun como se desperto
+    // V2: primer tick tras el boot: mensajes [Vivo]/[Listo]/[Reserva] segun como se desperto
     if (!firstRunDone) {
         firstRunDone = true;
         // NAVARICO F20: restaurar las claves admin persistidas (DESPUES de NodeDB::init)
         applyPersistedAdminKeys();
-        if (wokeFromSleep || vivoPending) {
-            if (vivoPending && prefs.sleepMsgs) {
+        if (wokeFromSleep || vivoPending || reservaPending) {
+            if (reservaPending && prefs.sleepMsgs) {
+                // V3: despertado por reset con bateria en capacidad critica (< corte-100):
+                // anunciar [Critico] (Nivel 2) y operar 160s (8 lecturas) antes de re-dormir.
+                prefs.wasInSleep = 1;
+                saveResiliencePrefs();
+                char buf[220];
+                snprintf(buf, sizeof(buf), "[Critico] %s id%08x | %s | bateria en capacidad critica, operando 160s",
+                         owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
+                enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
+            } else if (vivoPending && prefs.sleepMsgs) {
                 // V2.6: despertado por reset externo con bateria en la banda [corte-100,
-                // corte): anunciar [Vivo] y SEGUIR OPERANDO con normalidad. El monitor de
-                // bateria de siempre (5 lecturas bajas, ~100s) decidira despues si dormir
-                // ([Sueno]) o seguir: el ADC puede dar lecturas puntuales erroneas en campo
-                // (RF, temperatura) y no se debe dormir sin confirmacion sostenida.
+                // corte): anunciar [Vivo] (Nivel 1) y operar 160s antes de re-dormir.
                 prefs.wasInSleep = 1;
                 saveResiliencePrefs();
                 char buf[220];
@@ -1687,11 +1705,11 @@ int32_t NavaCLIModule::runOnce()
     // V2.4: aviso de arranque [Boot] DIFERIDO 2 minutos (idea del operador): sirve para
     // enterarse de reinicios externos/watchdog/brownouts, y el retraso es el anti-bucle:
     // un nodo en ciclo de resets nunca llega a los 2 min -> no inunda la malla. Solo
-    // para arranques que NO vienen del ciclo de sueno (esos ya avisan con [Listo]/[Vivo]).
+    // para arranques que NO vienen del ciclo de sueno (esos ya avisan con [Listo]/[Vivo]/[Reserva]).
     {
         static bool bootNoticeSent = false;
         static uint32_t bootNoticeAt = 0;
-        if (!bootNoticeSent && !wokeFromSleep && !vivoPending && prefs.sleepMsgs) {
+        if (!bootNoticeSent && !wokeFromSleep && !vivoPending && !reservaPending && prefs.sleepMsgs) {
             if (bootNoticeAt == 0) {
                 bootNoticeAt = millis() + 120000;
             }

@@ -576,19 +576,21 @@ void setup()
         }
         if (consecutiveLow >= lowBattReadingsNeeded) {
             NavaCLIModule::navaSetWasInSleep(true);
-            if (NavaCLIModule::peekSleepMsgsEnabled() && navaFromSleep &&
-                lastLowMv >= (int)lowBattSleepMv - 100) {
-                // V2.4: reset externo (p. ej. ATtiny13A) con bateria en la banda de aviso
-                // [corte-100, corte): permitir el boot para mandar [Vivo] y re-dormir.
-                LOG_WARN("Battery %d mV in [cutoff-100, cutoff): boot for [Vivo] message, re-sleep after TX",
-                         lastLowMv);
-                NavaCLIModule::navaSetVivoPending();
-            } else {
-                LOG_WARN("Battery below %u mV for %u consecutive readings: entering System OFF "
-                          "(radio/BT/screen never powered this boot) - hardware LPCOMP wakes the MCU "
-                          "(full reset) once VBAT crosses BATTERY_LPCOMP_THRESHOLD, see variant.h",
-                          lowGateMv, lowBattReadingsNeeded);
-                cpuDeepSleep(portMAX_DELAY);
+            if (NavaCLIModule::peekSleepMsgsEnabled()) {
+                if (lastLowMv >= (int)lowBattSleepMv - 100) {
+                    // V2.4 / V3: reset con bateria en la banda [corte-100, corte):
+                    // permitir boot para mandar [Vivo] (Nivel 1) y re-dormir tras 8 lecturas.
+                    LOG_WARN("Battery %d mV in [cutoff-100, cutoff): boot for [Vivo] message, re-sleep after monitor cycle",
+                             lastLowMv);
+                    NavaCLIModule::navaSetVivoPending();
+                } else {
+                    // V3: reset con bateria en reserva profunda (< corte-100):
+                    // permitir boot para mandar [Reserva] (Nivel 2) y re-dormir tras 8 lecturas.
+                    // Garantiza el apagado canónico de la radio por SPI en doDeepSleep (0.4 mA).
+                    LOG_WARN("Battery %d mV < cutoff-100: boot for [Reserva] message, re-sleep after monitor cycle",
+                             lastLowMv);
+                    NavaCLIModule::navaSetReservaPending();
+                }
             }
         }
     }

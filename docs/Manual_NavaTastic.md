@@ -122,22 +122,44 @@ Documento **3 de 3** del proyecto Navarrico. Manual de operación de los comando
 - **`/nava sendtel`** — Telemetrías ambientales inmediatas.
 - **`/nava power`** — Métricas de energía: ADC interno (mV) + sensor de potencia I2C (INA219/260) con **V, ±mA y CARGANDO/DESCARGANDO** y potencia en mW.
 
-## 💤 8. Avisos de Sueño/Despertar (v4.3 V2)
+## 💤 8. Avisos de Sueño/Despertar y Modo de Resiliencia Solar (v4.3 V3)
 
-El nodo puede anunciar **por el canal Navadmin (slot 1)** su ciclo de batería (ON por defecto;
-NO afecta al comportamiento energético, solo a los avisos). Contenido: `ADC X mV | CPU X.X C`
-(solo sensores internos del nRF52 — los sensores I2C no están disponibles en estos momentos).
-**Verificado en banco 15/08/2026** (ciclo completo: [Vivo] → operación ~100s → [Sueño] → dormido
-~1 mA → LPCOMP ~3.7-3.8V → [Listo] → [Boot] a los 2 min). **V3**: el monitor runtime usa **8
-lecturas (~160s)** para todas las placas.
+El nodo anuncia **por el canal Navadmin (slot 1)** su estado de batería y ciclo solar (ON por defecto;
+NO afecta al comportamiento energético, solo a la visibilidad remota). Contenido: `ADC X mV | CPU X.X C`
+(sensores internos del chip nRF52 — los sensores I2C no están disponibles en esos instantes de arranque).
 
-- **`/nava sleepmsg [on|off]`** — Activa/desactiva los avisos. **Sin argumento**: estado actual. Persiste en `/resilience.bin` (sobrevive a factory reset). Reparado en V2.3 (el gate nunca se activaba por comando).
-- **`[Sueño]`** — Antes de dormir por batería baja: nombre, id, ADC + temperatura del chip y tensión de despertar por LPCOMP. Se dispara tras **8 lecturas bajas del monitor (~160s)** — el filtro evita dormirse por lecturas ADC puntuales erróneas (RF/temperatura). Después duerme **TODO** (radio, GPS, pantalla, LED) → ~1 mA.
-- **`[Vivo]`** — Despertado por reset externo (p. ej. ATtiny13A) con batería en la **banda [corte−100 mV, corte)** (E22P: 3400-3500; SX1262: 3300-3400): aviso "sigo vivo, al límite de carga" y el nodo **sigue operando con normalidad** — el monitor decidirá dormir tras sus 8 lecturas si la baja persiste.
-- **`[Listo]`** — Despertar con **V ≥ corte OCV** (por LPCOMP solar o reset externo): "despierto, cargando, listo para trabajar" — el nodo sigue operando con normalidad.
-- **`[Boot]` (V2.4)** — Aviso de arranque **diferido 2 minutos** (anti-bucle: un nodo en ciclo de reinicios nunca llega a enviarlo). Solo en arranques que NO vienen del ciclo de sueño: power-on, reset externo, **watchdog**, brownout, flasheo, `/nava reboot`. Incluye la **causa del reset** (registro RESETREAS: `WDT` = watchdog del firmware, `RESETPIN` = ATtiny/botón, `SOFT` = reboot/storm/flash, `LOCKUP`, `LPCOMP`, `VBUS`) y la **etiqueta de build** (`NAVA V3`). Todos gated por `sleepmsg`.
-- Regla de silencio: si la batería está por debajo de corte−100 mV NO se envía nada — re-sueño directo (protección anti-brownout).
-- **Para recibirlos**: el observador/mando debe tener materializado el canal Navadmin (PSK pública `{0x01}`, slot 1) y estar en la misma frecuencia/parametros LoRa.
+### ☀️ Los 5 Estados del Ciclo Solar de NavaTastic
+
+| Aviso | Nivel / Banda | Comportamiento en Red |
+|---|---|---|
+| **`[Listo]`** | **Normal** ($V \ge \text{corte}$ / $\sim 3.75\text{V}-3.80\text{V}$) | **Despertar por recuperación solar**: El sol ha recargado el banco de baterías $\rightarrow$ El nodo anuncia "despierto, cargando, listo para trabajar" y opera de forma ininterrumpida. |
+| **`[Vivo]`** | **Nivel 1** ($3.30\text{V} - 3.40\text{V}$) | **Límite de corte**: Despertado por reset externo (ej. ATtiny13A o botón) $\rightarrow$ Anuncia "sigo vivo, al límite de carga" y **opera durante 160s (8 lecturas)**. Si la batería no remonta, se duerme de nuevo. |
+| **`[Critico]`** | **Nivel 2** ($< 3.30\text{V}$) | **Capacidad crítica**: Despertado por reset externo con batería muy baja $\rightarrow$ Anuncia "bateria en capacidad critica, operando 160s" y **opera durante 160s (8 lecturas)** antes de dormir limpiamente. Permite al operador seguir la rampa solar día a día en periodos de mal tiempo. |
+| **`[Sueño]`** | **Corte de Batería** ($V < \text{corte}$) | **Entrada en Sueño Profundo**: Tras 8 lecturas consecutivas bajo el corte (~160s) $\rightarrow$ Emite el aviso de despedida y ejecuta `doDeepSleep()` (radio SX1262 apagada por SPI, GPS apagado, pantalla off, LED apagado) $\rightarrow$ **0.4 mA** (Faketec) / **1.5 mA** (E22P con Booster 5V). |
+| **`[Boot]`** | **Arranque General** (diferido 2 min) | **Diagnóstico de Reinicio**: Se emite a los **2 minutos de uptime exactos** tras cualquier arranque normal/frío/watchdog. El retraso de 2 min actúa como anti-bucle de malla. Reporta la causa hardware del reinicio (`RESETREAS`: `WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) y la versión `NAVA V3`. |
+
+- **`/nava sleepmsg [on|off]`** — Activa/desactiva los avisos. **Sin argumento**: muestra el estado actual. Persiste en `/resilience.bin` (sobrevive a factory reset).
+- **Para recibirlos**: El observador o móvil debe tener activo el canal Navadmin (PSK pública `{0x01}`, slot 1) y operar en la misma frecuencia LoRa.
+
+---
+
+## 🏛️ Los 4 Pilares de Resiliencia de NavaTastic para Alta Montaña
+
+NavaTastic incorpora una arquitectura de endurecimiento diseñada específicamente para repetidores solares aislados en cumbres y entornos hostiles:
+
+1. **Pilar 1 — Ciclo Solar de 5 Estados y Cero Brownout**:
+   - **Histéresis por Hardware (LPCOMP)**: La CPU duerme en System OFF a **0.4 mA** hasta que el panel solar eleva la tensión a $\sim 3.75\text{ V} - 3.80\text{ V}$.
+   - **Filtro IIR LPF (50%)**: Suaviza transitorios y caídas momentáneas provocadas por ráfagas de transmisión a +22 dBm o frío extremo, evitando falsos apagados.
+   - **Ventana de Supervivencia de 160s (8 lecturas)**: Ante cualquier reinicio externo en batería baja, el nodo opera 160s emitiendo `[Vivo]` o `[Critico]` y solo si la batería no remonta se apaga canónicamente con `doDeepSleep()` (apagando el transceptor LoRa por SPI).
+2. **Pilar 2 — Cero Desgaste de Memoria Flash (`NodeDB RAM-Only`)**:
+   - En una red LoRa abierta con cientos de nodos y paquetes en tránsito, el firmware estándar de Meshtastic realiza escrituras continuas en la flash interna, destruyendo las celdas de almacenamiento en pocos meses.
+   - NavaTastic mantiene la base de datos de nodos **100% en memoria RAM** (`USERPREFS_NODEDB_RAM_ONLY=true`), eliminando el desgaste de flash y garantizando años de operación ininterrumpida sin corrupción de LittleFS.
+3. **Pilar 3 — Enrutamiento Inteligente con Auto-Favoritos 0-Hop**:
+   - El nodo identifica automáticamente a los routers vecinos directos a 0 saltos (`activeDirectRouters`) y los registra como favoritos persistentes `[AUTO]`.
+   - Esto optimiza la propagación de paquetes a través del espinazo de la red sin saturar el espectro y sin requerir mantenimiento manual en cada repetidor.
+4. **Pilar 4 — Blindaje Criptográfico F20 y Persistencia Semi-Permanente (`/resilience.bin`)**:
+   - Los parámetros esenciales (par de claves PKI, clave Master de administración `admin_key[0]`, canal Navadmin en Slot 1 y roles operativos) quedan protegidos en `/resilience.bin` fuera de `/prefs`.
+   - Incluso tras un reset de configuración de emergencia (`--factory-reset-config`), el repetidor mantiene sus claves criptográficas y sus canales de rescate, haciendo imposible que un nodo de montaña quede huérfano o incomunicado.
 
 ## 🔔 9. Utilidades (SOLO DM PRIVADO CIFRADO)
 

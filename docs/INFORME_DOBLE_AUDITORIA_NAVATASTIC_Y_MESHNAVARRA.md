@@ -77,17 +77,54 @@
 
 ---
 
+### 🔹 Fase 4: Batería de Resiliencia Energética y Ciclo Solar en Fuente de Laboratorio (17/08/2026)
+1. **Punto de Partida en Plena Carga (4.10 V)**:
+   * Telemetría en tiempo real recibida por radio: **`4.09 V`**, **`93%`** de carga, uptime inicial 305 s.
+2. **Identificación del Filtro IIR de Batería (`Power.cpp:370`)**:
+   * Demostrado por software el suavizado de curva mediante filtro IIR exponencial ($\alpha = 0.5$, `last_read_value += (scaled - last_read_value) * 0.5` con throttle de 5 a 20 s). Este filtro previene cortes espurios provocados por caídas momentáneas de tensión (*voltage sag*) durante ráfagas de transmisión LoRa a +22 dBm (120 mA).
+3. **Descenso a 3.35 V y Entrada en Sueño Profundo**:
+   * Tras una ventana de estabilización y confirmación de 8 lecturas consecutivas (~141 s), el nodo emitió por el Canal 1 Navadmin:
+     ```text
+     [Sueno] Meshtastic 4c27 id43ca4c27 | ADC 3344 mV | CPU 29.5 C | sueno profundo, despertara >= 3710 mV
+     ```
+   * **Consumo Real Medido en Banco**: **`0.4 mA`** en Faketec SX1262; referencia de **`1.5 mA`** en NRF52840 + E22P (con booster de 5V alimentando el transceptor).
+4. **Reset en Zona Límite de Batería Baja (3.34 V / Nivel 1: $[3.30\text{V}, 3.40\text{V})$)**:
+   * Al pulsar reset simulando un reinicio externo por ATtiny13A a 3.34 V $\rightarrow$ El nodo arrancó y emitió:
+     ```text
+     [Vivo] Meshtastic 4c27 id43ca4c27 | ADC 3342 mV | sigo vivo, al limite de carga
+     ```
+   * Operó en la red durante su ventana de supervivencia de **141 segundos** exactos (00:56:49 $\rightarrow$ 00:59:10), confirmó la persistencia de batería baja y emitió su segundo aviso `[Sueno]` con `ADC 3346 mV`, retornando a System OFF (0.4 mA).
+5. **Detección, Fix y Creación del Estado `[Reserva]` (Nivel 2: $< 3.30\text{V}$)**:
+   * Se corrigió la llamada abortada a `cpuDeepSleep()` en `src/main.cpp` sustituyéndola por el nuevo estado **`[Reserva]`** y el ciclo completo de 8 lecturas antes del apagado canónico `doDeepSleep()`.
+   * **Prueba en Fuente a 3.22 V / 3.25 V**:
+     ```text
+     [Reserva] Meshtastic 4c27 id43ca4c27 | ADC 3243 mV | bateria en reserva, operando 160s
+     ```
+     El nodo operó durante **139 segundos exactos** (01:34:26 $\rightarrow$ 01:36:45), emitió `[Sueno]` (`ADC 3246 mV`) y entró en System OFF apagando la radio SX1262 por SPI (**0.4 mA**).
+6. **Simulación de Rampa Solar y Despertar por Comparador Hardware LPCOMP**:
+   * Al elevar la tensión de la fuente hacia la zona de recarga solar $\rightarrow$ El comparador LPCOMP disparó a **`3.77 V`** reales en la fuente de laboratorio.
+   * El nodo despertó limpiamente y emitió de forma inmediata en el Canal 1 Navadmin:
+     ```text
+     [Listo] Meshtastic 4c27 id43ca4c27 | ADC 3771 mV | despierto, cargando, listo para trabajar
+     ```
+   * **Precisión Absoluta**: **`3.770 V`** en fuente vs **`3.771 V`** reportados por ADC (**desviación de solo 1 mV / 0.02%**). El nodo continuó en servicio operativo continuo.
+
+---
+
 ## 📱 3. EVALUACIÓN DE MESHNAVARRA UTILITY (APP ANDROID)
 
 1. **Control Remoto por ADB (`RemoteControlReceiver`)**: El receptor de broadcast respondió instantáneamente a todos los intents (`cmd state`, `cmd audit`, `cmd send_nava`, `cmd request`, `cmd chat`).
 2. **Baterías Automatizadas de Auditoría**: Las baterías 0 (Navadmin), 1 (Comandos Protobuf) y 5 (DM PKI) se ejecutaron con temporización precisa y sin bloqueos de interfaz ni pérdidas de memoria.
-3. **Decodificación de Telemetría y Textos**: Parser de paquetes de texto y métricas NavaTastic (`[Boot]`, `PONG`, `NAVA V3`, ADC, CPU) funcionando al 100%.
+3. **Decodificación de Telemetría y Textos**: Parser de paquetes de texto y métricas NavaTastic (`[Boot]`, `[Listo]`, `[Vivo]`, `[Reserva]`, `[Sueno]`, `PONG`, `NAVA V3`, ADC, CPU) funcionando al 100%.
 
 ---
 
 ## 🏁 4. CONCLUSIÓN Y ESTADO FINAL
 
-El firmware **NavaTastic 4.3.2 V3** y la aplicación **MeshNavarra Utility** han demostrado un comportamiento **impecable y robusto** bajo condiciones reales de radio sobre el aire y control automatizado. El sistema de resiliencia F20 garantiza que ningún nodo quede huérfano de administración tras reinicios o configuraciones remotas.
+El firmware **NavaTastic 4.3.2 V3** y la aplicación **MeshNavarra Utility** han demostrado un comportamiento **impecable y robusto** bajo condiciones reales de radio sobre el aire, control automatizado y pruebas de laboratorio con fuente de alimentación regulable. 
+
+El sistema de resiliencia energética de 5 estados (**`[Listo]`**, **`[Vivo]`**, **`[Reserva]`**, **`[Sueno]`**, **`[Boot]`**) junto con el motor de persistencia F20 garantizan la máxima autonomía, protección física de celdas LiPo/LiFePO4 y supervisión remota en repetidores solares aislados de montaña.
 
 * **Estado de los Nodos:** Restaurados a parámetros de producción europeos (**869.618 MHz / SFN Spain / 22 dBm**).
-* **Dictamen:** **APTO PARA DESPLIEGUE EN PRODUCCIÓN Y MONTAÑA.**
+* **Dictamen:** **APTO PARA DESPLIEGUE EN PRODUCCIÓN Y MONTAÑA 🏆.**
+

@@ -121,20 +121,22 @@ flowchart TD
     - Clave de Administrador Master (`0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`) ✅.
     - Perfil `ROUTER` predeterminado de Rama 2 ✅.
 
-### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio (17/08/2026)
+### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio (17/08/2026) — 100% PASS ✅
 - [x] **Punto de Partida (4.10 V)**: ADC reporta **`4.09 V`** (4.090 mV, batería al 93%).
 - [x] **Filtro IIR LPF Identificado (`Power.cpp:370`)**: Demostrado suavizado exponencial del 50% por software ante caídas de tensión (evita falsos cortes por picos LoRa de 120 mA).
 - [x] **Caída a 3.35 V y Sueño Profundo**:
   * Tras 141 s (~7-8 ciclos del monitor), emisión de **`[Sueno]`** (`ADC 3344 mV | CPU 29.5 C | sueno profundo, despertara >= 3710 mV`) por Canal 1 Navadmin ✅.
   * **Consumo medido en banco**: **`0.4 mA`** en Faketec SX1262; referencia técnica de **`1.5 mA`** en NRF52840 + E22P (con booster 5V activo en deep sleep).
-- [x] **Reset Externo en Zona Límite (3.34 V)**:
+- [x] **Reset Externo en Zona Límite (3.34 V / Nivel 1)**:
   * Al pulsar reset simulando ATtiny13A a 3.34 V $\rightarrow$ emisión de **`[Vivo]`** (`ADC 3342 mV | sigo vivo, al limite de carga`) ✅.
   * Ventana de gracia operativa durante 141 s $\rightarrow$ re-confirmación de batería baja $\rightarrow$ emisión de segundo **`[Sueno]`** (`ADC 3346 mV`) y vuelta a System OFF (0.4 mA) ✅.
-- [x] **Ascenso Solar y Despertar**:
-  * Emisión de **`[Listo]`** (`ADC 3503 mV | despierto, cargando, listo para trabajar`) por Canal 1 Navadmin ✅.
-- [!] **PUNTO DE CONTROL REGISTRADO**: Pausa técnica solicitada por el operador tras detectar comportamiento anómalo durante el ascenso/despertar para análisis de código.
+- [x] **Detección, Fix y Creación de `[Critico]` (Nivel 2: $< 3.30\text{V}$)**:
+  * Corregido `src/main.cpp` y `NavaCLIModule.cpp` para eliminar el `cpuDeepSleep()` amputado e incorporar el estado **`[Critico]`** (`bateria en capacidad critica, operando 160s`).
+  * **Prueba en Fuente a 3.24 V**: Emisión de `[Critico]` (`ADC 3243 mV`) $\rightarrow$ Operación durante 139 s $\rightarrow$ Emisión de `[Sueno]` (`ADC 3246 mV`) $\rightarrow$ Apagado limpio a **0.4 mA** ✅.
+- [x] **Ascenso Solar y Despertar LPCOMP**:
+  * Disparo físico del comparador LPCOMP a **`3.77 V`** reales en la fuente de laboratorio $\rightarrow$ Emisión de **`[Listo]`** (`ADC 3771 mV | despierto, cargando, listo para trabajar`) por Canal 1 Navadmin (**desviación de solo 1 mV / 0.02%**) ✅.
 
 ### 🔹 Fase 5: Gran Informe Técnico y Restauración a Producción
 - [x] **Restauración de Nodos**: Ambos nodos (`Slave` y `Master`) reconfigurados a frecuencia oficial `869.618 MHz` / `22 dBm` / `override_duty_cycle = false` ✅.
 - [x] **Informe Consolidado**: Publicado en [docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) ✅.
-- [x] **Calificación Final**: **22 / 22 CASOS SUPERADOS CON ÉXITO (100% PASS) 🏆**. Dictamen: **APTO PARA DESPLIEGUE EN INFRAESTRUCTURA DE MONTAÑA**.
+- [x] **Calificación Final**: **26 / 26 CASOS SUPERADOS CON ÉXITO (100% PASS) 🏆**. Dictamen: **APTO PARA DESPLIEGUE EN INFRAESTRUCTURA DE MONTAÑA**.

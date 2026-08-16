@@ -70,6 +70,8 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     static void navaSetWasInSleep(bool on);
     static void navaSetVivoPending();
     static bool navaGetVivoPending();
+    static void navaSetReservaPending();
+    static bool navaGetReservaPending();
 
     // V2: el monitor de bateria (Power.cpp) delega el sueño aqui para mandar el
     // mensaje [Sueño] antes de dormir. Devuelve true si tomo el control.
@@ -93,11 +95,12 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     bool rebootScheduled = false;
     uint32_t rebootTime = 0;
 
-    // V2: sueño diferido tras enviar [Sueño]/[Vivo] (mismo patron que storm/reboot)
+    // V2: sueño diferido tras enviar [Sueño]/[Vivo]/[Reserva] (mismo patron que storm/reboot)
     bool sleepPending = false;
     uint32_t sleepTime = 0;
     bool firstRunDone = false;
     bool vivoPending = false;
+    bool reservaPending = false;
     bool wokeFromSleep = false;
 
     // Reset de fábrica diferido: se ejecuta en runOnce() cuando la cola de respuestas esté vacía

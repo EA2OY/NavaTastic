@@ -7,39 +7,33 @@
 > SEEED_XIAO_NRF52840_KIT, HELTEC_T114) los define el env. Las químicas/divisores de la
 > tabla **siguen vigentes**.
 
-## COMPORTAMIENTO ACTUAL DEL CICLO SUEÑO/DESPERTAR (V2.6, verificado en banco 15/08)
+## COMPORTAMIENTO ACTUAL DEL CICLO SUEÑO/DESPERTAR (V3 / 17/08/2026)
 
-> Esta sección manda sobre el ciclo completo. Reemplaza el diseño V2.4 intermedio.
+> Esta sección manda sobre el ciclo completo de resiliencia solar.
 
-**Los 4 avisos automáticos** (canal Navadmin slot 1, gate `/nava sleepmsg`, contenido =
+**Los 5 avisos automáticos** (canal Navadmin slot 1, gate `/nava sleepmsg`, contenido =
 `ADC X mV | CPU X.X C` — solo sensores internos, nada de I2C):
 
-| Aviso | Cuándo | Comportamiento |
+| Aviso | Banda / Cuándo | Comportamiento |
 |---|---|---|
-| `[Sueño]` | Monitor runtime confirma V < corte (8 lecturas reales, ~160s desde V3/F18) | Avisa + duerme **TODO** (`doDeepSleep`: preflight + radio->sleep + GPS + pantalla + System OFF) → **~1 mA** |
-| `[Vivo]` | Despertar por reset externo con V en [corte−100, corte) | Avisa y **SIGUE OPERANDO** (~160s) — el monitor decide después |
-| `[Listo]` | Despertar con V ≥ corte (LPCOMP o reset) | Opera con normalidad |
-| `[Boot]` | Cualquier arranque NO venido del ciclo de sueño, a los **2 min de uptime** | Aviso con causa del reset (RESETREAS: WDT/RESETPIN/SOFT/LOCKUP/LPCOMP/VBUS) + etiqueta de build (`NAVA V3`, F22); el retraso es el anti-bucle |
+| **`[Listo]`** | Despertar con $V \ge \text{corte}$ (LPCOMP o reset) | Despertar limpio por recuperación solar $\rightarrow$ Opera con normalidad continua. |
+| **`[Vivo]`** | Reset con $V \in [\text{corte}−100, \text{corte})$ (Nivel 1: $3.30\text{V}-3.40\text{V}$) | Avisa y **OPERA 160s (8 lecturas)** — si no sube, se duerme con `[Sueño]`. |
+| **`[Critico]`** | Reset con $V < \text{corte}−100$ (Nivel 2: $< 3.30\text{V}$) | Avisa con texto `bateria en capacidad critica, operando 160s` y **OPERA 160s (8 lecturas)** — permite seguir la rampa solar y se duerme con `[Sueño]` de forma limpia. |
+| **`[Sueño]`** | Monitor runtime confirma $V < \text{corte}$ (8 lecturas, ~160s) | Avisa + duerme **TODO** (`doDeepSleep`: radio SX1262 a sleep por SPI + GPS + LED off + System OFF) $\rightarrow$ **0.4 mA** (Faketec) / **1.5 mA** (E22P+Booster). |
+| **`[Boot]`** | Cualquier arranque NO venido del ciclo de sueño, a los **2 min de uptime** | Aviso con causa del reset (`RESETREAS`: WDT/RESETPIN/SOFT/LOCKUP/LPCOMP/VBUS) + etiqueta `NAVA V3`; el retraso de 2 min es el anti-bucle. |
 
 **Bandas del pre-check al despertar de sueño** (gate = corte OCV, no LPCOMP):
-`V < corte−100` → silencio + re-sueño (brownout) · `[corte−100, corte)` → [Vivo] ·
-`V ≥ corte` → boot normal → [Listo]. El LPCOMP (~3.71V teórico, ~3.7-3.8V real según
-hardware) solo decide el despertar FÍSICO.
+* $V \ge \text{corte}$ $\rightarrow$ Boot normal $\rightarrow$ **`[Listo]`**. (El comparador hardware LPCOMP a ~3.71V teórico / ~3.75-3.80V real siempre despierta en esta banda).
+* $V \in [\text{corte}−100, \text{corte})$ $\rightarrow$ Boot $\rightarrow$ **`[Vivo]`** (Nivel 1) $\rightarrow$ 8 lecturas $\rightarrow$ `[Sueño]`.
+* $V < \text{corte}−100$ $\rightarrow$ Boot $\rightarrow$ **`[Critico]`** (Nivel 2) $\rightarrow$ 8 lecturas $\rightarrow$ `[Sueño]`.
 
-**Anti-falsos positivos (el porqué de las 8 lecturas, F18/V3)**: el contador `low_voltage_counter`
-solo cuenta en lecturas NORMALES del monitor (Power cada 20s → 8 lecturas ≈ **160s**, umbral
-desde la macro del perfil `USERPREFS_LOW_BATTERY_READINGS_COUNT` — unificadas las 6 placas;
-antes era asimétrico: `>4` Promicro/Faketec vs `>10` resto). Las
-lecturas FORZADAS del pre-check (`readPowerStatus(true)`, force) **no incrementan el
-contador** (fix V2.6: antes pre-cargaban el contador y el nodo dormía ~20s tras arrancar
-con batería baja, saltándose el filtro). En campo, RF/temperatura/transitorios pueden dar
-lecturas ADC puntuales erróneas: una lectura buena resetea el contador.
+**Consumos reales medidos en banco de laboratorio**:
+* **Faketec SX1262 / Promicro DIY**: **`0.4 mA`** en Deep Sleep / System OFF.
+* **NRF52840 + E22P + Booster 5V**: **`1.5 mA`** en Deep Sleep / System OFF (con el booster de 5V alimentando el transceptor).
 
 **Dormir TODO**: el sueño diferido de NavaCLI ejecuta `doDeepSleep(portMAX_DELAY, false,
-true)` (la misma puerta que Eclipse V1), NO `cpuDeepSleep` directo (que se saltaba
-`notifyDeepSleep` → `RadioInterface::sleep()`: las placas SX1262 sin corte de alimentación
-de radio se quedaban consumiendo ~5-10 mA dormidas). `cpuDeepSleep` apaga además el **LED
-de estado** antes de System OFF (V2.6: un LED enclavado consumía ~10 mA).
+true)` (la misma puerta que Eclipse V1), asegurando que la radio SX1262 reciba la orden `RadioInterface::sleep()`
+por SPI y que el LED de estado se apague antes de entrar en `sd_power_system_off()`.
 
 ## REFERENCIA HISTÓRICA — Eclipse V1 (12/08) vs V2
 
