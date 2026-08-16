@@ -70,17 +70,20 @@ flowchart TD
 ```
 
 ### 🔹 Fase 0: Preparación y Verificación de Conectividad
-1. Conexión WiFi ADB al Mi 10 (`adb connect 192.168.3.141:5555`) y verificación de respuesta.
-2. Detección del `Slave` por USB en el PC (`COMx`).
-3. Detección del `Master` por OTG en el Mi 10.
-4. Verificación de broadcast de prueba con MeshNavarra (`cmd state`).
-5. *Reporte al operador y solicitud de permiso.*
+- [x] **Conexión ADB WiFi Mi 10 (`192.168.3.141:5555`)**: VERIFICADA Y ACTIVA ✅.
 
 ### 🔹 Fase 1: Firmware de Laboratorio y Emparejamiento Limpio
-1. Flasheo de ambos Faketecs con firmware limpio en 869.545 MHz / 1 dBm.
-2. Inyección de claves cruzadas (`admin_key[]` mutuas).
-3. Intercambio de NodeInfo y verificación de Traceroute bidireccional (`--trace !ID`).
-4. *Reporte al operador y solicitud de permiso.*
+- [x] **PASO A (Master en USB - Faketec 2)**: COMPLETADO CON ÉXITO ✅.
+  * Node ID: `!8289015a` (`2190016858`) | MAC: `dd:cf:82:89:01:5a`.
+  * Clave Pública PKI: `0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`.
+  * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · `override_duty_cycle = true` · Canal 1 `Navadmin` (`AQ==`).
+- [x] **PASO B (Slave en USB - Faketec 1)**: COMPLETADO CON ÉXITO ✅.
+  * Firmware Flasheado: NavaTastic 4.3.2 V3 (`navarrico_faketec_sx1262_r2ig`) con DFU upload exitoso (178.33 s) ✅.
+  * Node ID: `!3a89ac94` (`982099092`).
+  * Clave Pública PKI: `1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=`.
+  * Clave Admin inyectada en Slot 0: `0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=` (Clave del Master) ✅.
+  * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · `override_duty_cycle = true` · Canal 1 `Navadmin` (`AQ==`).
+- [ ] **PASO C (Montaje definitivo y Test de Enlace Radio)**: EN PROGRESO.
 
 ### 🔹 Fase 2: Batería Meshtastic Core (App Oficial + AdminMessage)
 1. **Renombrado Remoto**: `set_owner` (nombre largo/corto) $\rightarrow$ verificar persistencia tras soft reboot.
