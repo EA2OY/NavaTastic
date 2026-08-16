@@ -827,6 +827,11 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   release v4.3.2 sustituidos por los nuevos (2,4 MB con cartel; vía API: borrado + subida).
   L24 aplicada (distribucion\ + PDFs repoblados). Backups `.bak-20260816-0159` (plantilla +
   generar_pdf) y `.bak-20260816-0212` (manual de comandos).
+- **Carteles sustituidos (16/08, 3ª ronda)**: el operador entregó versiones nuevas —
+  `cartel_navatastic_github.jpg` (1024×572, README de GitHub; retirado el flyer optimizado
+  anterior) y el flyer de portada de los PDFs actualizado (1792×2398, sobre
+  `flyer_navatastic_eclipse_v3_hd.jpg`). PDFs regenerados y sustituidos en el release v4.3.2
+  (vía API). Rama huérfana `6a44fd022` → main. L24 aplicada de nuevo.
 
 ### NOMENCLATURA DE VERSIONES (16/08, decisión del operador)- **Changelog público (manual de uso) = 3 hitos**: **4.3.0** (NavaTastic + control remoto sin
   PC), **4.3.1 = "NavaTastic Eclipse"** (12/08, distribuida a colegas), **4.3.2 = "NavaTastic
