@@ -2,6 +2,10 @@
 
 <img src="cartel_navatastic_github.jpg" alt="Cartel NavaTastic Eclipse V3" width="640"/>
 
+<br/>
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
+
 </div>
 
 Firmware **NavaTastic** — fork de [Meshtastic](https://meshtastic.org) v2.7.26 (base `54e0d8d`)
@@ -278,6 +282,18 @@ la operación (bug conocido de la app).
 
 Este proyecto nació gracias a **JBAU92** y su [firmware_solar_fix](https://github.com/JBAU92/firmware_solar_fix): sin esa base e inspiración, NavaTastic no existiría. Gracias también a tod@s l@s amig@s y conocid@s de la **malla de Navarra** y de las **mallas cercanas amigas**, a los que guardo mucho aprecio y valoro enormemente su apoyo. He hecho grandes amistades gracias a todo esto, y a toda la gente del grupo **Meshtastic España** (Telegram) que me ha echado una mano, probado el firmware e inspirado en este camino. Este proyecto también es vuestro.
 
+## ☕ Apoyo voluntario al proyecto
+
+Este proyecto es y será siempre **100% libre, abierto, gratuito y desarrollado de forma totalmente altruista** y desinteresada para la comunidad. No es en absoluto necesario ni existe ninguna obligación de aportar nada para descargar, usar y disfrutar de todo el firmware y sus herramientas.
+
+Si alguien, de manera **estrictamente voluntaria**, desea tener un detalle o invitar a un café para ayudar a sufragar los costes personales de placas de prueba, componentes de laboratorio y hardware para el desarrollo, puede hacerlo a través de este enlace:
+
+<div align="center">
+
+[![Apoyar en Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/ea2oy)
+
+</div>
+
 ---
 
 # NavaTastic (English)
@@ -546,3 +562,15 @@ key **regenerates by itself**. If it does not stick, repeat the operation (known
 ## Acknowledgments
 
 This project was born thanks to **JBAU92** and his [firmware_solar_fix](https://github.com/JBAU92/firmware_solar_fix): without that base and inspiration, NavaTastic would not exist. Thanks too to all the friends and acquaintances of the **Navarra mesh** and the **nearby friendly meshes**, for whom I hold great affection and whose support I deeply value. This whole journey has brought me great friendships. And thanks to everyone in the **Meshtastic España** group (Telegram) who has lent a hand, tested the firmware and inspired this path. This project is partly yours too.
+
+## ☕ Voluntary project support
+
+This project is and will always remain **100% free, open-source, and developed entirely altruistically** for the community. Donating is absolutely not required nor expected to download, use, and enjoy the full firmware and all its features.
+
+If you wish, purely on a **voluntary basis**, to show appreciation or help offset personal out-of-pocket expenses for lab test boards, batteries, and hardware components used in development, you can buy me a coffee here:
+
+<div align="center">
+
+[![Support on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/ea2oy)
+
+</div>

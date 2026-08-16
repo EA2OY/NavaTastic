@@ -956,3 +956,8 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   de código). Pendientes para la próxima sesión: banco Seed/T114, F16b/d/e, F17, rotación
   del token GitHub (L26), Telegram, siguiente release (bump `NAVATASTIC_BUILD`), nuevas
   rondas Propia (PROMPT_BUILD_PROPIA.md en el Desktop).
+
+### KO-FI Y PATROCINIO VOLUNTARIO ALTRUISTA (16/08)
+- **Ko-fi integrado (`https://ko-fi.com/ea2oy`)**: añadido badge superior centrado en `README.md` (`[![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)`) + secciones dedicadas al final en ES y EN tras Agradecimientos/Acknowledgments ("Apoyo voluntario al proyecto" / "Voluntary project support").
+- **Cláusula de altruismo explícita (decisión del operador)**: texto enfatiza que el proyecto es y será **100% libre, abierto, gratuito y desarrollado de forma totalmente altruista y desinteresada**; no es necesario aportar nada para usarlo ni disfrutarlo; las aportaciones son estrictamente voluntarias para quien desee colaborar con gastos personales de hardware/placas de laboratorio.
+- **`.github/FUNDING.yml`**: actualizado a `ko_fi: ea2oy` (activa el botón nativo «💖 Sponsor» de GitHub). Backups `.bak-20260816-1411`.

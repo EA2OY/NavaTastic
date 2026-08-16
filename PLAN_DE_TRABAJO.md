@@ -247,8 +247,8 @@ PASO 0 (OBLIGATORIO, apertura canónica, en este orden):
      §5 flujo Propia del Desktop, §9 GitHub).
   2. BITACORA_TECNICA.md: F1-F20 (H1), V2.2-V2.6, L1-L36, publicación v4.3.2, carteles,
      nomenclatura, RETOMA 16/08 (ronda Propia #1, F20 aclarado, cierre).
-  3. PLAN_DE_TRABAJO.md: estado (V3 + retoma cerradas) + "Posibles ampliaciones" + este PROMPT.
-  4. docs\cerebro\cerebro.md SECCIÓN 5 (partes 24ª-38ª; 5.4 VIGENTE vs OBSOLETO, 5.5 handover).
+  3. PLAN_DE_TRABAJO.md: estado (V3 + retoma + Ko-fi) + "Posibles ampliaciones" + este PROMPT.
+  4. docs\cerebro\cerebro.md SECCIÓN 5 (partes 24ª-39ª; 5.4 VIGENTE vs OBSOLETO, 5.5 handover).
   5. PORTING_NUEVO_FORK.md + docs de contexto según el caso. C:\Firmware Navarrico 4.3 y 4.2 =
      SOLO LECTURA.
 
@@ -293,21 +293,12 @@ REGLAS Y TRAMPAS VIGENTES:
       20260816 (HEAD 55db4d4f5).zip` + cerebro 35ª parte + handover §5.5 + PROMPT DE RETOMA
       reescrito. Estado: V3 cerrada y publicada; pendientes para la próxima sesión: banco
       Seed/T114, F16b/d/e, F17, rotación token (L26), Telegram, siguientes releases.
-- [x] **RETOMA 16/08 (cerrada, sesión documental — 0 cambios de código)**:
-      README EN mojibake corregido (10× U+FFFD); descargo sin "malla de este proyecto"
-      (decisión del operador); guía pública `docs/Compilar_NavaTastic.md` (ES+EN, adaptada
-      de la doc de Meshtastic; README con enlace); agradecimientos (JBAU92 +
-      firmware_solar_fix + malla de Navarra + mallas cercanas amigas + Meshtastic España) +
-      nota del autor ("un poquito de sueño"); `generar_pdf.ps1` $Excluir +=
-      Compilar_NavaTastic.md; **ronda Propia R2IP #1** (4 envs con claves del operador en
-      memoria → `Desktop\Navatastic V3 Eclipse Infraestructura Propia` +
-      `PROMPT_BUILD_PROPIA.md` reutilizable, sin claves en ningún sitio); **F20 aclarado en
-      banco** (keys_clear ≠ purga de config; full_reset/factory_reset/wipe; no existe el
-      slot 3; re-persistir desde la app). Publicado a GitHub (rama huérfana regenerada,
-      UN commit) + L24. Docs al día (cerebro 36ª-38ª, BITACORA, transfer_context §8,
-      Guia §5, PLAN con PROMPT DE RETOMA actualizado). Pendientes: banco Seed/T114,
-      F16b/d/e, F17, rotación token (L26), Telegram, siguientes releases, rondas Propia
-      (PROMPT_BUILD_PROPIA.md).
+- [x] **KO-FI Y PATROCINIO VOLUNTARIO ALTRUISTA (16/08)**:
+      Integrado Ko-fi (`https://ko-fi.com/ea2oy`) en `README.md` (badge superior + secciones
+      dedicadas ES/EN tras Agradecimientos) y `.github/FUNDING.yml` (`ko_fi: ea2oy` → botón
+      «💖 Sponsor» de GitHub). Texto explicita que el proyecto es y será **100% libre,
+      gratuito y totalmente altruista**; donar es estrictamente voluntario para colaborar con
+      gastos personales de placas y laboratorio. Backups `.bak-20260816-1411`. Docs y cerebro al día.
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)
