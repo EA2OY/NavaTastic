@@ -104,14 +104,33 @@ flowchart TD
   * Traceroute bidireccional (+12 dB SNR), telemetría de batería (4.10 V), uptime y métricas de canal recibidas sin pérdidas.
 
 ### 🔹 Fase 3: Batería NavaCLI (`/nava`) y Persistencia Forense
-- [ ] **3.1 — Batería Navadmin (Slot 1)**: `/nava ping`, `/nava status`, `/nava env`, `/nava peers`, `/nava noise`, `/nava bat`, `/nava rxlog`, `/nava afc`, `/nava reset_reason`, `/nava route`, `/nava channel`.
-- [ ] **3.2 — Batería DM PKI (Comandos Ejecutivos)**: `/nava fav`, `/nava ign`, `/nava pos`, `/nava sendtel`, `/nava bell`, `/nava admin_ls`, `/nava txon/txoff`.
-- [ ] **3.3 — Química y Umbrales de Batería**: `/nava set_chem lifepo4`, `/nava set_vbat 3200`, `/nava set_vwake 3` $\rightarrow$ reinicio $\rightarrow$ verificar persistencia en `/resilience.bin`.
-- [ ] **3.4 — Modo Tormenta**: `/nava storm 2` $\rightarrow$ `/nava storm test1` $\rightarrow$ `/nava storm off`.
-- [ ] **3.5 — Hard Reset & Resistencia**: `/nava reboot`, `--factory-reset-config` (verificar preservación de `admin_key`), `--factory-reset-device` (verificar regeneración completa).
-   * `/nava wipe` $\rightarrow$ purga total de `/resilience.bin`.
-   * Prueba de tamaño LittleFS: verificar que `/resilience.bin` mantiene exactamente 84 bytes.
-4. **Seguridad y Whitelist**: Intento de comando admin desde nodo no autorizado $\rightarrow$ verificar `NO AUTORIZADO`.
+- [ ] **3.1 — Batería Navadmin Pública (Slot 1)**:
+  * `/nava ping`, `/nava status`, `/nava env`, `/nava peers`, `/nava noise`, `/nava bat`, `/nava rxlog`, `/nava afc`, `/nava reset_reason`, `/nava route`, `/nava channel`.
+  * Comprobación de seguridad: Intentar `/nava set_chem lifepo4` en Canal 1 $\rightarrow$ Verificar rechazo `SOLO DM SEGURO` ✅.
+- [ ] **3.2 — Batería DM PKI (Gestión de Nodos y Favoritos)**:
+  * `/nava fav ls`, `/nava fav add !8289015a`, `/nava fav rm !8289015a`, `/nava fav auto on`.
+  * `/nava ign ls`, `/nava ign add !deadbeef`, `/nava ign rm !deadbeef`.
+  * `/nava db_purge` (purga de nodos inactivos preservando favoritos).
+- [ ] **3.3 — Química y Umbrales de Batería (PowerFSM & `/resilience.bin`)**:
+  * `/nava set_chem lifepo4` $\rightarrow$ Verificar que cambia rango a 2.5V-3.6V.
+  * `/nava set_vbat 3200` $\rightarrow$ Calibración de lectura ADC en mV.
+  * `/nava set_vwake 3` $\rightarrow$ Histéresis de despertar tras corte solar.
+  * Reinicio por software (`/nava reboot`) $\rightarrow$ Verificar persistencia en `/resilience.bin`.
+  * Restauración a `set_chem lipo` y verificación de vuelta a baseline.
+- [ ] **3.4 — Modo Tormenta y Silencio RF**:
+  * `/nava storm 2` (activación de ventana de 2 horas).
+  * `/nava storm test1` (inyección sintética de ráfaga y control de cola).
+  * `/nava storm off` (desactivación anticipada).
+  * `/nava txoff` (modo escucha pasiva / silencio) $\rightarrow$ `/nava txon` (reactivación).
+  * `/nava ble off` $\rightarrow$ `/nava ble on` (control de radio BLE).
+- [ ] **3.5 — Seguridad y Rechazo de Nodos No Autorizados**:
+  * Intento de comando ejecutivo desde clave no registrada $\rightarrow$ Verificar `NO AUTORIZADO`.
+  * `/nava admin_ls` y `/nava keys_ls` $\rightarrow$ Comprobación de listado de administradores.
+- [ ] **3.6 — Escalera Forense de Resets y Resistencia**:
+  * Prueba A (Soft Reboot): Comprobar retención de rol `CLIENT`/`ROUTER` y configuración de canales.
+  * Prueba B (`--factory-reset-config`): Comprobar que preserva claves `admin_key[]` y base `/resilience.bin`.
+  * Prueba C (`--factory-reset-device`): Comprobar restauración del perfil `ROUTER` de fábrica de Rama 2 y regeneración de par PKI.
+  * Prueba D (`/nava wipe`): Comprobar purga limpia del bloque de resiliencia.
 5. *Reporte al operador y solicitud de permiso.*
 
 ### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio
