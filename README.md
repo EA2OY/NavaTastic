@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="flyer_navatastic_eclipse_v3.jpg" alt="Cartel NavaTastic Eclipse V3" width="480"/>
+<img src="cartel_navatastic_github.jpg" alt="Cartel NavaTastic Eclipse V3" width="640"/>
 
 </div>
 
