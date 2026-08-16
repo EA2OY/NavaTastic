@@ -857,7 +857,7 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Docs de cierre**: cerebro 35ª parte + handover §5.5 actualizado (estado V3 cerrada y
   publicada; siguientes pasos), PLAN (cierre + PROMPT DE RETOMA reescrito para retoma; la
   GUÍA DE IMPLEMENTACIÓN queda histórica), transfer_context ronda de cierre.
-- **Snapshot**: `_archivo\NavaTastic Eclipse V3 - FINAL 20260816 (HEAD <sha>).zip`
+- **Snapshot**: `_archivo\NavaTastic Eclipse V3 - FINAL 20260816 (HEAD 55db4d4f5).zip`
   (git archive del árbol limpio: fuentes + config + perfiles + scripts + docs/cerebro +
   carteles, SIN .pio/.git/binarios/distribucion/PDFs/baks — mismo criterio de los
   snapshots anteriores).
