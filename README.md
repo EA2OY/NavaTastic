@@ -32,7 +32,7 @@ NavaTastic resuelve de raíz los 5 grandes problemas del firmware estándar:
 | **Bloqueo de amanecer (*Brownout*)**: Si la batería se agota de noche, la subida lenta de voltaje con los primeros rayos de sol bloquea el microcontrolador en un bucle infinito del que solo sale quitando la pila físicamente. | **Modo de Resiliencia Solar de 5 Estados**: El hardware se apaga por completo (**0.4 mA**) y solo despierta cuando el comparador analógico por hardware (**LPCOMP**) detecta que el sol ha recargado la batería de verdad ($\ge 3.77\text{ V}$). |
 | **Desgaste y muerte de la memoria Flash**: El firmware estándar escribe continuamente en la memoria flash interna cada vez que recibe un paquete o nodo de paso, quemando las celdas de memoria en pocos meses. | **Cero Desgaste de Flash (`NodeDB RAM-Only`)**: La base de datos de nodos opera al 100% en memoria RAM. La memoria flash queda protegida y el repetidor puede operar durante años sin degradarse. |
 | **Saturación del canal y retransmisión ciega**: En mallas extensas, los paquetes agotan sus saltos (*hops*) antes de llegar al destino, y configurar listas de nodos favoritos para crear un *bypass* exige desplazarse físicamente a cada repetidor con cable. | **Auto-Favoritos Inteligentes 0-Hop y Gestión Remota**: El repetidor descubre a sus routers vecinos directos y los añade automáticamente a su lista de favoritos con retransmisión a 0 saltos (**Zero-Hop**). Además, el usuario puede añadir, consultar o borrar favoritos a distancia por radio (`/nava fav add/rm/ls`), sin ordenador ni cables. |
-| **Mantenimiento obligado con PC o cable**: Para cambiar un canal, rol, potencia o diagnosticar problemas hay que conectarse por Bluetooth al lado del nodo o llevar un portátil con cable USB. | **Administración Remota Total por Radio (`NavaCLI`)**: Más de 45 comandos ejecutables a distancia mediante mensajes de texto cifrados (DM PKI) o con un solo toque desde la app **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
+| **Mantenimiento obligado con PC o cable**: Para cambiar un canal, rol, potencia o diagnosticar problemas hay que conectarse por Bluetooth al lado del nodo o llevar un portátil con cable USB. | **Administración Remota Total por Radio (`NavaCLI`)**: Más de 45 comandos ejecutables a distancia mediante mensajes directos privados (DM) desde mandos autorizados o con un solo toque desde la app **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
 | **Nodos huérfanos tras un reset**: Si un repetidor sufre un reseteo de configuración, se borran las claves de administración y los canales, quedando inaccesible e inservible en la montaña. | **Blindaje y Persistencia Criptográfica**: Las claves de administración y el canal de rescate se protegen en almacenamiento seguro semi-permanente; sobreviven a cualquier reset de configuración. |
 
 ---
@@ -55,34 +55,37 @@ consultar su estado, ajustar energía, reiniciar o rescatar un nodo — cabe en 
 la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes predefinidos.
 
 | Comando | Qué hace | Acceso |
-|---|---|---|
-| `ping` | Latencia, batería, uptime y piso de ruido | Abierto / DM |
-| `status` | Salud del nodo: memoria, favoritos Auto/Manual, energía | Abierto / DM |
-| `env` | Batería, heap, temperatura CPU y sensores I2C | Abierto / DM |
-| `channel` · `peers` · `rxlog` | Uso del espectro · vecinos directos · últimos paquetes | Abierto / DM |
-| `afc` · `noise` · `reset_reason` | Deriva del TCXO · piso de ruido · causa del último reinicio | Abierto / DM |
-| `bat` · `power` | Química, voltaje, % OCV · métricas de energía | Abierto / DM |
-| `route !ID` · `trace !ID` | Ruta y SNR hacia un nodo · trazado de ruta | Abierto / DM |
-| `set_chem [lipo/nimh/sodium/lifepo4]` | Cambia la química y ajusta corte/despertar | DM |
-| `set_vbat [mV]` · `set_vwake [1-5]` | Corte de apagado · nivel de despertar solar | DM |
-| `set_txpower [dBm]` · `set_hops [1-7]` | Potencia de transmisión · límite de saltos | DM |
-| `set_role [client/mute/router]` | Rol **semi-permanente** (sobrevive a factory reset) | DM |
-| `set_name` · `set_mqtt` · `set_tz` · `ble` | Nombre · MQTT · zona horaria · Bluetooth | DM |
-| `txoff` / `txon` | Apagar / encender la transmisión | DM |
-| `sleepmsg [on|off]` | Activa/desactiva los avisos [Sueño]/[Vivo]/[Critico]/[Listo]/[Boot] | DM |
-| `fav add/rm/ls` · `fav auto` | Favoritos (bypass de saltos) y auto-favoriteo | DM |
-| `ign add/rm/ls` | Bloqueo y desbloqueo de nodos | DM |
-| `db_purge` · `db_clear` | Limpieza de la base de nodos | DM |
-| `reboot` · `factory_reset` · `full_reset` · `wipe` | Reinicio y resets diferidos (el ACK sale antes): fábrica (par PKI nuevo; claves admin vuelven) · completo (conserva PKI, bonds y claves admin) · purga total (par PKI nuevo + claves admin borradas; solo queda la de rescate) | DM |
-| `storm [1-720]` | Hibernación por temporizador (radio apagada) | DM |
-| `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Difundir texto · alarma · posición · baliza · telemetría | DM |
-| `admin_ls` · `keys_ls` · `keys_clear` · `help` | Claves admin configuradas · claves **persistidas** (sobreviven a resets) · borrar la copia persistida · ayuda | DM / Abierto* |
+| :--- | :--- | :--- |
+| **`help [cmd]`** | Catálogo de comandos y ayuda detallada de cualquier comando (`/nava <cmd> ?`) | **Canal Abierto / DM** |
+| **`ping`** | Mide latencia, nivel de batería, tiempo de encendido (*uptime*) y piso de ruido | **Canal Abierto / DM** |
+| **`status`** | Salud global: memoria RAM libre, favoritos Auto/Manual, canal y versión `NAVA V3` | **Canal Abierto / DM** |
+| **`env`** | Voltaje, memoria *heap*, temperatura CPU y sensores I2C conectados (BME280, etc.) | **Canal Abierto / DM** |
+| **`bat`** | Diagnóstico de batería: química configurada, voltaje exacto en mV y % OCV | **Canal Abierto / DM** |
+| **`channel` · `peers` · `rxlog`** | Ocupación del canal (% ChUtil) · nodos vecinos directos · registro de últimos paquetes | **Canal Abierto / DM** |
+| **`afc` · `noise` · `reset_reason`** | Deriva del oscilador TCXO · piso de ruido de RF · causa hardware del último reinicio | **Canal Abierto / DM** |
+| **`route !ID` · `trace !ID`** | Calidad del enlace y ruta hacia un nodo · trazado activo de saltos (*traceroute*) | **Canal Abierto / DM** |
+| **`set_chem [química]`** | Cambia la química (`lipo/nimh/sodium/lifepo4`) y adapta los cortes de forma persistente | **Solo DM de Administrador** |
+| **`set_vbat [mV]` · `set_vwake [1-5]`** | Ajusta el umbral de corte por batería baja · nivel de despertar solar (LPCOMP) | **Solo DM de Administrador** |
+| **`power`** | Métricas de energía en tiempo real (voltaje, corriente mA de carga/descarga y mW con INA219/260) | **Solo DM de Administrador** |
+| **`set_txpower [dBm]` · `set_hops [1-7]`** | Ajusta la potencia de transmisión LoRa · límite de saltos de retransmisión | **Solo DM de Administrador** |
+| **`set_role [client/mute/router]`** | Cambia el rol de forma **semi-permanente** (se conserva tras resets de configuración) | **Solo DM de Administrador** |
+| **`set_name` · `set_mqtt` · `set_tz` · `ble`** | Cambia nombre del nodo · servidor MQTT · zona horaria · enciende/apaga Bluetooth | **Solo DM de Administrador** |
+| **`txoff` / `txon`** | Desactiva o activa la transmisión de radio temporalmente | **Solo DM de Administrador** |
+| **`sleepmsg [on|off]`** | Activa o desactiva la emisión de avisos de ciclo solar (`[Sueño]`, `[Vivo]`, `[Critico]`, `[Listo]`, `[Boot]`) | **Solo DM de Administrador** |
+| **`fav add/rm/ls` · `fav auto`** | Gestión de favoritos manuales (bypass 0-Hop) y activación de auto-favoritos de routers vecinos | **Solo DM de Administrador** |
+| **`ign add/rm/ls`** | Bloqueo y desbloqueo de nodos problemáticos (*lista negra*) | **Solo DM de Administrador** |
+| **`db_purge` · `db_clear`** | Limpieza y mantenimiento de la tabla de nodos en memoria RAM | **Solo DM de Administrador** |
+| **`storm [1-720]`** | Modo Tormenta: hibernación programada (radio apagada durante X horas para ahorrar energía) | **Solo DM de Administrador** |
+| **`msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel`** | Difundir mensaje · hacer sonar alarma · forzar envío de posición · baliza de nodo · telemetría | **Solo DM de Administrador** |
+| **`admin_ls` · `keys_ls` · `keys_clear`** | Muestra claves admin activas · muestra claves admin **guardadas en el nodo** · borra la copia persistida | **Solo DM de Administrador** |
+| **`reboot`** | Reinicio suave remoto (el acuse de recibo ACK sale antes de reiniciar) | **Solo DM de Administrador** |
+| **`factory_reset`** | Reseteo a valores de fábrica (genera identidad nueva, pero restaura las claves del administrador) | **Solo DM de Administrador** |
+| **`full_reset`** | Reseteo completo de configuración (conserva la identidad del nodo, emparejamientos y claves admin) | **Solo DM de Administrador** |
+| **`wipe`** | Purga total de emergencia (borra todo; el nodo queda accesible solo con la clave de rescate del proyecto) | **Solo DM de Administrador** |
 
-*`keys_ls`/`keys_clear` = solo DM PKI.
-
-*Canal abierto (Navadmin) = solo consulta; configuración y acciones críticas = DM cifrado PKI.
-Todo comando responde ayuda con `/nava <comando> ?`. **En cualquier nodo, `/nava help` lista los
-comandos disponibles para la versión que lleve cargada.***
+* **Canal Abierto (`Navadmin`)**: Permite únicamente consultas de lectura y diagnóstico público.
+* **Mensaje Directo Privado (DM)**: Requiere enviar el mensaje de forma privada desde un dispositivo cuya clave pública esté autorizada como Administrador en el repetidor.
+* **Ayuda en cualquier momento**: Envía `/nava help` para ver los comandos de tu versión, o `/nava <comando> ?` para ver su explicación y sintaxis.
 
 ### NavaTastic + MeshNavarra: hechos para funcionar juntos
 
@@ -163,7 +166,7 @@ firmware puede tener... "un poquito de sueño".*
 
 Última versión: **NavaTastic Eclipse V3 (4.3.2 — fw 2.7.26.f12f833, 17/08/2026)** — etiqueta `NAVA V3` en `status`/[Boot],
 avisos de ciclo solar de 5 estados con diagnóstico de causa, 8 lecturas de batería baja (~160s) antes del reposo a 0.4 mA, resets
-remotos `/nava full_reset` (conserva claves PKI) y `/nava wipe` (purga total, par PKI nuevo),
+remotos `/nava full_reset` (conserva la identidad del nodo y sus claves admin) y `/nava wipe` (purga total e identidad nueva),
 y **claves admin del usuario persistidas** (sobreviven a factory/full reset; regla "slot 0 =
 estado previo del usuario"; `keys_ls`/`keys_clear`).
 
@@ -190,8 +193,7 @@ que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables
 - **Copia de seguridad de claves**: el flasheo por sí solo **conserva** los `/prefs` del nodo
   (claves, canales, nombre). **Las claves admin del usuario también sobreviven a los resets de
   fábrica** gracias al sistema de almacenamiento persistente seguro de NavaTastic: se guardan en el nodo y vuelven solas tras un factory/full reset. Lo que sí
-  cambia con `factory_reset` es el **par PKI del nodo** (los demás nodos tendrán que reaprender
-  su clave para el DM cifrado), y `wipe`/`nrf erase` lo purgan todo (identidad nueva + solo la
+  cambia con `factory_reset` es la **clave pública de identidad del propio nodo** (los demás nodos tendrán que recibir su nuevo NodeInfo para intercambiar DMs privados), mientras que `wipe`/`nrf erase` lo purgan todo (identidad nueva + solo la
   clave de rescate del proyecto). Exporta la configuración desde la app antes de un `wipe`/`nrf
   erase` si quieres conservarla.
 - **Pruebas en banco**: el E22P es inestable en TX con USB (picos de corriente) — usar
@@ -207,7 +209,7 @@ se descargan desde [Releases](https://github.com/EA2OY/NavaTastic/releases/lates
 ## Seguridad
 
 - El canal Navadmin usa la **PSK pública** de Meshtastic (`{0x01}`, slot 1): cualquiera puede
-  escuchar. Solo admite consultas de lectura; los comandos críticos van por **DM cifrado PKI**.
+  escuchar. Solo admite consultas de lectura; los comandos ejecutivos y de configuración exigen **Mensaje Directo Privado (DM)** desde un dispositivo con clave pública autorizada como Administrador.
 - Las claves admin que lleva el firmware son **públicas** (el binario nunca contiene privadas).
 
 ### Gestión de claves admin (altamente recomendable)
@@ -335,7 +337,7 @@ NavaTastic directly eliminates the 5 major failure modes of standard firmware:
 | **Sunrise Lockup (*Brownout*)**: When a battery drains overnight, the slow morning solar voltage ramp can trap the microcontroller in an unstable lockup loop that only clears by physically disconnecting the battery. | **5-State Solar Resilience Engine**: Hardware powers off completely (**0.4 mA**) and only wakes up when the hardware analog comparator (**LPCOMP**) detects true battery recovery ($\ge 3.77\text{ V}$). |
 | **Flash Memory Wear & Failure**: Standard firmware constantly writes to internal flash memory for every transit packet and node heard, burning out flash cells in a matter of months. | **Zero Flash-Wear (`NodeDB RAM-Only`)**: The entire node database lives in RAM. Internal flash is protected, ensuring years of continuous operation without file system corruption. |
 | **Channel Flooding & Blind Re-transmissions**: In large meshes, packets exhaust their hop limits before crossing the network, and manually configuring favorite nodes for hop bypass requires physical access to each repeater. | **Smart 0-Hop Auto-Favorites & Remote Management**: Repeaters automatically discover direct router neighbors and favorite them with zero-hop bypass (**Zero-Hop Backbone**). Operators can also add, list, or remove favorites remotely over the air (`/nava fav add/rm/ls`) without a computer or site visit. |
-| **Mandatory On-Site Cable Maintenance**: Changing channels, roles, power, or inspecting diagnostics requires being next to the node via Bluetooth or carrying a laptop with USB. | **Full Remote Mesh Administration (`NavaCLI`)**: Over 45 commands executable over the air via PKI-encrypted Direct Messages or single-tap shortcuts in **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
+| **Mandatory On-Site Cable Maintenance**: Changing channels, roles, power, or inspecting diagnostics requires being next to the node via Bluetooth or carrying a laptop with USB. | **Full Remote Mesh Administration (`NavaCLI`)**: Over 45 commands executable over the air via private Direct Messages (DM) from authorized admin nodes or single-tap shortcuts in **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
 | **Orphaned Nodes on Reset**: If a mountain node resets its configuration, admin keys and rescue channels are wiped, leaving it unreachable. | **Cryptographic Shielding & Persistence**: Admin keys and the dedicated Navadmin rescue channel survive configuration resets and full power cuts. |
 
 ---
@@ -375,34 +377,37 @@ does it all. With the **MeshNavarra** app you do it **without typing**: commands
 predefined messages.
 
 | Command | What it does | Access |
-|---|---|---|
-| `ping` | Latency, battery, uptime, noise floor | Open / DM |
-| `status` | Node health: memory, Auto/Manual favorites, energy | Open / DM |
-| `env` | Battery, heap, CPU temp and I2C sensors | Open / DM |
-| `channel` · `peers` · `rxlog` | Spectrum use · direct neighbors · last packets | Open / DM |
-| `afc` · `noise` · `reset_reason` | TCXO drift · noise floor · last reset cause | Open / DM |
-| `bat` · `power` | Chemistry, voltage, OCV % · power metrics | Open / DM |
-| `route !ID` · `trace !ID` | Path and SNR to a node · traceroute | Open / DM |
-| `set_chem [lipo/nimh/sodium/lifepo4]` | Switch chemistry, adjusts cutoff/wake | DM |
-| `set_vbat [mV]` · `set_vwake [1-5]` | Shutdown cutoff · solar wake level | DM |
-| `set_txpower [dBm]` · `set_hops [1-7]` | TX power · hop limit | DM |
-| `set_role [client/mute/router]` | **Semi-permanent** role (survives factory reset) | DM |
-| `set_name` · `set_mqtt` · `set_tz` · `ble` | Name · MQTT · timezone · Bluetooth | DM |
-| `txoff` / `txon` | Disable / enable transmission | DM |
-| `sleepmsg [on|off]` | Enable/disable the [Sueno]/[Vivo]/[Critico]/[Listo]/[Boot] notices | DM |
-| `fav add/rm/ls` · `fav auto` | Favorites (hop bypass) and auto-favoriting | DM |
-| `ign add/rm/ls` | Block / unblock nodes | DM |
-| `db_purge` · `db_clear` | Node database cleanup | DM |
-| `reboot` · `factory_reset` · `full_reset` · `wipe` | Deferred reboot and resets (ACK first): factory (new PKI pair; admin keys return) · full (keeps PKI, bonds and admin keys) · wipe (total purge: new PKI pair + admin keys deleted; only the rescue key remains) | DM |
-| `storm [1-720]` | Timed hibernation (radio off) | DM |
-| `msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel` | Broadcast text · alarm · position · beacon · telemetry | DM |
-| `admin_ls` · `keys_ls` · `keys_clear` · `help` | Configured admin keys · **persisted** keys (survive resets) · clear the persisted copy · command help | DM / Open* |
+| :--- | :--- | :--- |
+| **`help [cmd]`** | Command catalog and detailed help for any command (`/nava <cmd> ?`) | **Open Channel / DM** |
+| **`ping`** | Latency, battery level, uptime, and noise floor | **Open Channel / DM** |
+| **`status`** | Global node health: free RAM heap, Auto/Manual favorites, channels, and `NAVA V3` tag | **Open Channel / DM** |
+| **`env`** | Battery voltage, RAM heap, CPU temperature, and connected I2C sensors (BME280, etc.) | **Open Channel / DM** |
+| **`bat`** | Battery diagnostics: configured chemistry, exact voltage in mV, and % OCV estimation | **Open Channel / DM** |
+| **`channel` · `peers` · `rxlog`** | Channel utilization (% ChUtil) · direct neighbor nodes · packet reception history | **Open Channel / DM** |
+| **`afc` · `noise` · `reset_reason`** | TCXO oscillator drift · RF noise floor · hardware cause of the last reset | **Open Channel / DM** |
+| **`route !ID` · `trace !ID`** | Link quality and route to a node · active traceroute | **Open Channel / DM** |
+| **`set_chem [chemistry]`** | Switch battery chemistry (`lipo/nimh/sodium/lifepo4`) and adapt cutoffs persistently | **Authorized Admin DM Only** |
+| **`set_vbat [mV]` · `set_vwake [1-5]`** | Set low-battery cutoff threshold · solar wake level (LPCOMP) | **Authorized Admin DM Only** |
+| **`power`** | Real-time power metrics (voltage, charge/discharge mA, and mW with INA219/260) | **Authorized Admin DM Only** |
+| **`set_txpower [dBm]` · `set_hops [1-7]`** | Set LoRa transmit power · hop limit | **Authorized Admin DM Only** |
+| **`set_role [client/mute/router]`** | Change role **semi-permanently** (survives configuration resets) | **Authorized Admin DM Only** |
+| **`set_name` · `set_mqtt` · `set_tz` · `ble`** | Set node name · MQTT server · timezone · enable/disable Bluetooth | **Authorized Admin DM Only** |
+| **`txoff` / `txon`** | Temporarily disable or enable radio transmissions | **Authorized Admin DM Only** |
+| **`sleepmsg [on|off]`** | Enable/disable automatic solar cycle notices (`[Sueño]`, `[Vivo]`, `[Critico]`, `[Listo]`, `[Boot]`) | **Authorized Admin DM Only** |
+| **`fav add/rm/ls` · `fav auto`** | Manage manual favorites (0-Hop bypass) and toggle auto-favoriting of neighbor routers | **Authorized Admin DM Only** |
+| **`ign add/rm/ls`** | Block / unblock problematic nodes (*blocklist*) | **Authorized Admin DM Only** |
+| **`db_purge` · `db_clear`** | Cleanup and maintenance of the RAM node database | **Authorized Admin DM Only** |
+| **`storm [1-720]`** | Storm Mode: timed hibernation (radio off for X hours to conserve battery during storms) | **Authorized Admin DM Only** |
+| **`msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel`** | Broadcast message · sound alarm · force position broadcast · node beacon · telemetry | **Authorized Admin DM Only** |
+| **`admin_ls` · `keys_ls` · `keys_clear`** | View active admin keys · view **persisted keys stored on the node** · clear persisted keys | **Authorized Admin DM Only** |
+| **`reboot`** | Remote soft reboot (ACK is transmitted before rebooting) | **Authorized Admin DM Only** |
+| **`factory_reset`** | Factory configuration reset (generates fresh node identity while preserving user admin keys) | **Authorized Admin DM Only** |
+| **`full_reset`** | Full configuration reset (preserves existing node identity, Bluetooth bonds, and admin keys) | **Authorized Admin DM Only** |
+| **`wipe`** | Emergency total wipe (clears all settings; node remains recoverable only via project rescue key) | **Authorized Admin DM Only** |
 
-*`keys_ls`/`keys_clear` = DM PKI only.
-
-*Open channel (Navadmin) = read-only queries; configuration and critical actions = PKI-encrypted
-DM. Every command answers help with `/nava <command> ?`. **On any node, `/nava help` lists the
-commands available for the version it runs.***
+* **Open Channel (`Navadmin`)**: Allows read-only status and diagnostic queries.
+* **Direct Message (DM)**: Critical configuration commands require sending a private message from a device authorized as an Administrator on the repeater.
+* **Help Anytime**: Send `/nava help` to view available commands for your firmware, or `/nava <command> ?` for specific parameter help.
 
 ### NavaTastic + MeshNavarra: built to work together
 
@@ -465,7 +470,7 @@ added, the firmware might get... "a little sleepy".*
 
 Latest release: **NavaTastic Eclipse V3 (4.3.2 — fw 2.7.26.f12f833, 17/08/2026)** — `NAVA V3` tag in `status`/[Boot],
 5-state solar resilience notices with hardware reset causes, unified 8 low-battery readings (~160s) before 0.4 mA sleep, remote
-resets `/nava full_reset` (preserves PKI keys) and `/nava wipe` (total purge, fresh PKI pair),
+resets `/nava full_reset` (preserves node identity and admin keys) and `/nava wipe` (total purge, fresh identity),
 and **persisted user admin keys** (survive factory/full reset; "slot 0 = previous user state" rule; `keys_ls`/`keys_clear`).
 
 **Download the binaries from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
@@ -488,12 +493,7 @@ and **persisted user admin keys** (survive factory/full reset; "slot 0 = previou
   --upload-port COMx`.
 - **After flashing a factory-new node**: perform **one factory reset** to materialize the
   Navadmin channel (notices and open-channel queries depend on it).
-- **Key backup**: flashing by itself **keeps** the node `/prefs` (keys, channels, name). **The
-  user's admin keys also survive factory resets** (F20): they are stored on the node and come
-  back on their own after a factory/full reset. What `factory_reset` does change is the node's
-  **PKI pair** (other nodes must re-learn its key for encrypted DM), and `wipe`/`nrf erase`
-  purge everything (new identity + only the project rescue key). Export the configuration from
-  the app before a `wipe`/`nrf erase` if you want to keep it.
+- **Key backup**: flashing alone **preserves** node `/prefs` (keys, channels, name). **User admin keys also survive factory resets** thanks to NavaTastic's secure persistent storage: they are saved on the node and restored automatically after a factory/full reset. What does change with `factory_reset` is the **node's own identity public key** (other nodes must receive its new NodeInfo to exchange private DMs), and `wipe`/`nrf erase` purge everything (fresh identity + only the project rescue key). Export configuration from the app before a `wipe`/`nrf erase` if you wish to keep it.
 - **Bench testing**: the E22P TX is unstable over USB (current spikes) — use **1 dBm TX**; the
   low-battery detection requires powering **without USB**.
 
@@ -506,8 +506,7 @@ downloaded from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest).
 
 ## Security
 
-- The Navadmin channel uses Meshtastic's **public PSK** (`{0x01}`, slot 1): anyone can listen.
-  It only accepts read-only queries; critical commands require **PKI-encrypted DM**.
+- The Navadmin channel uses Meshtastic's **public PSK** (`{0x01}`, slot 1): anyone can listen. It only accepts read-only queries; critical configuration commands require **private DM from an authorized admin node**.
 - Admin keys shipped in the firmware are **public** (the binary never contains private keys).
 
 ### Admin key management (highly recommended)
