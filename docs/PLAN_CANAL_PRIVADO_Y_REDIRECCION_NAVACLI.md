@@ -21,6 +21,13 @@ Permitir que un administrador pueda, **a distancia por radio (mediante Mensaje D
 2. **Redirigir NavaCLI hacia ese nuevo canal**: Indicar al repetidor que escuche y responda los comandos abiertos por ese canal privado y que emita allí los avisos solares.
 3. **Silenciar o desactivar las respuestas por `Navadmin` (Slot 1)**: Para que usuarios ajenos a la gestión no puedan consultar métricas ni ver los avisos de energía en el canal público estándar.
 
+### 🌟 BONUS AÑADIDO: Gestión Universal y Remota de Toda la Tabla de Canales
+Este mecanismo **no se limita únicamente a NavaCLI**, sino que otorga al operador la **capacidad total de administrar a distancia cualquier canal de la malla**:
+* **Despliegue de canales para grupos operativos**: Crear remotamente canales secundarios (ej. *Emergencias*, *Protección Civil*, *Eventos*, *Radioaficionados*) en los repetidores de una comarca para que retransmitan ese tráfico, sin tener que desplazarse físicamente con cable ni Bluetooth.
+* **Canales de telemetría y sensores privados**: Habilitar canales dedicados a sensores ambientales I2C con contraseñas seguras AES-256 independientes.
+* **Inspección y Limpieza Remota**: Consultar en cualquier momento qué canales están cargados en un repetidor de cumbre (`/nava ch_ls`) y borrar canales obsoletos o temporales (`/nava ch_del <slot>`).
+* **Uso totalmente independiente**: El operador puede añadir y borrar canales secundarios para el uso de los usuarios normales **sin necesidad de vincularlos a NavaCLI** (NavaCLI puede seguir en Navadmin o donde el operador decida).
+
 ---
 
 ## 🔬 2. Análisis de Viabilidad Técnica
