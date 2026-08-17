@@ -5,13 +5,13 @@
 <br/>
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
-[![Auditoría](https://img.shields.io/badge/Auditor%C3%ADa-100%25%20PASS-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)
+[![Auditoría](https://img.shields.io/badge/Auditor%C3%ADa-100%25%20PASS-brightgreen?logo=checkmarx&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)
 
 </div>
 
 > 🏆 **Certificación y Doble Auditoría 100% PASS (17/08/2026)**:  
 > NavaTastic 4.3.2 V3 ha superado con éxito **26 de 26 pruebas exhaustivas** sobre hardware real en el aire, persistencia criptográfica y simulación de ciclo solar en laboratorio.  
-> 📄 **[Descargar Informe Técnico de Auditoría (PDF)](docs/pdf/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)**
+> 📄 **[Descargar Informe Técnico (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** · 📖 **[Leer Informe en GitHub (Markdown)](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)** · 📘 **[Guía Maestra de Procedimiento](docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md)**
 
 ---
 
@@ -172,10 +172,12 @@ que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables
 [`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
 `UF2`/`OTA`).
 
-### Manuales (PDF, bilingües ES+EN)
+### Manuales y Documentación Técnica (PDF descargable y lectura online)
 
-- [Manual de administración remota `/nava` (PDF)](docs/pdf/Manual_NavaTastic.pdf) — comandos completos
-- [Manual de uso del firmware (PDF)](docs/pdf/Manual_uso_NavaTastic_4.2.pdf) — montaje, requisitos de hardware, protocolo de rescate
+- **[Manual de administración remota NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) — Comandos `/nava`, 4 Pilares de Resiliencia y configuración.
+- **[Manual de uso del firmware (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/Manual_uso_NavaTastic_4.2.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic_4.2.md)) — Montaje, requisitos de hardware y protocolo de rescate.
+- **[Informe Técnico de Doble Auditoría (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** ([Leer en GitHub](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)) — Certificación 100% PASS (26/26 pruebas).
+- **[Guía Maestra de Procedimiento de Auditoría (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.pdf)** ([Leer en GitHub](docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md)) — Manual de laboratorio.
 
 ## Flashear
 
@@ -456,10 +458,12 @@ bench 7/7).
 [`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
 `UF2`/`OTA`).
 
-### Manuals (PDF, bilingual ES+EN)
+### Manuals and Technical Documentation (PDF download and online reading)
 
-- [Remote administration manual `/nava` (PDF)](docs/pdf/Manual_NavaTastic.pdf)
-- [Firmware user manual (PDF)](docs/pdf/Manual_uso_NavaTastic_4.2.pdf)
+- **[Remote administration manual NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/Manual_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_NavaTastic.md))
+- **[Firmware user manual (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/Manual_uso_NavaTastic_4.2.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic_4.2.md))
+- **[Consolidated Technical Audit Report (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** ([Read on GitHub](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md))
+- **[Master Audit Procedure Guide (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.pdf)** ([Read on GitHub](docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md))
 
 ## Flashing
 
