@@ -309,29 +309,28 @@ REGLAS Y TRAMPAS VIGENTES:
 
 ```
 ================================================================================
-PROMPT DE RETOMA / HANDOVER PARA AGENTE (SESIÓN 17/08/2026 CIERRE -> EJECUCIÓN F21)
+PROMPT DE APERTURA / HANDOVER PARA NUEVA SESIÓN (EJECUCIÓN FRENTE F21)
 ================================================================================
-Contexto rápido: repositorio unificado NavaTastic (12 firmwares, base Meshtastic 2.7.26).
-Release actual: "NavaTastic Eclipse V3" (4.3.2 — fw 2.7.26.f12f833).
+Eres el agente responsable de continuar el proyecto NavaTastic.
+Repositorio único de trabajo: C:\NavaTastic Codigo completo (rama master).
 
-OBJETIVO DE LA NUEVA SESIÓN:
+⚠️ FASE 1 OBLIGATORIA: LECTURA COMPLETA DE MEMORIA ANTES DE TOCAR NADA
+Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este orden:
+1. docs\Guia_para_agente_sobre_NavaTastic.md (§0 REGLAS OPERATIVAS: dieta de tokens,
+   flujo en dos fases, backups .bak-AAAAMMDD-HHMM, 4.3 y Desktop SOLO LECTURA).
+2. docs\BITACORA_TECNICA.md (historial técnico, fixes y recetas de paridad).
+3. docs\PLAN_DE_TRABAJO.md (estado actual y contexto vivo).
+4. docs\cerebro\cerebro.md (índice global y notas 01 a 12).
+5. docs\PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md (diseño completo de F21).
+
+🎯 OBJETIVO DE LA SESIÓN (FASE 2):
 Implementar el FRENTE F21 (Canales Privados, Redirección de NavaCLI y Gestión Remota)
-siguiendo estrictamente el documento:
-docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md
-
-MANDATO DE INTEGRIDAD (NO SER VAGO / CERO REGRESIONES):
+cumpliendo estrictamente el MANDATO DE INTEGRIDAD (NO SER VAGO / CERO REGRESIONES):
 1. Revisar todas las dependencias cruzadas antes de modificar código.
 2. NO romper el canal de rescate (Slot 1 Navadmin AQ==) ni los DMs de administración.
 3. CERO DESGASTE DE FLASH: `stats` y `log` deben ser 100% volátiles en memoria RAM.
 4. Migración segura de /resilience.bin: pasar a NAV4 (0x4E415634) adoptando los campos previos.
 5. Mantener la suite de auditoría en 26/26 PASS y compilar/verificar los 12 envs.
-
-LEER EN ESTE ORDEN:
-1. docs\Guia_para_agente_sobre_NavaTastic.md (§0 reglas operativas).
-2. docs\PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md (diseño completo y comandos 1-16 de F21).
-3. docs\BITACORA_TECNICA.md (historial técnico y recetas de paridad).
-4. docs\PLAN_DE_TRABAJO.md (este documento).
-5. docs\cerebro\cerebro.md (índice global).
 ================================================================================
 ```
 
