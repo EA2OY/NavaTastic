@@ -141,3 +141,15 @@ flowchart TD
 - [x] **Restauración de Nodos**: Ambos nodos (`Slave` y `Master`) reconfigurados a frecuencia oficial `869.618 MHz` / `22 dBm` / `override_duty_cycle = false` ✅.
 - [x] **Informe Consolidado**: Publicado en [docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) ✅.
 - [x] **Calificación Final**: **26 / 26 CASOS SUPERADOS CON ÉXITO (100% PASS) 🏆**. Dictamen: **APTO PARA DESPLIEGUE EN INFRAESTRUCTURA DE MONTAÑA**.
+
+---
+
+## 🚀 5. PROTOCOLO PARA EXTENDER LA SUITE ANTE NUEVAS FUNCIONES
+
+Cuando se añadan nuevos comandos `/nava` o drivers de sensores en futuras versiones:
+1. **Añadir el comando al catálogo**: en `src/modules/NavaCLIModule.cpp` y su ayuda en `helpForCommand()`.
+2. **Registrar el caso de prueba**: en la tabla correspondiente de esta subnota `12_auditoria_navatastic.md`.
+3. **Validar la respuesta por radio**: tanto por Canal 1 Navadmin (si es de solo lectura) como por DM PKI (si es ejecutivo o de configuración).
+4. **Recompilar los manuales y PDFs**: ejecutando `powershell -ExecutionPolicy Bypass -File herramientas\generar_pdf.ps1`.
+5. **Subir los assets a GitHub Release**: ejecutando `powershell -ExecutionPolicy Bypass -File herramientas\subir_assets_release.ps1`.
+
