@@ -118,15 +118,30 @@ Todos estos comandos se ejecutarían **exclusivamente por Mensaje Directo Privad
 ```
 
 ### 🛰️ C. Funciones Avanzadas de Infraestructura de Montaña (Extras Útiles)
+> **🛡️ Regla de Oro Fundamental: CERO DESGASTE DE FLASH (RAM-ONLY)**  
+> Toda métrica acumulada (`stats`) y buffer de registro (`log`) opera **estrictamente al 100% en memoria RAM**. No se realiza **ninguna escritura en la memoria Flash interna** al registrar temperaturas, tensiones, picos ni líneas de log, garantizando la vida útil infinita del hardware en montaña.
+
 ```text
 10. /nava set_pos <latitud> <longitud> <altitud>
-    -> Fija o corrige las coordenadas GPS estaticas en repetidores de cumbre que no disponen de modulo GPS fisico, posicionandolos en los mapas de cobertura web.
+    -> Fija o corrige las coordenadas GPS estáticas en repetidores de cumbre que no disponen de módulo GPS físico, posicionándolos en los mapas de cobertura web.
 
 11. /nava set_beacon <minutos>
-    -> Ajusta el intervalo de emision de la baliza de NodeInfo/Posicion (ej. cada 180 min en cumbres aisladas para ahorrar bateria y no saturar el aire, o cada 30 min en eventos).
+    -> Ajusta el intervalo de emisión de la baliza de NodeInfo/Posición (ej. cada 180 min en cumbres aisladas para ahorrar batería y no saturar el aire, o cada 30 min en eventos).
 
 12. /nava mute [minutos]
-    -> Silenciado temporal de retransmision LoRa (el repetidor no retransmite paquetes ajenos durante X minutos para auditar la cobertura de repetidores vecinos, recuperando el servicio automaticamente).
+    -> Silenciado temporal de retransmisión LoRa (el repetidor no retransmite paquetes ajenos durante X minutos para auditar la cobertura de repetidores vecinos, recuperando el servicio automáticamente).
+
+13. /nava set_pin <6_digitos>
+    -> Cambia a distancia el PIN Bluetooth fijo de emparejamiento (persiste en /resilience.bin), evitando que personas no autorizadas se conecten físicamente al nodo.
+
+14. /nava stats
+    -> Informe de rendimiento del uptime actual (100% en RAM): temperatura máxima/mínima histórica del chip, tensión mínima registrada en la noche, paquetes enrutados y paquetes ahorrados por Auto-Favoritos.
+
+15. /nava test_tx [segundos]
+    -> Emite una ráfaga periódica de prueba (1 paquete/seg durante X segundos) para permitir al instalador en el valle medir el RSSI/SNR y comprobar la alineación de antenas con medidor de campo.
+
+16. /nava log [lineas]
+    -> Muestra las últimas 10-15 líneas del ring-buffer circular de eventos en memoria RAM (transiciones solares, picos de corriente, caídas de tensión) para diagnóstico remoto sin cables.
 ```
 
 ---
