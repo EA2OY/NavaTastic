@@ -253,6 +253,7 @@ PASO 0 (OBLIGATORIO, apertura canónica, en este orden):
      SOLO LECTURA.
 
 POSIBLES TRABAJOS (el operador decidirá; NO son órdenes):
+- **F21 (Plan de Trabajo)**: Creación remota de canales secundarios y redirección de NavaCLI / silenciamiento de Navadmin ([docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md](docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md)).
 - Banco: ciclo de resiliencia completo en Seed Solar P1 y Heltec T114 (las 2 placas pendientes).
 - Candidatos anotados: F16b (BLE no reaparece tras shutdown), F16d (jitter quick muerto,
   cosmético), F16e (sleepmsg fuera de whitelist canal 1 — decisión tomada: dejarlo), F17
