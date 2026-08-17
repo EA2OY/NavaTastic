@@ -71,7 +71,7 @@ la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes 
 | **`set_role [client/mute/router]`** | Cambia el rol de forma **semi-permanente** (se conserva tras resets de configuración) | **Solo DM de Administrador** |
 | **`set_name` · `set_mqtt` · `set_tz` · `ble`** | Cambia nombre del nodo · servidor MQTT · zona horaria · enciende/apaga Bluetooth | **Solo DM de Administrador** |
 | **`txoff` / `txon`** | Desactiva o activa la transmisión de radio temporalmente | **Solo DM de Administrador** |
-| **`sleepmsg [on|off]`** | Activa o desactiva la emisión de avisos de ciclo solar (`[Sueño]`, `[Vivo]`, `[Critico]`, `[Listo]`, `[Boot]`) | **Solo DM de Administrador** |
+| **`sleepmsg [on/off]`** | Activa o desactiva la emisión de avisos de ciclo solar (`[Sueño]`, `[Vivo]`, `[Critico]`, `[Listo]`, `[Boot]`) | **Solo DM de Administrador** |
 | **`fav add/rm/ls` · `fav auto`** | Gestión de favoritos manuales (bypass 0-Hop) y activación de auto-favoritos de routers vecinos | **Solo DM de Administrador** |
 | **`ign add/rm/ls`** | Bloqueo y desbloqueo de nodos problemáticos (*lista negra*) | **Solo DM de Administrador** |
 | **`db_purge` · `db_clear`** | Limpieza y mantenimiento de la tabla de nodos en memoria RAM | **Solo DM de Administrador** |
@@ -393,7 +393,7 @@ predefined messages.
 | **`set_role [client/mute/router]`** | Change role **semi-permanently** (survives configuration resets) | **Authorized Admin DM Only** |
 | **`set_name` · `set_mqtt` · `set_tz` · `ble`** | Set node name · MQTT server · timezone · enable/disable Bluetooth | **Authorized Admin DM Only** |
 | **`txoff` / `txon`** | Temporarily disable or enable radio transmissions | **Authorized Admin DM Only** |
-| **`sleepmsg [on|off]`** | Enable/disable automatic solar cycle notices (`[Sueño]`, `[Vivo]`, `[Critico]`, `[Listo]`, `[Boot]`) | **Authorized Admin DM Only** |
+| **`sleepmsg [on/off]`** | Enable/disable automatic solar cycle notices (`[Sueño]`, `[Vivo]`, `[Critico]`, `[Listo]`, `[Boot]`) | **Authorized Admin DM Only** |
 | **`fav add/rm/ls` · `fav auto`** | Manage manual favorites (0-Hop bypass) and toggle auto-favoriting of neighbor routers | **Authorized Admin DM Only** |
 | **`ign add/rm/ls`** | Block / unblock problematic nodes (*blocklist*) | **Authorized Admin DM Only** |
 | **`db_purge` · `db_clear`** | Cleanup and maintenance of the RAM node database | **Authorized Admin DM Only** |
