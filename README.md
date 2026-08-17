@@ -25,12 +25,13 @@ Con un solo código fuente genera **12 firmwares listos para usar** (6 tipos de 
 
 Un repetidor solar instalado en una cumbre aislada no puede fallar. Si se bloquea por una caída de tensión, si quema su memoria flash interna o si pierde su configuración tras un reinicio, exige subir a la montaña a pie para repararlo. 
 
-NavaTastic resuelve de raíz los 4 grandes problemas del firmware estándar:
+NavaTastic resuelve de raíz los 5 grandes problemas del firmware estándar:
 
 | Problema en Firmware Oficial | Solución Exclusiva de NavaTastic |
 | :--- | :--- |
 | **Bloqueo de amanecer (*Brownout*)**: Si la batería se agota de noche, la subida lenta de voltaje con los primeros rayos de sol bloquea el microcontrolador en un bucle infinito del que solo sale quitando la pila físicamente. | **Modo de Resiliencia Solar de 5 Estados**: El hardware se apaga por completo (**0.4 mA**) y solo despierta cuando el comparador analógico por hardware (**LPCOMP**) detecta que el sol ha recargado la batería de verdad ($\ge 3.77\text{ V}$). |
 | **Desgaste y muerte de la memoria Flash**: El firmware estándar escribe continuamente en la memoria flash interna cada vez que recibe un paquete o nodo de paso, quemando las celdas de memoria en pocos meses. | **Cero Desgaste de Flash (`NodeDB RAM-Only`)**: La base de datos de nodos opera al 100% en memoria RAM. La memoria flash queda protegida y el repetidor puede operar durante años sin degradarse. |
+| **Saturación del canal y retransmisión ciega**: En mallas extensas, los paquetes agotan sus saltos (*hops*) antes de llegar al destino, y configurar listas de nodos favoritos para crear un *bypass* exige desplazarse físicamente a cada repetidor con cable. | **Auto-Favoritos Inteligentes 0-Hop y Gestión Remota**: El repetidor descubre a sus routers vecinos directos y los añade automáticamente a su lista de favoritos con retransmisión a 0 saltos (**Zero-Hop**). Además, el usuario puede añadir, consultar o borrar favoritos a distancia por radio (`/nava fav add/rm/ls`), sin ordenador ni cables. |
 | **Mantenimiento obligado con PC o cable**: Para cambiar un canal, rol, potencia o diagnosticar problemas hay que conectarse por Bluetooth al lado del nodo o llevar un portátil con cable USB. | **Administración Remota Total por Radio (`NavaCLI`)**: Más de 45 comandos ejecutables a distancia mediante mensajes de texto cifrados (DM PKI) o con un solo toque desde la app **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
 | **Nodos huérfanos tras un reset**: Si un repetidor sufre un reseteo de configuración, se borran las claves de administración y los canales, quedando inaccesible e inservible en la montaña. | **Blindaje y Persistencia Criptográfica**: Las claves de administración y el canal de rescate se protegen en almacenamiento seguro semi-permanente; sobreviven a cualquier reset de configuración. |
 
@@ -327,12 +328,13 @@ national preset used in Spain). A single repository produces **12 different firm
 
 A solar repeater on an isolated mountain peak cannot afford to fail. If it freezes due to a low-voltage condition, wears out its internal flash memory, or loses its settings after a reset, it requires a long hike to repair it physically.
 
-NavaTastic directly eliminates the 4 major failure modes of standard firmware:
+NavaTastic directly eliminates the 5 major failure modes of standard firmware:
 
 | Issue in Standard Firmware | NavaTastic Exclusive Solution |
 | :--- | :--- |
 | **Sunrise Lockup (*Brownout*)**: When a battery drains overnight, the slow morning solar voltage ramp can trap the microcontroller in an unstable lockup loop that only clears by physically disconnecting the battery. | **5-State Solar Resilience Engine**: Hardware powers off completely (**0.4 mA**) and only wakes up when the hardware analog comparator (**LPCOMP**) detects true battery recovery ($\ge 3.77\text{ V}$). |
 | **Flash Memory Wear & Failure**: Standard firmware constantly writes to internal flash memory for every transit packet and node heard, burning out flash cells in a matter of months. | **Zero Flash-Wear (`NodeDB RAM-Only`)**: The entire node database lives in RAM. Internal flash is protected, ensuring years of continuous operation without file system corruption. |
+| **Channel Flooding & Blind Re-transmissions**: In large meshes, packets exhaust their hop limits before crossing the network, and manually configuring favorite nodes for hop bypass requires physical access to each repeater. | **Smart 0-Hop Auto-Favorites & Remote Management**: Repeaters automatically discover direct router neighbors and favorite them with zero-hop bypass (**Zero-Hop Backbone**). Operators can also add, list, or remove favorites remotely over the air (`/nava fav add/rm/ls`) without a computer or site visit. |
 | **Mandatory On-Site Cable Maintenance**: Changing channels, roles, power, or inspecting diagnostics requires being next to the node via Bluetooth or carrying a laptop with USB. | **Full Remote Mesh Administration (`NavaCLI`)**: Over 45 commands executable over the air via PKI-encrypted Direct Messages or single-tap shortcuts in **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
 | **Orphaned Nodes on Reset**: If a mountain node resets its configuration, admin keys and rescue channels are wiped, leaving it unreachable. | **Cryptographic Shielding & Persistence**: Admin keys and the dedicated Navadmin rescue channel survive configuration resets and full power cuts. |
 
