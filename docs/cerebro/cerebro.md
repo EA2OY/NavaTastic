@@ -770,12 +770,14 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 
 - **Estado (17/08/2026, Post-Release V4.3.3 / NavaTastic Eclipse V4)**: "NavaTastic V4" (4.3.3) implementado, verificado, compilado (12/12 SUCCESS), distribuido y publicado oficialmente en GitHub Release `v4.3.3`.
   - **Release Oficial GitHub `v4.3.3` (`EA2OY/NavaTastic`, ID `371753206`)**:
-    - 27 assets optimizados y clarificados con nomenclatura para usuario final:
-      - 12 firmwares `[ROUTER Repetidor Fijo]` (UF2 y OTA zip).
-      - 12 firmwares `[CLIENTE convertible a ROUTER]` (UF2 y OTA zip).
-      - 3 manuales oficiales PDF (`Manual_NavaTastic.Comandos.pdf`, `Manual_uso_NavaTastic.Instalacion.y.Resiliencia.pdf`, `INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf`).
+    - 27 assets optimizados y clarificados con nomenclatura URL-safe para usuario final:
+      - 12 firmwares `ROUTER_Repetidor_Fijo` (UF2 y OTA zip).
+      - 12 firmwares `CLIENTE_convertible_a_ROUTER` (UF2 y OTA zip).
+      - 3 manuales oficiales PDF (`Manual_NavaTastic.pdf`, `Manual_uso_NavaTastic_4.2.pdf`, `INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf`).
   - **Saneamiento de la Rama Pública `main` en GitHub**:
     - Saneada mediante rama huérfana limpia. `docs/` en GitHub expone exclusivamente manuales públicos de usuario, protegiendo las bitácoras y cerebros internos de desarrollo en `master` local.
+    - Cartel oficial del proyecto (`branding/cartel_navatastic_github.jpg`) integrado y visible en `README.md`.
+    - 57 enlaces directos a firmwares y PDFs en `README.md` comprobados al 100% (HTTP 200 OK).
   - **Blindaje Anti-Tormentas en Navadmin (Canal Público)**: Broadcast masivo no dirigido limitado a 7 comandos ligeros de 1 línea (`ping`, `status`, `bat`, `power`, `env`, `channel`, `noise`) con jitter escalonado. Menú `/nava help` general y comandos no permitidos en broadcast quedan en silencio total para evitar saturación de la malla LoRa.
   - **Escudo Anti-Tormentas NodeInfo**: Sincronización en arranque (`currentGeneration = radioGeneration`) que desactiva peticiones masivas de respuesta (`want_response=false`). Documentado en tablas comparativas de `README.md` (ES y EN).
   - **Consola Privada de Gestión de Flota en Lote**: Redirigiendo la CLI a slots 2..7 (`set_cli_chan <2-7>`), el operador puede lanzar órdenes en lote a toda la red con un solo mensaje (`set_ok_to_mqtt`, `set_pos_tx`, `set_nodeinfo_tx`, `set_telem_tx`, `ign add/del/clear/ls`, `set_beacon`, `set_tz`, `set_chem`, `set_vbat`, `set_vwake`, `sleepmsg`, `mute`, `test_tx`, `db_purge`, `nodeinfo`, `pos`, `sendtel`). Comandos individuales (`set_pos`, `set_name`, `set_pin`, `pos_clear`) y nucleares destructivos exigen `!ID` o DM.
@@ -783,9 +785,13 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   - **Control de Difusión de Posición/Telemetría**: Nuevos comandos `set_pos_tx`, `set_nodeinfo_tx`, `set_telem_tx`, `pos_clear`.
   - **Cero Desgaste Flash (RAM-Only)**: `stats`, `log`, `mute` y `test_tx` operan exclusivamente en memoria RAM sin llamadas de escritura LittleFS.
   - **Persistencia Atómica `/resilience.bin` V5 (`NAV5`)**: Detección y migración automática de estructuras previas sin alteración de claves admin ni roles de hardware.
-  - **Compilación 12/12 SUCCESS**: Verificados todos los entornos con `build.ps1` (11m 15s).
-  - **Distribución y Manuales**: 32 binarios distribuidos en `distribucion\` y 5 PDFs generados con `generar_pdf.ps1`.
-- **Siguiente paso**: Mantenimiento continuo o futuras extensiones según necesidades operativas de la red.
+  - **Flasheo Faketec Test Node (`COM9`)**: Flasheado con `navarrico_faketec_sx1262_r2ig` V4 (SUCCESS).
+  - **Compilaciones Infraestructura Propia (R2IP)**: Generados los 4 firmwares V4 en RAM y depositados en el Escritorio (`Navatastic V4 Eclipse Infraestructura Propia`), sin rastro en el repositorio ni en GitHub.
+- **Siguiente paso**: **Ejecución de la Auditoría Ultra-Exhaustiva V4 (65 Casos de Prueba)**:
+  - Validar sistemáticamente la consistencia bidireccional entre la App Oficial Meshtastic (AdminMessages Protobuf), NavaCLI (`/nava`) y el firmware NavaTastic V4.
+  - Verificar la persistencia tras Soft Reboots de cada ajuste.
+  - Registrar anomalías (como el desacoplo del switch Bluetooth en la App oficial) sin modificar código hasta el informe final.
+
 
 
 

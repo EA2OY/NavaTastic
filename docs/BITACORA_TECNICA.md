@@ -1099,3 +1099,24 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   - **Protección de Memoria Local**: La rama local `master` mantiene al 100% todos los archivos técnicos, bitácoras y memorias vivas.
 - **Documentación del Escudo Anti-Tormentas NodeInfo**:
   - Incorporada la explicación del escudo anti-tormentas (`currentGeneration = radioGeneration; // want_response=false`) en las tablas comparativas de `README.md` (ES y EN) y en las notas oficiales del Release.
+
+### SESIÓN 17/08/2026 (NOCHE) — RESTAURACIÓN DE BRANDING, PROPIA V4 EN RAM, ENLACES URL-SAFE Y PLAN MAESTRO DE AUDITORÍA (65 TESTS)
+- **Restauración de Cartel Oficial en GitHub**:
+  - Restaurado `branding/cartel_navatastic_github.jpg` y réplica en raíz en la rama pública `main`. `README.md` renderiza el cartel oficial del proyecto.
+- **Flasheo de Faketec Test Node (`COM9`)**:
+  - Flasheado el nodo de pruebas por DFU (`pio run -e navarrico_faketec_sx1262_r2ig -t upload --upload-port COM9` -> SUCCESS, 169.58s).
+  - Verificado arranque serie y retención de `/resilience.bin` V5.
+- **Compilaciones de Infraestructura Propia (R2IP) V4 en RAM**:
+  - Inyectadas claves privadas ($K_0$, $K_1$) y PIN `123457` exclusivamente en memoria volátil de proceso.
+  - Compilados los 4 entornos solicitados (`Promicro+E22P`, `Faketec`, `XiaoKit` y `XiaoKit+E22P`).
+  - Verificación binaria de payload UF2 confirmada (2 matches K0, 2 matches K1, 1 match PIN) y copiados a `C:\Users\Jesus\Desktop\Navatastic V4 Eclipse Infraestructura Propia\Rama 2 Routers\UF2` y `\OTA`.
+  - Scripts temporales y variables eliminados; cero rastro en git, memoria de proyecto ni GitHub.
+- **Saneamiento URL-Safe de Assets en Release v4.3.3**:
+  - Re-subidos los 27 assets públicos con nombres limpios sin espacios ni corchetes que alteren URLs.
+  - Actualizadas las tablas de **Los 12 builds** en `README.md` (español e inglés) con enlaces directos a cada firmware UF2 y OTA zip.
+  - Comprobados los 57 enlaces directos con script de verificación HTTP (todos devuelven `HTTP 200 OK`).
+- **Diseño del Plan Maestro de Auditoría Ultra-Exhaustiva (65 Casos)**:
+  - Detección de la anomalía en el switch de Bluetooth de la App oficial: al no estar acoplado con `prefs.ble_disabled`, el firmware re-habilitaba BLE en el init.
+  - Estructuración de la matriz de 65 pruebas en 7 fases (Core App, NavaCLI, Sincronización cruzada, Persistencia tras Soft Reset, Hardened Integrity, Destructivas por DM y Bitácora).
+  - Protocolo de reintentos RF y keepalive Android ADB definido en `docs/cerebro/12_auditoria_navatastic.md` e `implementation_plan.md`.
+

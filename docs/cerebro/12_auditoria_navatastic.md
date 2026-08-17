@@ -1,9 +1,10 @@
-# 12 — PLAN MAESTRO DE AUDITORÍA Y BANCO DE PRUEBAS (NavaTastic V3)
+# 12 — PLAN MAESTRO DE AUDITORÍA Y BANCO DE PRUEBAS ULTRA-EXHAUSTIVO (NavaTastic V4)
 
-> **ESTADO 17/08/2026 — 100% PASS COMPLETO**: Especificación canónica y resultados de la doble auditoría
-> automatizada end-to-end de NavaTastic V3 y MeshNavarra Utility (26/26 superados).
-> 📘 **Guía Técnica de Procedimiento**: [docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md](../GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md)
-> 📄 **Informe Consolidado**: [docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)
+> **ESTADO 17/08/2026 — PREPARACIÓN FASE V4**: Matriz extendida de **65 casos de prueba sistemáticos**
+> para validar la consistencia bidireccional entre la App Oficial de Meshtastic (Protobuf / AdminMessages),
+> el firmware NavaTastic V4 (4.3.3) y NavaCLI (`/nava`), la persistencia tras Soft Reboots y la sincronización UI.
+> 📘 **Plan de Implementación**: [implementation_plan.md](../../implementation_plan.md)
+> 📄 **Informe Consolidado Previo (V3)**: [docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)
 
 ---
 
@@ -15,14 +16,14 @@
    * **Prohibido cualquier wipe/reset en Android**.
 2. **Prohibido Tocar Código de Firmware sin Orden Explícita**:
    * La auditoría es de diagnóstico, prueba y recolección de evidencias.
-   * Si se detecta un comportamiento anómalo o bug, **se reporta al operador**, se documenta en el FIX LOG y se espera confirmación antes de tocar una sola línea de código en `src/` o `variants/`.
+   * Si se detecta un comportamiento anómalo o bug, **se reporta al operador**, se documenta en el registro y se espera confirmación antes de tocar una sola línea de código en `src/` o `variants/`.
 3. **Antiespeculación y Pragmatismo Técnico**:
    * No asumir que NavaTastic falla ante el primer error de configuración remota.
-   * Si la configuración remota por radio se atasca, reportar y conectar el nodo Master al PC para configurarlo directamente por USB (lección F-02).
+   * Aplicar reintentos progresivos (hasta 3 intentos) ante colisiones RF en SF Narrow.
 4. **Respeto Estricto de Tiempos y Cooldowns**:
-   * Dejar pausas adecuadas entre comandos: $\ge 2$ s para consultas normales, $\ge 15$ s tras cambios de radio, $\ge 30$ s tras reboots/resets para permitir re-sintonización y re-conexión de malla.
+   * Dejar pausas adecuadas entre comandos: $\ge 4$ s para consultas normales, $\ge 15$ s tras cambios de radio, $\ge 30$ s tras reboots/resets para permitir re-sintonización y re-conexión de malla.
 5. **Dieta de Tokens y Handover Permanente**:
-   * Mantener el cerebro y bitácora actualizados en caliente; snapshot previo creado en `_archivo/` antes de iniciar pruebas.
+   * Mantener el cerebro y bitácora actualizados en caliente; registrar cada prueba con su ID exacto.
 
 ---
 
@@ -30,126 +31,37 @@
 
 | Rol | Hardware | Conexión | Firmware / Software | Control |
 |---|---|---|---|---|
-| **`Slave`** (Montaña / Bajo Prueba) | Faketec 1 (HT-RA62) | **USB → PC (COMx)** | NavaTastic 4.3.2 V3 (Rama 2 Propia / General) | Meshtastic CLI Python / Serial API directo |
+| **`Slave`** (Montaña / Bajo Prueba) | Faketec 1 (HT-RA62) | **USB → PC (COM9)** | NavaTastic 4.3.3 V4 (Rama 2 General) | Serial API directo / Logs COM9 |
 | **`Master`** (Admin / Timonel) | Faketec 2 (HT-RA62) | **USB OTG → Mi 10** | Meshtastic Oficial / NavaTastic Banco | App Meshtastic + MeshNavarra Utility |
 | **Control Remoto Móvil** | Xiaomi Mi 10 | **WiFi ADB (`192.168.3.141:5555`)** | Android 12 / MIUI | `adb shell am broadcast` (`RemoteControlReceiver`) |
 
-- **Banda de aislamiento**: **869.545 MHz** / hop 1 / TX power **1 dBm** (entorno de atenuación de laboratorio).
+- **Banda de aislamiento**: **869.545 MHz** / TX power **1 dBm** / Override Duty Cycle.
 - **Canal 0**: SFNarrow (PSK default `AQ==`).
 - **Canal 1**: Navadmin (PSK pública `{0x01}` = `AQ==`, slot 1 inamovible).
 
 ---
 
-## 2. HERRAMIENTAS Y CANALES DE CONTROL
-
-### 2.1 Control del `Slave` (PC)
-* `meshtastic --port COMx --info` (lectura completa de estado, canales y NodeDB).
-* Inspección de `/resilience.bin` y LittleFS por USB.
-* Volcado de logs serie en tiempo real.
-
-### 2.2 Control del `Master` (Xiaomi Mi 10 vía ADB)
-* **MeshNavarra Utility (`RemoteControlReceiver`)**:
-  * Envío de comandos `/nava` sin tocar la pantalla:
-    `adb -s 192.168.3.141:5555 shell am broadcast -n com.meshkachoutility/.RemoteControlReceiver -a com.meshkachoutility.REMOTE --es cmd send_nava --es arg "<cmd>" --es arg2 "!<ID_SLAVE>"`
-  * Volcado de estado de la app: `cmd state` $\rightarrow$ `remote_state.json`.
-  * Volcado de nodos: `cmd nodes` $\rightarrow$ `nodes_dump.json`.
-  * Activación de pestaña Debug: `cmd debug_tab --es arg "on"`.
-* **App Oficial Meshtastic**:
-  * Pruebas de configuración remota por AdminMessage Protobuf PKI (cambio de presets, canales secundarios, roles, traceroutes).
-
----
-
-## 3. MATRIZ EXTENDIDA DE PRUEBAS (5 FASES)
+## 2. MATRIZ MAESTRA DE 65 CASOS DE PRUEBA (7 FASES)
 
 ```mermaid
 flowchart TD
-    F0["Fase 0: Preparación y Verificación de Conectividad (ADB/USB/OTG)"] --> F1["Fase 1: Flasheo Firmware de Banco y Claves Cruzadas"]
-    F1 --> F2["Fase 2: Batería Meshtastic Core (Canales/Presets/Roles/AdminMessage)"]
-    F2 --> F3["Fase 3: Batería NavaCLI /nava (Navadmin + DMs PKI + resilience.bin + Resets)"]
-    F3 --> F4["Fase 4: Resiliencia Energética y Ciclo Solar (Fuente Regulable)"]
-    F4 --> F5["Fase 5: Generación del Informe Exhaustivo de Auditoría"]
+    F0["Fase 0: Aislamiento RF, Conectividad ADB y Keepalive"] --> F1["Fase 1: Configuración Core desde App Meshtastic (Protobuf AdminMessage)"]
+    F1 --> F2["Fase 2: Configuración Ejecutiva desde NavaCLI (/nava)"]
+    F2 --> F3["Fase 3: Sincronización Cruzada Bidireccional (App ↔ Firmware ↔ NavaCLI)"]
+    F3 --> F4["Fase 4: Persistencia tras Soft Reboot y Resiliencia Forense"]
+    F4 --> F5["Fase 5: Matriz de Parámetros Fijos por Diseño (Hardened Integrity)"]
+    F5 --> F6["Fase 6: Pruebas Destructivas Controladas (Solo DM al Slave)"]
+    F6 --> F7["Fase 7: Dictamen Final, Bitácora de Anomalías y Clasificación de Bugs"]
 ```
 
-### 🔹 Fase 0: Preparación y Verificación de Conectividad
-- [x] **Conexión ADB WiFi Mi 10 (`192.168.3.141:5555`)**: VERIFICADA Y ACTIVA ✅.
+### 🔹 Estructura de Fases:
+- **Fase 0 (4 pruebas)**: Enlace ADB, Keepalive Android, Conmutación Inter-App y Handshake PKI.
+- **Fase 1 (30 pruebas)**: Configuración remota exhaustiva desde la App Oficial Meshtastic (Bluetooth, Device, LoRa, Posición, Pantalla, Canales y Módulos).
+- **Fase 2 (48 pruebas)**: Catálogo completo de comandos NavaCLI en abierto (Navadmin) y por DM PKI.
+- **Fase 3 (14 pruebas)**: Sincronización bidireccional cruzada (App $\rightarrow$ NavaCLI y NavaCLI $\rightarrow$ App) con inspección de UI.
+- **Fase 4 (4 pruebas)**: Persistencia tras Soft Reboots sistemáticos, cortes eléctricos en fuente, anti-tormentas en arranque y aviso `[Boot]`.
+- **Fase 5 (4 pruebas)**: Validación de parámetros fijos por diseño (Navadmin inamovible, auto-inyección de rescate, persistencia de desautorización).
+- **Fase 6 (3 pruebas)**: Pruebas destructivas controladas estrictamente por DM (`keys_clear`, `full_reset`, `wipe`).
+- **Fase 7**: Consolidación del informe final con clasificación de hallazgos (PASS, BUG CONFIRMADO, ANOMALÍA A CONSULTAR, LIMITACIÓN HARDWARE).
 
-### 🔹 Fase 1: Firmware de Laboratorio y Emparejamiento Limpio
-- [x] **PASO A (Master en USB - Faketec 2)**: COMPLETADO CON ÉXITO ✅.
-  * Node ID: `!8289015a` (`2190016858`) | MAC: `dd:cf:82:89:01:5a`.
-  * Clave Pública PKI: `0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`.
-  * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · Canal 1 `Navadmin` (`AQ==`).
-- [x] **PASO B (Slave en USB - Faketec 1)**: COMPLETADO CON ÉXITO ✅.
-  * Firmware Flasheado: NavaTastic 4.3.2 V3 (`navarrico_faketec_sx1262_r2ig`) con DFU upload exitoso (178.33 s) ✅.
-  * Node ID: `!3a89ac94` (`982099092`).
-  * Clave Pública PKI: `1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=`.
-  * Clave Admin inyectada en Slot 0: `0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=` (Clave del Master) ✅.
-  * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · Canal 1 `Navadmin` (`AQ==`).
-- [x] **PASO C (Montaje definitivo y Test de Enlace Radio)**: COMPLETADO CON ÉXITO ✅.
-  * Traceroute bidireccional por radio OK:
-    `!3a89ac94 --> 8289015a` (12.75 dB) | `8289015a --> !3a89ac94` (11.5 dB).
-  * NodeDB sincronizada a 0 saltos.
-
-### 🔹 Fase 2: Batería Meshtastic Core (App Oficial + AdminMessage)
-- [x] **Prueba 2.1 — Renombrado (`set_owner` / `set_name`)**: COMPLETADA CON ÉXITO ✅.
-  * Verificado cambio de nombre largo/corto y propagación de NodeInfo.
-- [x] **Prueba 2.2 — Parámetros de Radio y Presets**: COMPLETADA CON ÉXITO ✅.
-  * Frecuencia `869.545 MHz` y ancho de banda SFNarrow validados operativamente sin colisión.
-- [x] **Prueba 2.3 — Canales Secundarios e Inamovilidad de Navadmin**: COMPLETADA CON ÉXITO ✅.
-  * Añadido Canal 2 (`Privado`) y Canal 3 (`Telemetria`).
-  * **Comprobado: Canal 1 (Navadmin) permaneció 100% intacto en Slot 1 con PSK `AQ==`** (inamovible).
-  * Borrado de Canal 2 verificado con compactación limpia sin corromper Navadmin.
-- [x] **Prueba 2.4 — Cambio de Roles y Persistencia en `/resilience.bin`**: COMPLETADA CON ÉXITO ✅.
-  * `ROUTER` $\rightarrow$ `CLIENT` $\rightarrow$ reinicio verificado (`device.role: 0` / `CLIENT`).
-  * `CLIENT` $\rightarrow$ `ROUTER` $\rightarrow$ reinicio verificado (`device.role: 2` / `ROUTER`).
-- [x] **Prueba 2.5 — Traceroutes y Telemetría Remota**: COMPLETADA CON ÉXITO ✅.
-  * Traceroute bidireccional (+12 dB SNR), telemetría de batería (4.10 V), uptime y métricas de canal recibidas sin pérdidas.
-
-### 🔹 Fase 3: Batería NavaCLI (`/nava`) y Persistencia Forense
-- [x] **3.1 — Batería Navadmin Pública (Slot 1)**: COMPLETADA CON ÉXITO (10/10 PASS) ✅.
-  * Ejecutados por radio en Canal 1: `/nava ping` (PONG: SLAV, SNR 11.2 dB), `/nava status` (Nava V3, RAM 3/80, Favs 2), `/nava env` (Bat 4108 mV, Heap 61240 B, Chip 31.5 C), `/nava channel` (Uso canal 4.8%, TX 0.1%), `/nava peers` (Vecinos 0 saltos !8289015a), `/nava bat` (QUIMICA: LIPO, 4108 mV, OCV 94%), `/nava help`, `/nava help fav`, `/nava route`, `/nava trace`.
-- [x] **3.2 — Batería DM PKI (Gestión de Nodos y Favoritos)**: COMPLETADA CON ÉXITO (10/10 PASS) ✅.
-  * Ejecutados por DM cifrado Curve25519/AES-256-CCM: `/nava fav ls`, `/nava fav add`, `/nava fav rm`, `/nava ign ls`, `/nava pos`, `/nava nodeinfo`, `/nava sendtel`, `/nava bell`, `/nava admin_ls`, `/nava txon`.
-- [x] **3.3 — Química y Umbrales de Batería (PowerFSM & `/resilience.bin`)**: COMPLETADA CON ÉXITO ✅.
-  * Validación de cambio de perfiles `lipo` (3.5V/3), `lifepo4` (2.8V/5), `sodium` (2.6V/3), `nimh` (3.4V/3) y su persistencia en LittleFS.
-- [x] **3.4 — Modo Tormenta y Silencio RF**: COMPLETADA CON ÉXITO ✅.
-  * `/nava storm 2` (activación de ventana de tormenta), `/nava storm test1` (inyección sintética y control de cola), `/nava storm off` (desactivación limpia).
-- [x] **3.5 — Seguridad y Rechazo de Comandos No Autorizados**: COMPLETADA CON ÉXITO ✅.
-  * Comprobado: Comandos de escritura/ejecutivos enviados a Canal 1 público son rechazados automáticamente con `SOLO DM SEGURO`. Whitelist auditada con `/nava admin_ls`.
-- [x] **3.6 — Escalera Forense de Resets y Resistencia (Motor F20 / Bloque R)**: COMPLETADA CON ÉXITO ✅.
-  * **Prueba A (Soft Reboot)**: Retención total de rol `CLIENT`/`ROUTER`, canales e identidades.
-  * **Prueba B (`--factory-reset-config`)**: **PRESERVACIÓN 100% DEMOSTRADA** de:
-    - Clave Pública PKI (`1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=`) ✅.
-    - Clave de Administrador Master (`0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`) ✅.
-    - Perfil `ROUTER` predeterminado de Rama 2 ✅.
-
-### 🔹 Fase 4: Resiliencia y Ciclo Solar en Fuente de Laboratorio (17/08/2026) — 100% PASS ✅
-- [x] **Punto de Partida (4.10 V)**: ADC reporta **`4.09 V`** (4.090 mV, batería al 93%).
-- [x] **Filtro IIR LPF Identificado (`Power.cpp:370`)**: Demostrado suavizado exponencial del 50% por software ante caídas de tensión (evita falsos cortes por picos LoRa de 120 mA).
-- [x] **Caída a 3.35 V y Sueño Profundo**:
-  * Tras 141 s (~7-8 ciclos del monitor), emisión de **`[Sueno]`** (`ADC 3344 mV | CPU 29.5 C | sueno profundo, despertara >= 3710 mV`) por Canal 1 Navadmin ✅.
-  * **Consumo medido en banco**: **`0.4 mA`** en Faketec SX1262; referencia técnica de **`1.5 mA`** en NRF52840 + E22P (con booster 5V activo en deep sleep).
-- [x] **Reset Externo en Zona Límite (3.34 V / Nivel 1)**:
-  * Al pulsar reset simulando ATtiny13A a 3.34 V $\rightarrow$ emisión de **`[Vivo]`** (`ADC 3342 mV | sigo vivo, al limite de carga`) ✅.
-  * Ventana de gracia operativa durante 141 s $\rightarrow$ re-confirmación de batería baja $\rightarrow$ emisión de segundo **`[Sueno]`** (`ADC 3346 mV`) y vuelta a System OFF (0.4 mA) ✅.
-- [x] **Detección, Fix y Creación de `[Critico]` (Nivel 2: $< 3.30\text{V}$)**:
-  * Corregido `src/main.cpp` y `NavaCLIModule.cpp` para eliminar el `cpuDeepSleep()` amputado e incorporar el estado **`[Critico]`** (`bateria en capacidad critica, operando 160s`).
-  * **Prueba en Fuente a 3.24 V**: Emisión de `[Critico]` (`ADC 3243 mV`) $\rightarrow$ Operación durante 139 s $\rightarrow$ Emisión de `[Sueno]` (`ADC 3246 mV`) $\rightarrow$ Apagado limpio a **0.4 mA** ✅.
-- [x] **Ascenso Solar y Despertar LPCOMP**:
-  * Disparo físico del comparador LPCOMP a **`3.77 V`** reales en la fuente de laboratorio $\rightarrow$ Emisión de **`[Listo]`** (`ADC 3771 mV | despierto, cargando, listo para trabajar`) por Canal 1 Navadmin (**desviación de solo 1 mV / 0.02%**) ✅.
-
-### 🔹 Fase 5: Gran Informe Técnico y Restauración a Producción
-- [x] **Restauración de Nodos**: Ambos nodos (`Slave` y `Master`) reconfigurados a frecuencia oficial `869.618 MHz` / `22 dBm` / `SFN Spain` ✅.
-- [x] **Informe Consolidado**: Publicado en [docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) ✅.
-- [x] **Calificación Final**: **26 / 26 CASOS SUPERADOS CON ÉXITO (100% PASS) 🏆**. Dictamen: **APTO PARA DESPLIEGUE EN INFRAESTRUCTURA DE MONTAÑA**.
-
----
-
-## 🚀 5. PROTOCOLO PARA EXTENDER LA SUITE ANTE NUEVAS FUNCIONES
-
-Cuando se añadan nuevos comandos `/nava` o drivers de sensores en futuras versiones:
-1. **Añadir el comando al catálogo**: en `src/modules/NavaCLIModule.cpp` y su ayuda en `helpForCommand()`.
-2. **Registrar el caso de prueba**: en la tabla correspondiente de esta subnota `12_auditoria_navatastic.md`.
-3. **Validar la respuesta por radio**: tanto por Canal 1 Navadmin (si es de solo lectura) como por DM PKI (si es ejecutivo o de configuración).
-4. **Recompilar los manuales y PDFs**: ejecutando `powershell -ExecutionPolicy Bypass -File herramientas\generar_pdf.ps1`.
-5. **Subir los assets a GitHub Release**: ejecutando `powershell -ExecutionPolicy Bypass -File herramientas\subir_assets_release.ps1`.
 

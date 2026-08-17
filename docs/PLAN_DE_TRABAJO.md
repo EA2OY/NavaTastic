@@ -317,15 +317,22 @@ REGLAS Y TRAMPAS VIGENTES:
       * **Generación NAVA V4**: Versión incrementada en firmware (`NAVATASTIC_BUILD "V4"` y `NAVS_RESILIENCE_VERSION = 0x4E415635`).
       * **Compilación y Distribución 12/12 SUCCESS**: 12 entornos compilados limpiamente y 32 binarios generados en `distribucion\`.
 
-- [x] **PUBLICACIÓN GITHUB RELEASE V4.3.3 Y SANEAMIENTO PÚBLICO (17/08)**:
-      * **Release v4.3.3 Publicada**: Creada en `EA2OY/NavaTastic` (ID `371753206`) con 27 assets optimizados.
-      * **Nombres de Binarios Clarificados**: 24 firmwares etiquetados con `[ROUTER Repetidor Fijo]` y `[CLIENTE convertible a ROUTER]`.
-      * **Documentación Oficial en Release**: Subidos `Manual_NavaTastic.Comandos.pdf`, `Manual_uso_NavaTastic.Instalacion.y.Resiliencia.pdf` e `INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf`.
+- [x] **PUBLICACIÓN GITHUB RELEASE V4.3.3 Y ENLACES DIRECTOS VERIFICADOS (17/08)**:
+      * **Release v4.3.3 Publicada**: Creada en `EA2OY/NavaTastic` (ID `371753206`) con 27 assets optimizados y nombres URL-safe.
+      * **Nombres de Binarios Clarificados**: 24 firmwares etiquetados con `ROUTER_Repetidor_Fijo` y `CLIENTE_convertible_a_ROUTER`.
+      * **Documentación Oficial en Release**: Subidos `Manual_NavaTastic.pdf`, `Manual_uso_NavaTastic_4.2.pdf` e `INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf`.
       * **Saneamiento de `main` en GitHub**: Rama huérfana limpia exponiendo exclusivamente documentación pública de usuario (`README.md`, manuales e informe de auditoría), protegiendo la memoria técnica interna en `master` local.
+      * **Enlaces Directos en README.md**: 57 enlaces directos a firmwares y PDFs verificados al 100% (HTTP 200 OK).
+
+- [ ] **EJECUCIÓN DE LA AUDITORÍA ULTRA-EXHAUSTIVA V4 (65 PRUEBAS, PERSISTENCIA & SINCRONIZACIÓN UI)**:
+      * **Diseño Completo**: 7 fases y 65 casos de prueba sistemáticos detallados en `docs/cerebro/12_auditoria_navatastic.md` y `implementation_plan.md`.
+      * **Alcance**: Validación cruzada App Oficial Meshtastic (Android Protobuf / AdminMessages) $\leftrightarrow$ Firmware NavaTastic V4 $\leftrightarrow$ NavaCLI (`/nava`) $\leftrightarrow$ UI.
+      * **Detección Previa de Bug**: Identificada la anomalía de desacoplo del switch Bluetooth en la App oficial al no sincronizarse con `prefs.ble_disabled` en `/resilience.bin`.
+      * **Regla Estricta**: Cero modificaciones de código, cero commits y cero subidas a GitHub durante la ejecución de las pruebas hasta completar el diagnóstico y debatir los hallazgos con el operador.
 
 ```
 ================================================================================
-PROMPT DE APERTURA / HANDOVER PARA NUEVA SESIÓN (ESTADO POST-RELEASE V4.3.3)
+PROMPT DE APERTURA / HANDOVER PARA NUEVA SESIÓN (AUDITORÍA ULTRA-EXHAUSTIVA V4)
 ================================================================================
 Eres el agente responsable de continuar el proyecto NavaTastic.
 Repositorio único de trabajo: C:\NavaTastic Codigo completo (rama master).
@@ -337,15 +344,16 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
 2. docs\BITACORA_TECNICA.md (historial técnico, fixes y recetas de paridad).
 3. docs\PLAN_DE_TRABAJO.md (estado actual y contexto vivo).
 4. docs\cerebro\cerebro.md (índice global y notas 01 a 13).
-5. docs\Manual_NavaTastic.md (catálogo completo de comandos /nava vigentes).
+5. docs\cerebro\12_auditoria_navatastic.md (Plan Maestro de Auditoría de 65 Casos).
+6. docs\Manual_NavaTastic.md (catálogo completo de comandos /nava vigentes).
 
-🎯 ESTADO ACTUAL DEL PROYECTO:
-- GENERACIÓN NAVA V4 (4.3.3) PUBLICADA EN GITHUB RELEASE v4.3.3 Y RAMA MAIN SANEADA.
-- 12/12 variantes compiladas con éxito y distribuidas.
-- Blindaje anti-tormentas en Navadmin, Consola Privada de Flota y Escudo NodeInfo operativos.
-- Persistencia V5 (NAV5) con lista negra ignorados y control granular de telemetría/difusión.
-- Nombres de binarios en Release clarificados: [ROUTER Repetidor Fijo] y [CLIENTE convertible a ROUTER].
-- Memoria viva en master local 100% íntegra y protegida.
+🎯 TAREA INMEDIATA: EJECUCIÓN DE LA AUDITORÍA ULTRA-EXHAUSTIVA V4 (65 CASOS)
+- Nodo Slave (Faketec HT-RA62 !43ca4c27) conectado por USB al PC (COM9).
+- Nodo Master (Faketec HT-RA62 !8289015a) conectado por USB OTG al Xiaomi Mi 10.
+- Teléfono Xiaomi Mi 10 accesible vía WiFi ADB (192.168.3.141:5555).
+- Frecuencia de prueba: 869.545 MHz / 1 dBm / Override Duty Cycle (Aislamiento de Laboratorio).
+- Ejecutar la matriz de 65 pruebas de docs\cerebro\12_auditoria_navatastic.md y registrar evidencias.
+- REGLA DE ORO: CERO MODIFICACIONES DE CÓDIGO Y CERO PUSHES HASTA CONCLUIR LAS PRUEBAS.
 ================================================================================
 ```
 
