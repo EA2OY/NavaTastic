@@ -1,11 +1,11 @@
 # 🛡️ INFORME TÉCNICO DE DOBLE AUDITORÍA CONSOLIDADA
-## Firmware NavaTastic 4.3.2 V3 & MeshNavarra Utility (v4.3)
-**Fecha:** 16 de Agosto de 2026  
+## Firmware NavaTastic 4.3.3 V4 & MeshNavarra Utility (v4.3)
+**Fecha:** 17 de Agosto de 2026  
 **Entorno:** Banco de Pruebas de Laboratorio Aislado (869.545 MHz / 1 dBm / Entorno de Atenuación Controlada) $\rightarrow$ Parámetros Oficiales de Producción (869.618 MHz / 22 dBm / SFN Spain)  
 **Hardware Evaluado:**
-* **Nodo Slave (Bajo Prueba / Faketec 1)**: NRF52840 ProMicro DIY (`!3a89ac94` / `!43ca4c27`) con NavaTastic 4.3.2 V3 (`navarrico_faketec_sx1262_r2ig`) conectado por USB al PC (`COM9`).
+* **Nodo Slave (Bajo Prueba / Faketec 1)**: NRF52840 ProMicro DIY (`!3a89ac94` / `!43ca4c27`) con NavaTastic Eclipse (`navarrico_faketec_sx1262_r2ig`) conectado por USB al PC (`COM9`).
 * **Nodo Master (Administrador / Faketec 2)**: NRF52840 ProMicro DIY (`!8289015a`) conectado por USB OTG al Xiaomi Mi 10.
-* **Controlador y Auditor:** Xiaomi Mi 10 (Android, WiFi ADB `192.168.3.141:5555`) ejecutando **MeshNavarra Utility** (v4.3 con `RemoteControlReceiver` y catálogo de 48 comandos `/nava`).
+* **Controlador y Auditor:** Xiaomi Mi 10 (Android, WiFi ADB `192.168.3.141:5555`) ejecutando **MeshNavarra Utility** (v4.3 con `RemoteControlReceiver` y catálogo de comandos `/nava`).
 
 ---
 
