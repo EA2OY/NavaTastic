@@ -30,6 +30,30 @@ Este mecanismo **no se limita únicamente a NavaCLI**, sino que otorga al operad
 
 ---
 
+## 🚨 MANDATO ESTRICTO DE INTEGRIDAD Y REVISIÓN EXHAUSTIVA PARA EL AGENTE (CERO REGRESIONES)
+
+> [!CAUTION]
+> **REGLA OBLIGATORIA PARA CUALQUIER AGENTE O DESARROLLADOR QUE EJECUTE ESTE PLAN:**
+> **PROHIBIDO SER VAGO. PROHIBIDO HACER PARCHES RÁPIDOS O ASUMIR QUE UN CAMBIO LOCAL NO TIENE EFECTOS SECUNDARIOS.**  
+> El agente debe realizar un **análisis exhaustivo y rastreo de dependencias de absolutamente TODO el código afectado** antes de modificar una sola línea. No se tolerará la rotura de ninguna función ya existente y validada.
+
+### 📋 Checklist Obligatorio de Análisis de Dependencias Cruzadas:
+1. **Interacción con `Channels.cpp` y `channels.pb`**:
+   * Verificar que la creación o modificación de un canal en slots 2..7 jamás sobreescriba ni corrompa el **Slot 0 (`SFNarrow`)** ni el canal de fábrica **Slot 1 (`Navadmin`)**.
+   * Comprobar que `channels.saveChannels()` no desencadene escrituras repetitivas e innecesarias en Flash.
+2. **Criptografía en `CryptoEngine.cpp`**:
+   * Asegurar que las claves de 1 byte (`AQ==`, etc.) y las claves AES-128 / AES-256 generen correctamente el hash de canal (`channel_hash`) sin romper la interoperabilidad con nodos estándar de Meshtastic.
+3. **Enrutamiento y Aislamiento en `Router.cpp` y `MQTT.cpp`**:
+   * Comprobar que silenciar un canal (`navadmin_mute` o `downlink_enabled = false`) no afecte bajo ningún concepto a la recepción de **Mensajes Directos Privados (DMs)** de administración ni al enrutamiento de paquetes en malla del canal 0.
+4. **Ciclo Solar Canónico de 5 Estados y `doDeepSleep()`**:
+   * Garantizar que la redirección de los avisos (`[Listo]`, `[Vivo]`, `[Critico]`, `[Sueño]`, `[Boot]`) al canal activo utilice siempre la función segura `enqueueResponse()` y **jamás altere la orden SPI de apagado de la radio SX1262 a 0.4 mA**.
+5. **Migración Segura de `/resilience.bin` (Retrocompatibilidad)**:
+   * Al ampliar la estructura `ResiliencePrefs` con los nuevos campos de F21, el agente DEBE actualizar el marcador `NAVS_RESILIENCE_VERSION` e implementar la rutina de migración para que los nodos existentes adopten los nuevos campos con valores por defecto **sin perder sus claves de administración (F20) ni su rol `ROUTER`**.
+6. **Validación Obligatoria (26/26 PASS)**:
+   * Antes de dar por finalizada la tarea, es obligatorio ejecutar la suite completa de auditoría y certificar que los 26 casos de prueba siguen en estado **100% PASS**.
+
+---
+
 ## 🔬 2. Análisis de Viabilidad Técnica
 
 ### ✅ Dictamen: **100% FACTIBLE Y VIABLE**
