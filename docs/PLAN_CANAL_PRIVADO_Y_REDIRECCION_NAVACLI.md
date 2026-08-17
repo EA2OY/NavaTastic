@@ -74,28 +74,55 @@ Meshtastic y la arquitectura modular de NavaTastic ya disponen de los cimientos 
 
 Todos estos comandos se ejecutarían **exclusivamente por Mensaje Directo Privado (DM)** desde un nodo con clave pública autorizada:
 
+### 📡 A. Gestión de Canales y Redirección
 ```text
 1. /nava ch_ls
-   -> Lista los 8 slots de canales, mostrando cuáles están activos, su nombre y tipo de clave (1-byte / AES-128 / AES-256).
+   -> Lista los 8 slots de canales, mostrando cuáles están activos, su nombre, tipo de clave (1-byte / AES-128 / AES-256) y estado de subida/bajada MQTT (Up/Down).
 
 2. /nava ch_set <slot 2-7> <nombre> <psk_base64>
    -> Configura y activa un canal secundario en el slot indicado.
    -> Ejemplos:
-      /nava ch_set 2 RedPrivada AQ==         (Clave publica estandar 1 byte)
+      /nava ch_set 2 RedPrivada AQ==           (Clave publica estandar 1 byte)
       /nava ch_set 2 MiMalla K8RUGJsD7u...==   (Clave AES-256 de 32 bytes)
 
 3. /nava ch_del <slot 2-7>
    -> Deshabilita el canal del slot seleccionado y libera la memoria.
 
-4. /nava set_cli_chan <slot 1-7>
+4. /nava ch_url <slot 0-7>
+   -> Genera la URL estandar de Meshtastic ('meshtastic.org/e/#...') para importar el canal en la app del movil con 1 toque.
+
+5. /nava set_cli_chan <slot 1-7>
    -> Redirige la escucha de consultas de NavaCLI y la emision de avisos solares al slot elegido (por defecto: 1).
 
-5. /nava navadmin_mute [on/off]
+6. /nava navadmin_mute [on/off]
    -> 'on': Silencia el Canal 1 (Navadmin); el repetidor ya no responde a consultas publicas ni emite avisos por Navadmin.
    -> 'off': Restaura el comportamiento publico estandar por Canal 1.
 
-6. /nava ch_reset
+7. /nava ch_reset
    -> Orden de rescate: restaura la configuracion de fabrica de canales (Slot 1 Navadmin activo y NavaCLI asignado al Slot 1).
+```
+
+### 🌐 B. Control de Compuerta MQTT por Canal (Uplink / Downlink)
+> **Utilidad**: Permite subir la telemetría del repetidor a internet vía MQTT (`uplink_enabled`) sin saturar el canal de radio LoRa con mensajes entrantes desde internet (`downlink_enabled`), o aislar canales operativos.
+
+```text
+8. /nava ch_mqtt <slot 0-7> [up | down | both | off]
+   -> 'up': Solo subida (los paquetes LoRa se envian a MQTT; nada entra de MQTT a la radio).
+   -> 'down': Solo bajada (los mensajes de internet se retransmiten a la radio).
+   -> 'both': Subida y bajada bidireccional activas.
+   -> 'off': Canal totalmente aislado de la pasarela MQTT.
+```
+
+### 🛰️ C. Funciones Avanzadas de Infraestructura de Montaña (Extras Útiles)
+```text
+9. /nava set_pos <latitud> <longitud> <altitud>
+   -> Fija o corrige las coordenadas GPS estaticas en repetidores de cumbre que no disponen de modulo GPS fisico, posicionandolos en los mapas de cobertura web.
+
+10. /nava set_beacon <minutos>
+   -> Ajusta el intervalo de emision de la baliza de NodeInfo/Posicion (ej. cada 180 min en cumbres aisladas para ahorrar bateria y no saturar el aire, o cada 30 min en eventos).
+
+11. /nava mute [minutos]
+   -> Silenciado temporal de retransmision LoRa (el repetidor no retransmite paquetes ajenos durante X minutos para auditar la cobertura de repetidores vecinos, recuperando el servicio automaticamente).
 ```
 
 ---
