@@ -1,7 +1,7 @@
 # 🛡️ INFORME TÉCNICO DE DOBLE AUDITORÍA CONSOLIDADA
 ## Firmware NavaTastic 4.3.2 V3 & MeshNavarra Utility (v4.3)
 **Fecha:** 16 de Agosto de 2026  
-**Entorno:** Banco de Pruebas de Laboratorio Aislado (869.545 MHz / 1 dBm / Override Duty Cycle) $\rightarrow$ Restaurado a Producción (869.618 MHz / 22 dBm)  
+**Entorno:** Banco de Pruebas de Laboratorio Aislado (869.545 MHz / 1 dBm / Entorno de Atenuación Controlada) $\rightarrow$ Parámetros Oficiales de Producción (869.618 MHz / 22 dBm / SFN Spain)  
 **Hardware Evaluado:**
 * **Nodo Slave (Bajo Prueba / Faketec 1)**: NRF52840 ProMicro DIY (`!3a89ac94` / `!43ca4c27`) con NavaTastic 4.3.2 V3 (`navarrico_faketec_sx1262_r2ig`) conectado por USB al PC (`COM9`).
 * **Nodo Master (Administrador / Faketec 2)**: NRF52840 ProMicro DIY (`!8289015a`) conectado por USB OTG al Xiaomi Mi 10.

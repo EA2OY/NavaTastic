@@ -308,7 +308,7 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **F16e — whitelist canal 1 sin `sleepmsg`** (solo lectura por canal 1; consulta por DM
   PKI — decisión del operador: dejarlo).
 - **F16f — estado del banco (15/08)**: test node Promicro (a7ab507 + diags TEMP) en fuente
-  de laboratorio a 869.545 (override duty cycle ON, clave observador añadida como admin);
+  de laboratorio a 869.545 (potencia atenuada a 1 dBm, clave observador añadida como admin);
   observador Promicro (COM9, Eclipse V1 54e0d8d) a 869.545. Pendiente: `--remove-node` de
   la entrada stale del test node en el observador (clave nueva) + ejecutar el test del
   sueño observando por COM9.

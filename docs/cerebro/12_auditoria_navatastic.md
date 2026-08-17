@@ -34,7 +34,7 @@
 | **`Master`** (Admin / Timonel) | Faketec 2 (HT-RA62) | **USB OTG → Mi 10** | Meshtastic Oficial / NavaTastic Banco | App Meshtastic + MeshNavarra Utility |
 | **Control Remoto Móvil** | Xiaomi Mi 10 | **WiFi ADB (`192.168.3.141:5555`)** | Android 12 / MIUI | `adb shell am broadcast` (`RemoteControlReceiver`) |
 
-- **Banda de aislamiento**: **869.545 MHz** / hop 1 / TX power **1 dBm** / duty-cycle override ON.
+- **Banda de aislamiento**: **869.545 MHz** / hop 1 / TX power **1 dBm** (entorno de atenuación de laboratorio).
 - **Canal 0**: SFNarrow (PSK default `AQ==`).
 - **Canal 1**: Navadmin (PSK pública `{0x01}` = `AQ==`, slot 1 inamovible).
 
@@ -77,13 +77,13 @@ flowchart TD
 - [x] **PASO A (Master en USB - Faketec 2)**: COMPLETADO CON ÉXITO ✅.
   * Node ID: `!8289015a` (`2190016858`) | MAC: `dd:cf:82:89:01:5a`.
   * Clave Pública PKI: `0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`.
-  * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · `override_duty_cycle = true` · Canal 1 `Navadmin` (`AQ==`).
+  * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · Canal 1 `Navadmin` (`AQ==`).
 - [x] **PASO B (Slave en USB - Faketec 1)**: COMPLETADO CON ÉXITO ✅.
   * Firmware Flasheado: NavaTastic 4.3.2 V3 (`navarrico_faketec_sx1262_r2ig`) con DFU upload exitoso (178.33 s) ✅.
   * Node ID: `!3a89ac94` (`982099092`).
   * Clave Pública PKI: `1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=`.
   * Clave Admin inyectada en Slot 0: `0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=` (Clave del Master) ✅.
-  * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · `override_duty_cycle = true` · Canal 1 `Navadmin` (`AQ==`).
+  * Configuración fijada: Frecuencia `869.545 MHz` · TX `1 dBm` · Canal 1 `Navadmin` (`AQ==`).
 - [x] **PASO C (Montaje definitivo y Test de Enlace Radio)**: COMPLETADO CON ÉXITO ✅.
   * Traceroute bidireccional por radio OK:
     `!3a89ac94 --> 8289015a` (12.75 dB) | `8289015a --> !3a89ac94` (11.5 dB).
@@ -138,7 +138,7 @@ flowchart TD
   * Disparo físico del comparador LPCOMP a **`3.77 V`** reales en la fuente de laboratorio $\rightarrow$ Emisión de **`[Listo]`** (`ADC 3771 mV | despierto, cargando, listo para trabajar`) por Canal 1 Navadmin (**desviación de solo 1 mV / 0.02%**) ✅.
 
 ### 🔹 Fase 5: Gran Informe Técnico y Restauración a Producción
-- [x] **Restauración de Nodos**: Ambos nodos (`Slave` y `Master`) reconfigurados a frecuencia oficial `869.618 MHz` / `22 dBm` / `override_duty_cycle = false` ✅.
+- [x] **Restauración de Nodos**: Ambos nodos (`Slave` y `Master`) reconfigurados a frecuencia oficial `869.618 MHz` / `22 dBm` / `SFN Spain` ✅.
 - [x] **Informe Consolidado**: Publicado en [docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) ✅.
 - [x] **Calificación Final**: **26 / 26 CASOS SUPERADOS CON ÉXITO (100% PASS) 🏆**. Dictamen: **APTO PARA DESPLIEGUE EN INFRAESTRUCTURA DE MONTAÑA**.
 
