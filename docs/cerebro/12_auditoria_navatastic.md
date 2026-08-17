@@ -1,8 +1,9 @@
 # 12 — PLAN MAESTRO DE AUDITORÍA Y BANCO DE PRUEBAS (NavaTastic V3)
 
-> **ESTADO 16/08/2026 — VIGENTE**: Especificación canónica para la auditoría y testeo automatizado
-> end-to-end de NavaTastic V3. Topología de banco con dos nodos reales (Faketec) enlazados por LoRa
-> en frecuencia de aislamiento, controlados por PC (USB) y Xiaomi Mi 10 (OTG + ADB WiFi).
+> **ESTADO 17/08/2026 — 100% PASS COMPLETO**: Especificación canónica y resultados de la doble auditoría
+> automatizada end-to-end de NavaTastic V3 y MeshNavarra Utility (26/26 superados).
+> 📘 **Guía Técnica de Procedimiento**: [docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md](../GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md)
+> 📄 **Informe Consolidado**: [docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)
 
 ---
 

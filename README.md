@@ -5,30 +5,46 @@
 <br/>
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
+[![Auditoría](https://img.shields.io/badge/Auditor%C3%ADa-100%25%20PASS-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)
 
 </div>
 
-Firmware **NavaTastic** — fork de [Meshtastic](https://meshtastic.org) v2.7.26 (base `54e0d8d`)
-para **repetidores solares de infraestructura** en malla LoRa **SFNarrow** (preset de uso
-nacional en España, EU_868). Un solo repositorio genera **12 firmwares** distintos.
-
-```
-6 placas/radios × 2 ramas (Routers / Clientes)
-```
+> 🏆 **Certificación y Doble Auditoría 100% PASS (17/08/2026)**:  
+> NavaTastic 4.3.2 V3 ha superado con éxito **26 de 26 pruebas exhaustivas** sobre hardware real en el aire, persistencia criptográfica y simulación de ciclo solar en laboratorio.  
+> 📄 **[Descargar Informe Técnico de Auditoría (PDF)](docs/pdf/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)**
 
 ---
 
-## Qué aporta NavaTastic sobre Meshtastic
+**NavaTastic** es un firmware optimizado y endurecido sobre la base de [Meshtastic](https://meshtastic.org) v2.7.26, diseñado específicamente para **repetidores solares autónomos de alta montaña e infraestructura fija** en la red LoRa de España (**SFNarrow / EU_868**).
 
-| Bloque | Qué hace |
-|---|---|
-| **Resiliencia solar** | Anti-brownout de arranque, despertar por LPCOMP con histéresis, hibernación *storm*, químicas de batería (`lipo/nimh/sodium/lifepo4` según placa), corte y despertar configurables |
-| **Avisos de ciclo de batería** | `[Sueño]` / `[Vivo]` / `[Listo]` / `[Boot]` por el canal Navadmin: el nodo avisa antes de dormir (~1 mA), al despertar por solar/reset, y de cada reinicio con su **causa** (watchdog, ATtiny, soft, brownout...) |
-| **NavaCLI `/nava`** | ~45 comandos de administración remota: telemetría, energía, favoritos, bloqueos, rol semi-permanente, mantenimiento. DM cifrado PKI para acciones críticas; canal Navadmin de solo-lectura |
-| **Protección de Flash** | Base de nodos con guardado filtrado, auto-favoritos de routers directos, desalojo híbrido, historial sin escritura |
-| **Seguridad** | Acreditación admin por PKI persistente tras reboot, auto-recuperación de claves, límite de favoritos huérfanos |
-| **Claves admin persistentes** | Las claves de administración del usuario se guardan en el nodo y **vuelven solas tras un factory/full reset** (`keys_ls`/`keys_clear`); tras un fallo completo (`wipe`/`nrf erase`) se re-inyecta la clave de rescate del proyecto |
-| **Rol semi-permanente** | `set_role` persiste en `/resilience.bin` y **sobrevive al factory reset** |
+Con un solo código fuente genera **12 firmwares listos para usar** (6 tipos de placas/radios en ramas de Routers y Clientes).
+
+---
+
+## 🏔️ Por qué NavaTastic para Repetidores de Montaña
+
+Un repetidor solar instalado en una cumbre aislada no puede fallar. Si se bloquea por una caída de tensión, si quema su memoria flash interna o si pierde su configuración tras un reinicio, exige subir a la montaña a pie para repararlo. 
+
+NavaTastic resuelve de raíz los 4 grandes problemas del firmware estándar:
+
+| Problema en Firmware Oficial | Solución Exclusiva de NavaTastic |
+| :--- | :--- |
+| **Bloqueo de amanecer (*Brownout*)**: Si la batería se agota de noche, la subida lenta de voltaje con los primeros rayos de sol bloquea el microcontrolador en un bucle infinito del que solo sale quitando la pila físicamente. | **Modo de Resiliencia Solar de 5 Estados**: El hardware se apaga por completo (**0.4 mA**) y solo despierta cuando el comparador analógico por hardware (**LPCOMP**) detecta que el sol ha recargado la batería de verdad ($\ge 3.77\text{ V}$). |
+| **Desgaste y muerte de la memoria Flash**: El firmware estándar escribe continuamente en la memoria flash interna cada vez que recibe un paquete o nodo de paso, quemando las celdas de memoria en pocos meses. | **Cero Desgaste de Flash (`NodeDB RAM-Only`)**: La base de datos de nodos opera al 100% en memoria RAM. La memoria flash queda protegida y el repetidor puede operar durante años sin degradarse. |
+| **Mantenimiento obligado con PC o cable**: Para cambiar un canal, rol, potencia o diagnosticar problemas hay que conectarse por Bluetooth al lado del nodo o llevar un portátil con cable USB. | **Administración Remota Total por Radio (`NavaCLI`)**: Más de 45 comandos ejecutables a distancia mediante mensajes de texto cifrados (DM PKI) o con un solo toque desde la app **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
+| **Nodos huérfanos tras un reset**: Si un repetidor sufre un reseteo de configuración, se borran las claves de administración y los canales, quedando inaccesible e inservible en la montaña. | **Blindaje y Persistencia Criptográfica**: Las claves de administración y el canal de rescate se protegen en almacenamiento seguro semi-permanente; sobreviven a cualquier reset de configuración. |
+
+---
+
+## ☀️ Los 5 Estados del Ciclo Solar (Avisos Automáticos)
+
+El repetidor informa a la red de su estado de salud en tiempo real a través del canal Navadmin:
+
+1. **`[Listo]`** ($\ge 3.77\text{ V}$): Recuperación solar completada $\rightarrow$ El nodo anuncia *"despierto, cargando, listo para trabajar"* y opera de forma ininterrumpida.
+2. **`[Vivo]`** ($3.30\text{V} - 3.40\text{ V}$): Batería al límite (Nivel 1) $\rightarrow$ Anuncia *"sigo vivo, al límite de carga"* y opera 160s. Si la batería no remonta, vuelve a dormir.
+3. **`[Critico]`** ($< 3.30\text{ V}$): Capacidad crítica (Nivel 2) $\rightarrow$ Anuncia *"bateria en capacidad critica, operando 160s"* y se apaga limpiamente a **0.4 mA**. Permite al operador monitorizar día a día la rampa de recuperación solar en días nublados.
+4. **`[Sueño]`**: Corte de batería $\rightarrow$ Emite el aviso de despedida con la tensión exacta del ADC y la temperatura del chip, apagando la radio por bus SPI.
+5. **`[Boot]`**: Diagnóstico diferido a los 2 minutos de uptime exactos tras un reinicio en frío $\rightarrow$ Reporta la causa hardware del reinicio (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) y la versión `NAVA V3`. El retardo de 2 min actúa como anti-bucle de malla.
 
 ## NavaCLI: gestiona todo desde el móvil, sin PC
 
