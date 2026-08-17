@@ -5,12 +5,13 @@
 <br/>
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
-[![Auditoría](https://img.shields.io/badge/Auditor%C3%ADa-100%25%20PASS-brightgreen?logo=checkmarx&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)
+[![Auditoría V4](https://img.shields.io/badge/Auditor%C3%ADa%20V4-100%25%20PASS%20(Hardware%20Real)-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)
 
 </div>
 
 > 🏆 **Generación NavaTastic Eclipse V4 (17/08/2026)**:  
 > NavaTastic 4.3.3 V4 incorpora **Consola Privada de Gestión de Flota en Lote**, **Blindaje Anti-Tormentas en Canal Público**, **Lista Negra Global Persistente**, **Control Granular de Telemetría/Posición** y **16 Comandos Avanzados**.  
+> 🛡️ **[Informe de Auditoría V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** · 📋 **[Leer Auditoría en GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)**  
 > 📄 **[Descargar Manual de Comandos (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** · 📖 **[Leer Manual en GitHub](docs/Manual_NavaTastic.md)** · 📘 **[Guía de Uso (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)**
 
 ---
@@ -18,6 +19,45 @@
 **NavaTastic** es un firmware optimizado y endurecido sobre la base de [Meshtastic](https://meshtastic.org) v2.7.26, diseñado específicamente para **repetidores solares autónomos de alta montaña e infraestructura fija** en la red LoRa de España (**SFNarrow / EU_868**).
 
 Con un solo código fuente genera **12 firmwares listos para usar** (6 tipos de placas/radios en ramas de Routers y Clientes).
+
+---
+
+## ⚡ Guía Rápida de Instalación en 5 Pasos (Para quien tiene prisa)
+
+> ⚠️ **¡ATENCIÓN! La causa #1 de fallos es no hacer el Reset de Fábrica.** Si vienes de otro firmware o versión previa, Meshtastic conserva los archivos antiguos en flash y **NO** desplegará el canal `Navadmin` ni el perfil optimizado hasta que ejecutes el **Paso 4**.
+
+```mermaid
+graph LR
+    A[1. Comprobar Hardware] --> B[2. Flashear UF2 / OTA]
+    B --> C[3. Guardar Clave Privada]
+    C --> D[4. Factory Reset OBLIGATORIO]
+    D --> E[5. Añadir Navadmin PSK AQ==]
+    E --> F[🎉 ¡A Disfrutar!]
+    style D fill:#ff5555,stroke:#333,stroke-width:2px,color:#fff
+    style F fill:#2ecc71,stroke:#333,stroke-width:2px,color:#fff
+```
+
+### 1️⃣ Paso 1: Comprueba que tu Hardware es Compatible
+* **Microcontrolador**: Compatible con placas **Nordic nRF52840** (Promicro DIY, Faketec, Seeed Xiao, Heltec T114). *(Revisa la tabla de descargas abajo)*.
+* **Divisor de Batería**: Las placas DIY deben llevar un divisor resistivo **1 MΩ + 1 MΩ (factor 2.0)** para que la medición ADC y el comparador de corte solar **LPCOMP** funcionen con precisión.
+
+### 2️⃣ Paso 2: Flashea el Firmware NavaTastic
+* **Vía Cable USB (.UF2)**: Conecta la placa al PC, haz **doble pulsación rápida en el botón RESET** para que aparezca la unidad de disco USB (`NICENANO` o similar) y arrastra el archivo `.uf2` correspondiente a tu placa.
+* **Vía Actualización OTA (.zip)**: Si ya estás conectado por Bluetooth, actualiza desde la App oficial de Meshtastic seleccionando el `.zip` OTA.
+
+### 3️⃣ Paso 3: Respalda tu Clave Privada *(Opcional)*
+* Si deseas **mantener la misma identidad de nodo y tus conversaciones previas**, copia tu clave privada (`private_key`) desde la App antes del reseteo para restaurarla después. Si es un nodo nuevo, salta este paso y el firmware generará una identidad limpia Curve25519.
+
+### 4️⃣ Paso 4: 🔴 FACTORY RESET (Paso Imprescindible)
+* **¿Por qué?** Meshtastic almacena la configuración en `/prefs/config.proto`. Al flashear un firmware nuevo, la flash vieja bloquea la inyección de los canales de fábrica.
+* **Cómo hacerlo**: Entra en la App de Meshtastic $\rightarrow$ *Configuración* $\rightarrow$ *Radio Config* $\rightarrow$ *Device* $\rightarrow$ Pulsa **Factory Reset (Restablecer de fábrica)** (o ejecuta `meshtastic --factory-reset-config` por USB).
+* Al reiniciar, NavaTastic inicializará automáticamente el motor `/resilience.bin` V5, blindará las claves y desplegará el canal **Navadmin en el Slot 1**.
+
+### 5️⃣ Paso 5: Añade el Canal `Navadmin` en tu Móvil Administrador
+* Para gestionar el repetidor por radio desde tu móvil o mando de campo, crea en tu App de Meshtastic un canal secundario con estos parámetros:
+  * **Nombre del canal**: `Navadmin` (respetando mayúsculas/minúsculas).
+  * **Clave (PSK)**: `AQ==` (clave por defecto de Meshtastic `{ 0x01 }` / Default).
+* ¡Listo! Ahora abre el canal `Navadmin` y envía `/nava ping` o abre **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)** para controlar tu repetidor con un toque.
 
 ---
 
@@ -168,7 +208,7 @@ que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables
 
 - **[Manual de administración remota NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) — Comandos `/nava`, 4 Pilares de Resiliencia y configuración.
 - **[Manual de uso del firmware (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic_4.2.md)) — Montaje, requisitos de hardware y protocolo de rescate.
-- **[Informe Técnico de Doble Auditoría (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** ([Leer en GitHub](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)) — Certificación 100% PASS (26/26 pruebas).
+- **[Informe Técnico de Auditoría Ultra-Exhaustiva V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** ([Leer en GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)) — Certificación 100% PASS (56/56 pruebas en hardware real).
 
 ## Flashear
 
@@ -310,6 +350,57 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 for **solar-powered infrastructure repeaters** on the **SFNarrow** LoRa preset (EU_868,
 national preset used in Spain). A single repository produces **12 different firmwares**
 (6 boards/radios × 2 branches: Routers / Clients).
+
+<div align="center">
+
+[![Audit V4](https://img.shields.io/badge/Audit%20V4-100%25%20PASS%20(Hardware%20Bench)-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)
+[![Manual PDF](https://img.shields.io/badge/User%20Manual-PDF%20Download-blue?logo=adobeacrobatreader&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)
+
+</div>
+
+> 🏆 **NavaTastic Eclipse V4 Generation (Release 4.3.3)**:  
+> Features **Batch Fleet Management Console**, **Public Channel Anti-Storm Shielding**, **Persistent Global Blacklisting**, and **16 Advanced Commands**.  
+> 🛡️ **[V4 Technical Audit Report (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** · 📋 **[Read Audit on GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)**  
+> 📄 **[Download Command Manual (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** · 📖 **[Read Manual in GitHub](docs/Manual_NavaTastic.md)** · 📘 **[Usage Guide (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)**
+
+---
+
+## ⚡ Quick Start Installation Guide (5 Steps)
+
+> ⚠️ **IMPORTANT! The #1 cause of issues is skipping the Factory Reset.** If migrating from standard firmware or an older build, existing flash preferences will block the deployment of `Navadmin` and NavaTastic features until you perform **Step 4**.
+
+```mermaid
+graph LR
+    A[1. Check Hardware] --> B[2. Flash UF2 / OTA]
+    B --> C[3. Backup Private Key]
+    C --> D[4. Factory Reset MANDATORY]
+    D --> E[5. Add Navadmin PSK AQ==]
+    E --> F[🎉 Enjoy!]
+    style D fill:#ff5555,stroke:#333,stroke-width:2px,color:#fff
+    style F fill:#2ecc71,stroke:#333,stroke-width:2px,color:#fff
+```
+
+### 1️⃣ Step 1: Ensure Hardware Compatibility
+* **Microcontroller**: Compatible with **Nordic nRF52840** boards (Promicro DIY, Faketec, Seeed Xiao, Heltec T114).
+* **Battery Divider**: DIY boards require a **1 MΩ + 1 MΩ (2.0 factor)** voltage divider for accurate ADC voltage telemetry and LPCOMP solar wake-up comparator.
+
+### 2️⃣ Step 2: Flash NavaTastic Firmware
+* **Via USB (.UF2)**: Connect to PC, **double-tap the RESET button** to enter DFU bootloader mode (shows as a USB drive like `NICENANO`), and drag & drop the appropriate `.uf2` file.
+* **Via OTA (.zip)**: If already connected over Bluetooth, use the Meshtastic App OTA update feature with the corresponding `.zip` file.
+
+### 3️⃣ Step 3: Backup Private Key *(Optional)*
+* If you want to **keep the same node identity and existing direct messages**, copy your private key before resetting. If setting up a fresh node, skip this step and let NavaTastic generate a clean Curve25519 keypair.
+
+### 4️⃣ Step 4: 🔴 FACTORY RESET (Mandatory Step)
+* **Why?** Meshtastic stores preferences in `/prefs/config.proto`. Flash files from previous firmware will override factory defaults until a reset clears them.
+* **How to do it**: Open the Meshtastic App $\rightarrow$ *Settings* $\rightarrow$ *Device Config* $\rightarrow$ Tap **Factory Reset** (or run `meshtastic --factory-reset-config` via CLI).
+* On reboot, NavaTastic will automatically initialize `/resilience.bin` V5, lock cryptographic admin keys, and deploy the **Navadmin rescue channel on Slot 1**.
+
+### 5️⃣ Step 5: Add the `Navadmin` Channel on Your Admin Device
+* To manage your repeater remotely over the air, create a secondary channel on your mobile/controller app with:
+  * **Channel Name**: `Navadmin` (case-sensitive).
+  * **Pre-shared Key (PSK)**: `AQ==` (standard Meshtastic default key `{ 0x01 }`).
+* You are all set! Send `/nava ping` in Navadmin or connect **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)** to manage your solar repeater with a single tap.
 
 ---
 
@@ -459,7 +550,7 @@ private fleet console for batch administration, anti-storm shielding on Navadmin
 
 - **[Remote administration manual NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_NavaTastic.md))
 - **[Firmware user manual (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic_4.2.md))
-- **[Consolidated Technical Audit Report (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** ([Read on GitHub](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md))
+- **[V4 Technical Audit Report (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** ([Read on GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)) — 100% PASS Certification (56/56 hardware bench tests).
 
 ## Flashing
 

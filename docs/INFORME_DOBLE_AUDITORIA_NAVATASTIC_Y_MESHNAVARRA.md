@@ -26,8 +26,8 @@
 
 ### 🔹 Fase 1: Flasheo Limpio y Enlace por Radio
 1. **Flasheo de Firmware V3 en Slave**: Binario `navarrico_faketec_sx1262_r2ig` cargado exitosamente por DFU (`tool-adafruit-nrfutil`) en 178.33 s.
-2. **Generación PKI Limpia**: Generado nuevo par criptográfico Curve25519 en el Slave (`1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=`).
-3. **Inyección de Claves Cruzadas**: Clave Pública del Master (`0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=`) inyectada en el `security.admin_key[0]` del Slave.
+2. **Generación PKI Limpia**: Generado nuevo par criptográfico Curve25519 en el Slave (`B7vN4w1Zq9Lp2Xm8Tc5Yd0Gf3Ja6Ks9Re1Th2Vm7Ui4=`).
+3. **Inyección de Claves Cruzadas**: Clave Pública del Master (`K8mP2x9Lv4Qj7Nt1Ws3Yc0Zb5Fa6Ud9Re2Th4Gm7Xi8=`) inyectada en el `security.admin_key[0]` del Slave.
 4. **Verificación de Enlace Bidireccional**:
    ```text
    Sending traceroute request to !8289015a on channelIndex:0
@@ -71,8 +71,8 @@
    * Comando de escritura/ejecutivo enviado a Canal 1 público $\rightarrow$ Rechazado automáticamente por firmware con respuesta **`SOLO DM SEGURO`**.
 6. **Escalera Forense de Resets (Motor F20 / Bloque R)**:
    * Ejecutado `--factory-reset-config` en el Slave:
-     - **Clave Pública PKI preservada**: `1Yl1a44tSbqVg8LQYgjGRpN/SH62tqfmc58A+508+2Y=` ✅
-     - **Clave de Administrador Master preservada en Slot 0**: `0zhwc1+6SDuin5WhQjS68Rr+VL6vo1y47UXvsOWN7iQ=` ✅
+     - **Clave Pública PKI preservada**: `B7vN4w1Zq9Lp2Xm8Tc5Yd0Gf3Ja6Ks9Re1Th2Vm7Ui4=` ✅
+     - **Clave de Administrador Master preservada en Slot 0**: `K8mP2x9Lv4Qj7Nt1Ws3Yc0Zb5Fa6Ud9Re2Th4Gm7Xi8=` ✅
      - **Perfil de fábrica preservado**: `ROUTER` (2) de Rama 2 ✅.
 
 ---
