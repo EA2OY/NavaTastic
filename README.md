@@ -120,16 +120,16 @@ Para **compilar con otra química como default**: añade al perfil del env
 NiMH = 3400, LiFePO4 = 2800) antes de `pio run`. El resto (umbral de despertar, curvas OCV) se
 adapta con los comandos `set_chem` / `set_vbat` / `set_vwake` ya en el nodo.
 
-## Los 12 builds
+## Los 12 builds (Descargas Directas v4.3.3)
 
-| Placa | Radio | Rama 2 (Routers) | Rama 1 (Clientes) |
+| Placa / Hardware | Radio | Rama 2: ROUTER (Repetidores Fijos) | Rama 1: CLIENTE (Convertible a Router) |
 |---|---|---|---|
-| Promicro nRF52840 + E22P | E22P (12 dBm) | `navarrico_promicro_e22p_r2ig` | `navarrico_promicro_e22p_r1ig` |
-| Promicro/Faketec + HT-RA62 | SX1262 (22 dBm) | `navarrico_faketec_sx1262_r2ig` | `navarrico_faketec_sx1262_r1ig` |
-| Seeed Solar Node P1 | SX1262 (22 dBm) | `navarrico_seed_sx1262_r2ig` | `navarrico_seed_sx1262_r1ig` |
-| Heltec T114 | SX1262 (22 dBm) | `navarrico_t114_sx1262_r2ig` | `navarrico_t114_sx1262_r1ig` |
-| Xiao nRF52840 Kit | SX1262 (22 dBm) | `navarrico_xiao_kit_sx1262_r2ig` | `navarrico_xiao_kit_sx1262_r1ig` |
-| Xiao nRF52840 Kit + E22P | E22P (12 dBm) | `navarrico_xiao_e22p_r2ig` | `navarrico_xiao_e22p_r1ig` |
+| **Promicro nRF52 + E22P** | E22P (12 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Promicro_NRF52_E22P_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Promicro_NRF52_E22P_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Promicro_NRF52_E22P_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Promicro_NRF52_E22P_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Promicro / Faketec HT-RA62** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Faketec_SX1262_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Faketec_SX1262_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Faketec_SX1262_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Faketec_SX1262_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Seeed Solar Node P1** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Seed_Solar_Node_P1_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Seed_Solar_Node_P1_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Seed_Solar_Node_P1_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Seed_Solar_Node_P1_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Heltec T114** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Heltec_T114_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Heltec_T114_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Heltec_T114_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Heltec_T114_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Xiao nRF52840 Kit** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Xiao nRF52840 Kit + E22P** | E22P (12 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_E22P_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_E22P_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_E22P_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_E22P_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
 
 Diferencias declaradas por env/perfil (nunca editando código): potencia TX, curvas OCV y
 LPCOMP por placa, rol por rama, claves admin y Bluetooth por perfil (`profiles/*.jsonc`).
@@ -154,24 +154,21 @@ firmware puede tener... "un poquito de sueño".*
 
 ## Descargas (firmware compilado)
 
-Última versión: **NavaTastic Eclipse V3 (4.3.2 — fw 2.7.26.f12f833, 17/08/2026)** — etiqueta `NAVA V3` en `status`/[Boot],
-avisos de ciclo solar de 5 estados con diagnóstico de causa, 8 lecturas de batería baja (~160s) antes del reposo a 0.4 mA, resets
-remotos `/nava full_reset` (conserva la identidad del nodo y sus claves admin) y `/nava wipe` (purga total e identidad nueva),
-y **claves admin del usuario persistidas** (sobreviven a factory/full reset; regla "slot 0 =
-estado previo del usuario"; `keys_ls`/`keys_clear`).
+Última versión: **NavaTastic Eclipse V4 (4.3.3 — 17/08/2026)** — etiqueta `NAVA V4` en `status`/[Boot],
+consola privada de gestión de flota en lote, blindaje anti-tormentas en Navadmin, escudo anti-tormentas de NodeInfo al arranque,
+resiliencia solar de 5 estados con 0.4 mA en reposo, lista negra persistente `/nava ign`, y **claves admin del usuario persistidas** en `/resilience.bin` V5 (`NAV5`).
 
 **Descarga los binarios desde [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
-(panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 4 documentos y manuales PDF. NIMH = mismos binarios
+(panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 3 documentos y manuales oficiales PDF. NIMH = mismos binarios
 que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables en
 [`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
 `UF2`/`OTA`).
 
 ### Manuales y Documentación Técnica (PDF descargable y lectura online)
 
-- **[Manual de administración remota NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) — Comandos `/nava`, 4 Pilares de Resiliencia y configuración.
-- **[Manual de uso del firmware (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/Manual_uso_NavaTastic_4.2.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic_4.2.md)) — Montaje, requisitos de hardware y protocolo de rescate.
-- **[Informe Técnico de Doble Auditoría (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** ([Leer en GitHub](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)) — Certificación 100% PASS (26/26 pruebas).
-- **[Guía Maestra de Procedimiento de Auditoría (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.pdf)** ([Leer en GitHub](docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md)) — Manual de laboratorio.
+- **[Manual de administración remota NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) — Comandos `/nava`, 4 Pilares de Resiliencia y configuración.
+- **[Manual de uso del firmware (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic_4.2.md)) — Montaje, requisitos de hardware y protocolo de rescate.
+- **[Informe Técnico de Doble Auditoría (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** ([Leer en GitHub](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)) — Certificación 100% PASS (26/26 pruebas).
 
 ## Flashear
 
@@ -343,16 +340,16 @@ The repeater broadcasts its health in real-time over the Navadmin channel:
 4. **`[Sueno]`**: Battery cutoff $\rightarrow$ Sends a goodbye notice with exact ADC voltage and CPU temperature, then powers down the SX1262 LoRa radio via SPI.
 5. **`[Boot]`**: Deferred 2-minute diagnostic notice after cold boots $\rightarrow$ Reports the exact hardware reset cause (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) and the `NAVA V4` tag. The 2-min delay prevents mesh loop floods.
 
-## The 12 builds
+## The 12 builds (Direct Downloads v4.3.3)
 
-| Board | Radio | Branch 2 (Routers) | Branch 1 (Clients) |
+| Board / Hardware | Radio | Branch 2: ROUTER (Fixed Repeaters) | Branch 1: CLIENT (Convertible to Router) |
 |---|---|---|---|
-| Promicro nRF52840 + E22P | E22P (12 dBm) | `navarrico_promicro_e22p_r2ig` | `navarrico_promicro_e22p_r1ig` |
-| Promicro/Faketec + HT-RA62 | SX1262 (22 dBm) | `navarrico_faketec_sx1262_r2ig` | `navarrico_faketec_sx1262_r1ig` |
-| Seeed Solar Node P1 | SX1262 (22 dBm) | `navarrico_seed_sx1262_r2ig` | `navarrico_seed_sx1262_r1ig` |
-| Heltec T114 | SX1262 (22 dBm) | `navarrico_t114_sx1262_r2ig` | `navarrico_t114_sx1262_r1ig` |
-| Xiao nRF52840 Kit | SX1262 (22 dBm) | `navarrico_xiao_kit_sx1262_r2ig` | `navarrico_xiao_kit_sx1262_r1ig` |
-| Xiao nRF52840 Kit + E22P | E22P (12 dBm) | `navarrico_xiao_e22p_r2ig` | `navarrico_xiao_e22p_r1ig` |
+| **Promicro nRF52 + E22P** | E22P (12 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Promicro_NRF52_E22P_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Promicro_NRF52_E22P_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Promicro_NRF52_E22P_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Promicro_NRF52_E22P_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Promicro / Faketec HT-RA62** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Faketec_SX1262_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Faketec_SX1262_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Faketec_SX1262_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Faketec_SX1262_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Seeed Solar Node P1** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Seed_Solar_Node_P1_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Seed_Solar_Node_P1_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Seed_Solar_Node_P1_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Seed_Solar_Node_P1_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Heltec T114** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Heltec_T114_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Heltec_T114_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Heltec_T114_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Heltec_T114_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Xiao nRF52840 Kit** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
+| **Xiao nRF52840 Kit + E22P** | E22P (12 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_E22P_ROUTER_Repetidor_Fijo_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_E22P_ROUTER_Repetidor_Fijo_NavTastic_4.3.3_OTA.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_E22P_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/XiaoKitI2c_E22P_CLIENTE_convertible_a_ROUTER_NavTastic_4.3.3_OTA.zip) |
 
 Differences are declared per env/profile (never by editing code): TX power, OCV curves and
 LPCOMP per board, role per branch, admin keys and Bluetooth per profile (`profiles/*.jsonc`).
@@ -448,23 +445,21 @@ added, the firmware might get... "a little sleepy".*
 
 ## Downloads (compiled firmware)
 
-Latest release: **NavaTastic Eclipse V3 (4.3.2 — fw 2.7.26.f12f833, 17/08/2026)** — `NAVA V3` tag in `status`/[Boot],
-5-state solar resilience notices with hardware reset causes, unified 8 low-battery readings (~160s) before 0.4 mA sleep, remote
-resets `/nava full_reset` (preserves node identity and admin keys) and `/nava wipe` (total purge, fresh identity),
-and **persisted user admin keys** (survive factory/full reset; "slot 0 = previous user state" rule; `keys_ls`/`keys_clear`).
+Latest release: **NavaTastic Eclipse V4 (4.3.3 — 17/08/2026)** — `NAVA V4` tag in `status`/[Boot],
+private fleet console for batch administration, anti-storm shielding on Navadmin, startup NodeInfo anti-storm shield,
+5-state solar resilience notices with 0.4 mA sleep, persistent blacklist `/nava ign`, and **persisted user admin keys** in `/resilience.bin` V5 (`NAV5`).
 
 **Download the binaries from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
-(right-hand panel — *Assets*): 12 UF2 + 12 OTA + 4 PDF documents and manuals. NIMH = same binaries as LIPO
+(right-hand panel — *Assets*): 12 UF2 + 12 OTA + 3 official PDF manuals and documents. NIMH = same binaries as LIPO
 (Faketec and XiaoKitI2c only). The same files are browsable under
 [`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
 `UF2`/`OTA`).
 
 ### Manuals and Technical Documentation (PDF download and online reading)
 
-- **[Remote administration manual NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/Manual_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_NavaTastic.md))
-- **[Firmware user manual (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/Manual_uso_NavaTastic_4.2.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic_4.2.md))
-- **[Consolidated Technical Audit Report (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** ([Read on GitHub](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md))
-- **[Master Audit Procedure Guide (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.pdf)** ([Read on GitHub](docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md))
+- **[Remote administration manual NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_NavaTastic.md))
+- **[Firmware user manual (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic_4.2.md))
+- **[Consolidated Technical Audit Report (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** ([Read on GitHub](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md))
 
 ## Flashing
 
