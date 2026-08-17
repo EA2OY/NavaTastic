@@ -346,12 +346,14 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
 4. docs\cerebro\cerebro.md (índice global y notas 01 a 13).
 5. docs\cerebro\12_auditoria_navatastic.md (Plan Maestro de Auditoría de 65 Casos).
 6. docs\Manual_NavaTastic.md (catálogo completo de comandos /nava vigentes).
+7. docs\Manual_uso_NavaTastic.md (manual de uso, montaje de hardware y resiliencia).
 
-🎯 ESTADO ACTUAL: AUDITORÍA ULTRA-EXHAUSTIVA V4 FINALIZADA AL 100% (100% PASS)
+🎯 ESTADO ACTUAL: AUDITORÍA ULTRA-EXHAUSTIVA V4 FINALIZADA AL 100% (100% PASS) Y PUBLICADA EN GITHUB
 - Matriz completa de 65 casos de prueba de docs\cerebro\12_auditoria_navatastic.md ejecutada en banco físico.
 - Nodo Slave (Faketec HT-RA62 !43ca4c27) y Master (Faketec HT-RA62 !8289015a) validados en 869.545 MHz / 1 dBm.
-- Sincronización cruzada bidireccional, persistencia /resilience.bin tras soft reboot, aviso [Boot] y blindajes de seguridad verificados al 100% sin una sola desincronización.
-- CERO MODIFICACIONES DE CÓDIGO NECESARIAS: El firmware NavaTastic V4 (4.3.3) es 100% robusto y estable.
+- Sincronización cruzada bidireccional, persistencia /resilience.bin tras soft reboot, aviso [Boot] y blindajes de seguridad verificados al 100%.
+- Portada README.md actualizada con Guía Rápida de 5 Pasos y enlaces a los manuales oficiales (PDFs y Markdown).
+- Repositorio publicado y sincronizado en https://github.com/EA2OY/NavaTastic (rama main).
 ================================================================================
 
 ```

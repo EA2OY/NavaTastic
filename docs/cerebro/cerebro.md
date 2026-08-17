@@ -797,6 +797,10 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   - **Análisis Forense del Switch Bluetooth**: Documentado por qué el switch BLE en la App oficial se restaura por seguridad en el arranque (el watchdog de `/resilience.bin` previene nodos huérfanos si `prefs.ble_disabled == 0`) y cómo `/nava ble off` realiza el apagado permanente y persistente en montaña.
   - **Sanitización Rigurosa de Claves**: Sustituidas todas las claves reales por claves dummy estándar de 44 caracteres Base64 diferenciadas por rol (Master: `K8mP2x9Lv4Qj7Nt1Ws3Yc0Zb5Fa6Ud9Re2Th4Gm7Xi8=`, Slave: `B7vN4w1Zq9Lp2Xm8Tc5Yd0Gf3Ja6Ks9Re1Th2Vm7Ui4=`, Rescate: `R3k9Qm2Wp8Xz4Vb7Nc1Yf0Ld6Ja5Ts8Ue2Gh4Pm9Xi1=`).
   - **Documentación y PDF Oficial**: Generados el informe técnico [docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md](file:///c:/NavaTastic%20Codigo%20completo/docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md) y el PDF profesional [docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf](file:///c:/NavaTastic%20Codigo%20completo/docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf).
+  - **Guía Rápida en 5 Pasos en Portada `README.md`**: Integrada en la portada (español e inglés) con diagrama Mermaid, alertas visuales destacadas del Factory Reset (Paso 4 imprescindible) y canal Navadmin (PSK `AQ==`).
+  - **Renombrado Canónico de Manuales**: `Manual_uso_NavaTastic_4.2.md` renombrado a `Manual_uso_NavaTastic.md` (eliminando el sufijo histórico obsoleto) y recompilado a `Manual_uso_NavaTastic.pdf` (2.42 MB).
+  - **Sincronización Total en GitHub (`EA2OY/NavaTastic:main`)**: Publicado con éxito el árbol saneado mediante el flujo seguro de rama huérfana (`github-public:main`), quedando la portada, manuales y PDFs inmediatamente accesibles para la comunidad.
+
 
 
 

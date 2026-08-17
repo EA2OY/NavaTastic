@@ -1136,5 +1136,12 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   - Sustituidas todas las claves por claves Base64 realistas de 44 caracteres (`K8mP2x9Lv...`, `B7vN4w1Zq...`, `R3k9Qm2Wp...`).
 - **Generación de Documentación y PDF Oficial**:
   - Compilados [docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md](file:///c:/NavaTastic%20Codigo%20completo/docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md) y [docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf](file:///c:/NavaTastic%20Codigo%20completo/docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf) mediante Pandoc y XeLaTeX con la plantilla y branding oficial de NavaTastic.
+- **Guía Rápida de Instalación en 5 Pasos en `README.md`**:
+  - Incorporada en portada (bilingüe ES/EN) con diagrama de flujo Mermaid y llamada de atención para no omitir el *Factory Reset (Paso 4)* y el canal *Navadmin* con PSK `AQ==`.
+- **Renombrado Canónico de `Manual_uso_NavaTastic.md`**:
+  - Eliminado el sufijo `_4.2` en `docs/Manual_uso_NavaTastic_4.2.md` $\rightarrow$ `docs/Manual_uso_NavaTastic.md` y recompilado `docs/pdf/Manual_uso_NavaTastic.pdf`.
+- **Sincronización en Producción en GitHub**:
+  - Publicado el árbol saneado a `https://github.com/EA2OY/NavaTastic` (`main`) mediante rama huérfana limpia `github-public`.
+
 
 
