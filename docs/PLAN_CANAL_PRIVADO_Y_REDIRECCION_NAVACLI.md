@@ -144,6 +144,22 @@ Todos estos comandos se ejecutarían **exclusivamente por Mensaje Directo Privad
     -> Muestra las últimas 10-15 líneas del ring-buffer circular de eventos en memoria RAM (transiciones solares, picos de corriente, caídas de tensión) para diagnóstico remoto sin cables.
 ```
 
+### 📋 D. Matriz de Persistencia de Parámetros F21 (Semi-Persistencia vs RAM)
+
+| Parámetro / Comando | Destino de Almacenamiento | Comportamiento tras Factory Reset |
+| :--- | :---: | :--- |
+| **Canal Asignado a NavaCLI (`/nava set_cli_chan`)** | `/resilience.bin` (Semi-Permanente) | **Sobrevive**: El nodo vuelve con NavaCLI apuntando a ese slot. |
+| **Silencio de Navadmin (`/nava navadmin_mute`)** | `/resilience.bin` (Semi-Permanente) | **Sobrevive**: El canal público 1 permanece silenciado si estaba en `on`. |
+| **Canal Secundario Creado (`/nava ch_set`)** | `/resilience.bin` (Semi-Permanente) | **Sobrevive**: Se recrea automáticamente con su nombre y clave PSK. |
+| **Compuerta MQTT por Canal (`/nava ch_mqtt`)** | `/resilience.bin` (Semi-Permanente) | **Sobrevive**: La política Up/Down de cada canal se restaura. |
+| **Permiso OK to MQTT (`/nava set_ok_to_mqtt`)** | `/resilience.bin` (Semi-Permanente) | **Sobrevive**: La autorización a pasarelas permanece activa. |
+| **PIN Bluetooth Remoto (`/nava set_pin`)** | `/resilience.bin` (Semi-Permanente) | **Sobrevive**: El PIN de 6 dígitos no se pierde tras un reset. |
+| **Posición Fija sin GPS (`/nava set_pos`)** | `/resilience.bin` (Semi-Permanente) | **Sobrevive**: Las coordenadas fijas de la cumbre se restauran. |
+| **Cadencia de Baliza (`/nava set_beacon`)** | `/resilience.bin` (Semi-Permanente) | **Sobrevive**: El intervalo configurado en minutos se mantiene. |
+| **Modo Silencioso Temporal (`/nava mute [min]`)** | **100% Volátil en RAM** | **Se limpia**: Si se reinicia, el nodo recupera el servicio normal. |
+| **Métricas y Picos (`/nava stats`)** | **100% Volátil en RAM** | **Se limpia**: Cero escrituras en Flash (vida útil infinita). |
+| **Buffer Forense de Eventos (`/nava log`)** | **100% Volátil en RAM** | **Se limpia**: Ring-buffer en RAM, cero desgaste de Flash. |
+
 ---
 
 ## 📅 5. Plan de Ejecución por Fases (Estimación Técnica)
