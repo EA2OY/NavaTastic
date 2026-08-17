@@ -301,16 +301,25 @@ REGLAS Y TRAMPAS VIGENTES:
       * **Documentación & Certificación**: Creada `GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md`, informe consolidado de auditoría, 4 PDFs compilados y `README.md` naturalizado y simétrico en ES/EN.
       * **Compilación y Publicación**: 12/12 variantes compiladas con **`fw 2.7.26.f12f833`**; 28 assets publicados en GitHub Release `v4.3.2` y rama `main` actualizada.
 
-- [x] **DISEÑO Y ESTUDIO DE VIABILIDAD DEL FRENTE F21 (17/08)**:
-      * **Plan de Trabajo F21**: Documentado en [docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md](docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md).
-      * **Estudio Exhaustivo de Dependencias**: Auditados `Channels.cpp`, `CryptoEngine.cpp`, `NavaCLIModule.cpp/.h`, `Router.cpp`, `MQTT.cpp`, `Power.cpp` y `main.cpp`.
-      * **Garantía de Cero Regresiones**: Mandato estricto de integridad documentado. Regla de oro de **CERO DESGASTE DE FLASH (RAM-Only)** para `stats` y `log`.
-      * **Migración Atómica**: Diseñada la estructura `ResiliencePrefs` V4 (`NAV4` / `0x4E415634`) para retrocompatibilidad total sin pérdida de claves ni roles.
-      * **Snapshot Completo de Rollback**: Generado `_archivo\SNAPSHOT_COMPLETO_PRE_F21_20260817_0423.zip` (11.39 MB) con el árbol completo de código C++, variantes, profiles y herramientas para reversión instantánea 100% segura.
+- [x] **IMPLEMENTACIÓN Y VERIFICACIÓN COMPLETA DEL FRENTE F21 (17/08)**:
+      * **16 Comandos Implementados**: `ch_ls`, `ch_set`, `ch_del`, `ch_url`, `set_cli_chan`, `navadmin_mute`, `ch_reset`, `ch_mqtt`, `set_ok_to_mqtt`, `set_pos`, `set_beacon`, `mute`, `set_pin`, `stats`, `test_tx`, `log`.
+      * **Cero Desgaste de Flash**: `stats`, `log`, `mute` y `test_tx` operan de forma 100% volátil en memoria RAM sin llamadas a LittleFS.
+      * **Persistencia Atómica V4 (`NAV4`)**: Migración automática y sin pérdidas de `/resilience.bin` preservando claves de admin y roles.
+      * **Compilación 12/12 SUCCESS**: Verificación completa con `build.ps1` (22m 11s) para los 12 entornos.
+      * **Distribución y Manuales**: 32 binarios generados en `distribucion\` con `distribuir.ps1 -Todo` y 5 PDFs generados con `generar_pdf.ps1`.
+      * **Prueba en Banco Físico Faketec Slave (`COM9`) + Master Mi 10 (`192.168.3.141:5555`)**: Flasheo DFU exitoso, enlace LoRa bidireccional probado (`rxSNR=12.25`, `rxRSSI=-29`) y respuestas de `ch_ls`, `stats` y `log` verificadas sobre el aire.
+
+- [x] **AMPLIACIÓN F22: CONSOLA DE FLOTA EN LOTE, BLINDAJE ANTI-TORMENTAS Y GENERACIÓN NAVA V4 (17/08)**:
+      * **Blindaje Anti-Tormentas en Canal Público**: En broadcast no dirigido solo responden 7 comandos ligeros (`ping`, `status`, `bat`, `power`, `env`, `channel`, `noise`) en 1 línea con jitter escalonado; `/nava help` general y comandos no permitidos se silencian para evitar saturación de la malla LoRa.
+      * **Consola Privada de Gestión de Flota en Lote**: Redirigiendo la CLI a slots 2..7 (`set_cli_chan <2-7>`), el operador puede lanzar órdenes en lote a toda la red con un solo mensaje (`set_ok_to_mqtt`, `set_pos_tx`, `set_nodeinfo_tx`, `set_telem_tx`, `ign add/del/clear/ls`, `set_beacon`, `set_tz`, `set_chem`, `mute`, `test_tx`, `db_purge`, `nodeinfo`, `pos`, `sendtel`).
+      * **Lista Negra Global Persistente**: `ign add/del/clear/ls` respaldado en `/resilience.bin` V5 (NAV5) y descarte inmediato de paquetes en `Router.cpp`.
+      * **Control de Difusión de Posición/Telemetría**: Nuevos comandos `set_pos_tx`, `set_nodeinfo_tx`, `set_telem_tx`, `pos_clear`.
+      * **Generación NAVA V4**: Versión incrementada en firmware (`NAVATASTIC_BUILD "V4"` y `NAVS_RESILIENCE_VERSION = 0x4E415635`).
+      * **Compilación y Distribución 12/12 SUCCESS**: 12 entornos compilados limpiamente y 32 binarios generados en `distribucion\`.
 
 ```
 ================================================================================
-PROMPT DE APERTURA / HANDOVER PARA NUEVA SESIÓN (EJECUCIÓN FRENTE F21)
+PROMPT DE APERTURA / HANDOVER PARA NUEVA SESIÓN (ESTADO POST-F22 / NAVA V4)
 ================================================================================
 Eres el agente responsable de continuar el proyecto NavaTastic.
 Repositorio único de trabajo: C:\NavaTastic Codigo completo (rama master).
@@ -321,20 +330,17 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
    flujo en dos fases, backups .bak-AAAAMMDD-HHMM, 4.3 y Desktop SOLO LECTURA).
 2. docs\BITACORA_TECNICA.md (historial técnico, fixes y recetas de paridad).
 3. docs\PLAN_DE_TRABAJO.md (estado actual y contexto vivo).
-4. docs\cerebro\cerebro.md (índice global y notas 01 a 12).
-5. docs\PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md (diseño completo de F21).
+4. docs\cerebro\cerebro.md (índice global y notas 01 a 13).
+5. docs\Manual_NavaTastic.md (catálogo completo de comandos /nava vigentes).
 
-🎯 OBJETIVO DE LA SESIÓN (FASE 2):
-Implementar el FRENTE F21 (Canales Privados, Redirección de NavaCLI y Gestión Remota)
-cumpliendo estrictamente el MANDATO DE INTEGRIDAD (NO SER VAGO / CERO REGRESIONES):
-1. Revisar todas las dependencias cruzadas antes de modificar código.
-2. NO romper el canal de rescate (Slot 1 Navadmin AQ==) ni los DMs de administración.
-3. CERO DESGASTE DE FLASH: `stats` y `log` deben ser 100% volátiles en memoria RAM.
-4. Migración segura de /resilience.bin: pasar a NAV4 (0x4E415634) adoptando los campos previos.
-5. Mantener la suite de auditoría en 26/26 PASS y compilar/verificar los 12 envs.
+🎯 ESTADO ACTUAL DEL PROYECTO:
+- GENERACIÓN NAVA V4 COMPLETADA, COMPILADA (12/12 SUCCESS) Y DISTRIBUIDA.
+- Blindaje anti-tormentas en Navadmin y Consola Privada de Flota operativos.
+- Persistencia V5 (NAV5) con lista negra ignorados y control de difusión.
+- Manuales actualizados y 5 PDFs listos.
+- Binarios distribuidos en distribucion\ (32 ficheros UF2/OTA).
 ================================================================================
 ```
-
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

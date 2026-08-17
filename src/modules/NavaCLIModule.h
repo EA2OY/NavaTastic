@@ -11,13 +11,13 @@
 // Bump manual en CADA release (visible en el commit). Se muestra en /nava status
 // y en el aviso [Boot]; permite saber por radio que version lleva un nodo.
 #ifndef NAVATASTIC_BUILD
-#define NAVATASTIC_BUILD "V3"
+#define NAVATASTIC_BUILD "V4"
 #endif
 
-// NAVARICO F20: marcador de formato del struct ResiliencePrefs. Bump V3 (0x4E415633,
-// "NAV3"): se anaden las claves admin persistidas. Los ficheros 84 B (0x4E415653,
-// "NAVS") migran con defaults en los campos nuevos.
-#define NAVS_RESILIENCE_VERSION 0x4E415633
+// NAVARICO F21/F22: marcador de formato del struct ResiliencePrefs. Bump V5 (0x4E415635,
+// "NAV5"): se añaden control de difusión periódica (pos_tx, nodeinfo_tx, telem_tx)
+// y lista negra global persistente (ignoredNodes). Ficheros previos ("NAV4" / "NAV3" / "NAVS") migran con defaults.
+#define NAVS_RESILIENCE_VERSION 0x4E415635
 
 struct NavaResponse {
     NodeNum dest;
@@ -32,6 +32,22 @@ struct RxLogEntry {
     int8_t snr;
     int16_t rssi;
     uint32_t timestamp;
+};
+
+// NAVARICO F21: Estructura para respaldar canales secundarios (slots 2..7) en /resilience.bin
+struct ResilientChannel {
+    char name[12];
+    uint8_t psk[32];
+    uint8_t psk_len;
+    uint8_t uplink_enabled;
+    uint8_t downlink_enabled;
+    uint8_t is_active;
+};
+
+// NAVARICO F21: Estructura circular en RAM para log forense de eventos (100% RAM-Only)
+struct NavaLogEntry {
+    uint32_t uptime;
+    char msg[48];
 };
 
 // Estructura binaria persistente a reset de fábrica
@@ -49,7 +65,7 @@ struct ResiliencePrefs {
     uint8_t sleepMsgs;       // V2: 1=mensajes sueño/vivo/listo ON (default), 0=OFF (/nava sleepmsg)
     uint8_t wasInSleep;      // V2: 1=dormido por bateria (se setea antes de cpuDeepSleep, se lee al boot para Listo/Vivo)
     uint8_t reserved;        // V2: reservado
-    uint32_t version;        // Marcador de formato NAVS_RESILIENCE_VERSION ("NAV3"); ficheros <=84B ("NAVS" de V2.x) migran con defaults
+    uint32_t version;        // Marcador de formato NAVS_RESILIENCE_VERSION ("NAV5"); ficheros previos migran con defaults
     // NAVARICO F20 (V3): claves admin PUBLICAS del usuario persistidas para que sobrevivan
     // a los resets de fabrica. keySlot0Own = clave propia que el usuario puso en slot 0
     // (desautorizando la de fabrica): se restaura EN el slot 0 (regla "slot 0 = estado
@@ -57,6 +73,23 @@ struct ResiliencePrefs {
     uint8_t keySlot1[32];
     uint8_t keySlot2[32];
     uint8_t keySlot0Own[32];
+    // NAVARICO F21: parámetros semi-permanentes de canales y gestión de infraestructura
+    uint8_t cliChannelSlot;              // Slot asignado a NavaCLI (1-7, default: 1)
+    uint8_t navadminMuted;               // 0=Navadmin (Canal 1) activo, 1=silenciado
+    ResilientChannel customChannels[6];  // Slots 2..7 respaldados
+    uint8_t ok_to_mqtt;                  // 0=default, 1=ON, 2=OFF
+    uint32_t fixed_pin;                  // PIN BT fijo (>0 si personalizado)
+    int32_t fixed_pos_lat;               // Latitud * 1e7
+    int32_t fixed_pos_lon;               // Longitud * 1e7
+    int32_t fixed_pos_alt;               // Altitud (metros)
+    uint8_t fixed_pos_enabled;           // 1=Posición fija activa
+    uint32_t beacon_interval_secs;       // Intervalo de baliza en segundos
+    // NAVARICO F22: Control de difusión periódica de flota y lista negra persistente
+    uint32_t pos_tx_secs;                // Difusión de posición (0=OFF, >0 segundos, default: 259200 = 72h)
+    uint32_t nodeinfo_tx_secs;           // Difusión de NodeInfo (0=OFF, >0 segundos, default: 259200 = 72h)
+    uint32_t telem_tx_secs;              // Difusión de Telemetría (0=OFF, >0 segundos, default: 900s)
+    uint32_t ignoredNodes[8];            // Lista negra global de nodos ignorados (NodeNum)
+    uint8_t ignoredCount;                // Número de nodos ignorados (0-8)
 };
 
 class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
@@ -72,6 +105,12 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     static bool navaGetVivoPending();
     static void navaSetReservaPending();
     static bool navaGetReservaPending();
+
+    // NAVARICO F21/F22: chequeos estáticos para enrutamiento y diagnóstico en RAM
+    static bool navaIsMuteActive();
+    static void recordRoutedPacket();
+    static void logRamEvent(const char *msg);
+    static bool isNodeIgnored(NodeNum node);
 
     // V2: el monitor de bateria (Power.cpp) delega el sueño aqui para mandar el
     // mensaje [Sueño] antes de dormir. Devuelve true si tomo el control.
@@ -130,6 +169,26 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     uint8_t rxLogIndex = 0;
     uint8_t rxLogCount = 0;
     
+    // NAVARICO F21: Métricas de rendimiento 100% en RAM (CERO desgaste de Flash)
+    float statsMinTemp = 999.0f;
+    float statsMaxTemp = -999.0f;
+    uint16_t statsMinBattMv = 65535;
+    uint32_t statsRxPackets = 0;
+    uint32_t statsTxPackets = 0;
+    uint32_t statsRoutedPackets = 0;
+
+    // NAVARICO F21: Buffer forense circular de eventos 100% en RAM (16 entradas)
+    NavaLogEntry ramLogs[16];
+    uint8_t ramLogHead = 0;
+    uint8_t ramLogCount = 0;
+
+    // NAVARICO F21: Modo Silencioso temporal en RAM
+    uint32_t muteUntilMs = 0;
+
+    // NAVARICO F21: Ráfaga de prueba RF periódica (test_tx)
+    uint8_t testTxCountRemaining = 0;
+    uint32_t testTxNextMs = 0;
+
     // Carga/Guardado de parámetros
     ResiliencePrefs prefs;
     void loadResiliencePrefs();
@@ -143,6 +202,10 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     void adoptPersistedAdminKeys();
     static bool navaKeyIsEmpty(const uint8_t *key);
     static bool navaKeyIsProjectKey(const uint8_t *key);
+
+    // NAVARICO F21: Restauración y respaldo de canales secundarios
+    void applyPersistedChannels();
+    void adoptPersistedChannels();
 
     // NAVARICO F20 (fix banco 2a): full_reset debe resetear los semi-persistentes a
     // defaults de perfil CONSERVANDO las 3 claves admin persistidas (no borrar el fichero).
@@ -159,6 +222,11 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     bool removeAutoFav(uint32_t nodeNum); // true si cambio
     void reconcileAutoFavs();             // sincroniza con activeDirectRouters (runOnce)
 
+    // NAVARICO F22: helpers de la lista negra global persistente (ign)
+    bool addIgnoredNode(uint32_t nodeNum);
+    bool removeIgnoredNode(uint32_t nodeNum);
+    void clearIgnoredNodes();
+
     // Rate-limit de respuesta a no-admins: solo se responde una vez por nodo
     // para evitar que un atacante haga transmitir al repetidor en bucle.
     std::set<NodeNum> unauthorizedReplied;
@@ -172,7 +240,10 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     std::string helpForCommand(const std::string &topic);
     std::string usageAndState(const std::string &topic);
     std::string base64Encode(const uint8_t *data, size_t len);
+    static bool base64Decode(const std::string &in, uint8_t *out, size_t &outLen, size_t maxLen);
+    std::string generateChannelUrl(uint8_t channelIndex);
     std::string buildEnergyLine(); // V2: ADC mV + INA (V, ±mA, cargando/descargando) si disponible
+    void logEvent(const char *fmt, ...);
 };
 
 extern NavaCLIModule *navaCLIModule;

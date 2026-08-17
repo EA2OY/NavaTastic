@@ -768,18 +768,17 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 
 ### 5.5 Handover (estado actual y siguiente paso)
 
-- **Estado (16/08/2026, Reorganización y limpieza completada)**: "NavaTastic Eclipse V3" (4.3.2)
-  CERRADA y publicada. Sesión de limpieza completada: raíz del repositorio despejada (solo archivos
-  esenciales de compilación y README); documentación interna agrupada en `docs/`; carteles en `branding/`;
-  herramientas en `herramientas/`. PDFs y compilaciones 100% operativas.
-- **Siguiente paso** (nueva sesión, cuando el operador la abra): (1) banco de Seed Solar
-  P1 y Heltec T114 (ciclo de resiliencia completo); (2) candidatos anotados F16b (BLE tras
-  shutdown)/F16d (jitter quick)/F16e (whitelist sleepmsg)/F17 (PKI_SEND_FAIL_PUBLIC_KEY
-  esporádico); (3) rotación del token GitHub (L26); (4) publicación en Telegram (grupo
-  Meshtastic España, decisión del operador); (5) siguiente release: bump de
-  `NAVATASTIC_BUILD` en `NavaCLIModule.h` + mismos pasos de publicación (rama huérfana,
-  release API, L24); (6) nuevas rondas Propia con el `PROMPT_BUILD_PROPIA.md` de la
-  carpeta del Desktop. Leer el PROMPT DE RETOMA de `docs/PLAN_DE_TRABAJO.md` y las lecciones
-  L34-L36 de `docs/BITACORA_TECNICA.md` antes de tocar nada.
+- **Estado (17/08/2026, Frente F22 / Generación NavaTastic Eclipse V4)**: "NavaTastic V4" (4.3.3) implementado, verificado, compilado (12/12 SUCCESS) y distribuido.
+  - **Blindaje Anti-Tormentas en Navadmin (Canal Público)**: Broadcast masivo no dirigido limitado a 7 comandos ligeros de 1 línea (`ping`, `status`, `bat`, `power`, `env`, `channel`, `noise`) con jitter escalonado. Menú `/nava help` general y comandos no permitidos en broadcast quedan en silencio total para evitar saturación de la malla LoRa.
+  - **Consola Privada de Gestión de Flota en Lote**: Redirigiendo la CLI a slots 2..7 (`set_cli_chan <2-7>`), el operador puede lanzar órdenes en lote a toda la red con un solo mensaje (`set_ok_to_mqtt`, `set_pos_tx`, `set_nodeinfo_tx`, `set_telem_tx`, `ign add/del/clear/ls`, `set_beacon`, `set_tz`, `set_chem`, `set_vbat`, `set_vwake`, `sleepmsg`, `mute`, `test_tx`, `db_purge`, `nodeinfo`, `pos`, `sendtel`). Comandos individuales (`set_pos`, `set_name`, `set_pin`, `pos_clear`) y nucleares destructivos exigen `!ID` o DM.
+  - **Lista Negra Global Persistente**: `ign add/del/clear/ls` respaldado en `/resilience.bin` V5 (NAV5) y descarte inmediato de paquetes en `Router.cpp`.
+  - **Control de Difusión de Posición/Telemetría**: Nuevos comandos `set_pos_tx`, `set_nodeinfo_tx`, `set_telem_tx`, `pos_clear`.
+  - **Cero Desgaste Flash (RAM-Only)**: `stats`, `log`, `mute` y `test_tx` operan exclusivamente en memoria RAM sin llamadas de escritura LittleFS.
+  - **Persistencia Atómica `/resilience.bin` V5 (`NAV5`)**: Detección y migración automática de estructuras previas sin alteración de claves admin ni roles de hardware.
+  - **Compilación 12/12 SUCCESS**: Verificados todos los entornos con `build.ps1` (11m 15s).
+  - **Distribución y Manuales**: 32 binarios distribuidos en `distribucion\` y 5 PDFs generados con `generar_pdf.ps1`.
+- **Siguiente paso**: Generación de tag y release cuando el operador lo estime oportuno.
+
+
 
 

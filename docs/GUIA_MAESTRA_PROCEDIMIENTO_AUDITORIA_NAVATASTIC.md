@@ -94,6 +94,13 @@ Por ello, la auditoría de NavaTastic se realiza **sobre hardware físico real, 
    * *Motivo*: Si se llama a `cpuDeepSleep()` directo antes de inicializar la radio, el chip SX1262 no recibe la orden SPI de apagado y se queda en escucha consumiendo 5–10 mA. Con `doDeepSleep()`, el consumo en reposo es de **0.4 mA** estrictos.
 3. **Gestión de Permisos USB en Android por ADB**:
    * Si la app pierde foco tras reconexiones USB, capturar la pantalla con `uiautomator dump /sdcard/window_dump.xml` y enviar un tap sobre el botón `ACEPTAR` (`input tap X Y`).
+4. **Comportamiento Hardware Faketec HT-RA62 en USB sin Batería**:
+   * *Diagnóstico*: Si la placa Faketec/Promicro se alimenta únicamente por el conector USB de 5V sin celda física LiPo conectada a sus bornes de batería, el divisor analógico de VBAT mide ~0 V. Como la placa no dispone de pin de sensado hardware VBUS, `getHasUSB()` devuelve `false` y el firmware interpreta que hay una batería agotada, iniciando el ciclo de reposo tras 8 lecturas consecutivas (~160s).
+   * *Solución en banco*: Conectar una celda LiPo a los bornes o desactivar temporalmente `USERPREFS_LOW_BATTERY_LOWPOWER_ENABLED` durante pruebas continuas de laboratorio.
+5. **Entrecomillado de Intents ADB y Temporización RF en Automatización F21**:
+   * *Formato de Intent*: En PowerShell, para evitar que ADB divida los argumentos de comandos con espacios (ej. `ch_set 2 Privada AQ==` o `set_pin 123456`), pasar el argumento con entrecomillado simple anidado:
+     `adb shell am broadcast -a com.meshkachoutility.REMOTE -n com.meshkachoutility/.RemoteControlReceiver --es cmd send_nava --es arg "'ch_set 2 Privada AQ=='" --es arg2 "!43ca4c27"`
+   * *Ventana de Guarda RF*: En módems de bajo ancho de banda (SFNarrow / 62.5 kHz), cada paquete de texto o respuesta fragmentada requiere de 1.5 a 3.5 segundos de tiempo de aire. Los scripts automatizados deben conceder un retardo de al menos 4 segundos entre comandos consecutivos para no saturar la cola de transmisión.
 
 ---
 

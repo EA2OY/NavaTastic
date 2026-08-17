@@ -1,5 +1,5 @@
 ---
-title: "Manual de Uso — Firmware NavaTastic Eclipse V3"
+title: "Manual de Uso — Firmware NavaTastic Eclipse V4"
 subtitle: "Desarrollo optimizado para infraestructura solar en ubicaciones de difícil acceso"
 author: "Modificación inicial por JBAU92 · Desarrollo continuado por EA2OY"
 date: "Agosto 2026"
@@ -8,12 +8,12 @@ toc: true
 toc-title: "Índice"
 ---
 
-# Manual de Uso — Firmware NavaTastic Eclipse V3
+# Manual de Uso — Firmware NavaTastic Eclipse V4
 
-> **ADENDA 14/08/2026 — REPO UNIFICADO**: manual de usuario **VIGENTE** (comportamiento
-> del firmware; la versión actual es NavaTastic Eclipse V3 (4.3.2) = repo unificado, 12 builds
+> **ADENDA 17/08/2026 — REPO UNIFICADO V4 (F21/F22)**: manual de usuario **VIGENTE** (comportamiento
+> del firmware; la versión actual es NavaTastic Eclipse V4 (4.3.3) = repo unificado, 12 builds
 > `navarrico_*`). Los binarios se distribuyen desde `distribucion\` del repo (32
-> ficheros, nombres históricos). El PDF de este manual no se regenera en el repo.
+> ficheros, nombres históricos).
 
 Este firmware ha sido diseñado específicamente para nodos de la red **Meshtastic** que operan de forma aislada y autónoma. Su objetivo es garantizar la supervivencia del hardware ante caídas críticas de energía o corrupciones de memoria, permitiendo la recuperación y gestión de forma **100% remota** sin necesidad de intervenciones físicas en el emplazamiento.
 
@@ -244,7 +244,8 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 | **4.2** | Portado el firmware Navarrico a Meshtastic 2.7.26 Beta y añadido soporte para más placas. Añadida la **Rama 2** para routers de infraestructura con protección de la Flash y auto-favoriteo de routers descubiertos en contacto directo de radio. La Rama anterior pasa a denominarse **Rama 1**. |
 | **4.3** | Cambio de denominación a **NavaTastic** e integrado el **control remoto del nodo por comandos sin necesidad de PC**: se administra por radio (canal Navadmin para consultas y mensajes directos cifrados para los cambios), con protecciones frente a usos indebidos. El nodo ya mantenía el auto-favoriteo de routers directos y la base de nodos en **memoria RAM** (la Flash dejó de escribirse constantemente). |
 | **4.3.1 — "NavaTastic Eclipse"** (12/08/2026) ⭐ primera distribución a colegas | Muchos comandos nuevos (`fav auto`, ayuda y consultas por radio, respuestas fragmentadas legibles, gestión de energía y diagnóstico). La **cola de mensajes y los datos descartables dejaron de escribirse en Flash**: pasaron a memoria RAM, protegiendo la vida útil del nodo. |
-| **4.3.2 — "NavaTastic Eclipse V3"** (15-16/08/2026, versión actual) | **Reajustados los tiempos de sueño profundo/despertar** para que no afecten a la radio ni se produzcan lecturas erróneas (mitigación en entornos agresivos), y **el nodo avisa por radio de su estado al dormirse/despertarse** (con la causa en cada arranque). **Reforzada la resiliencia ante fallos para que el usuario no pierda en absoluto el control remoto del nodo**: las claves de administración añadidas se guardan en el propio nodo y vuelven solas tras un reset de fábrica (comandos `keys_ls`/`keys_clear`; resets remotos `full_reset`/`wipe`; filtro de batería baja a 8 lecturas igual para todas las placas). El nodo muestra su generación (`NAVA V3`) en `status` y en el aviso de arranque. **Comandos adicionales**: consulta la documentación NavaTastic; en cualquier nodo, `/nava help` lista los comandos disponibles para su versión. Verificado en banco 7/7 (Faketec). |
+| **4.3.2 — "NavaTastic Eclipse V3"** (15-16/08/2026) | **Reajustados los tiempos de sueño profundo/despertar** para que no afecten a la radio ni se produzcan lecturas erróneas, y **el nodo avisa por radio de su estado al dormirse/despertarse** (con la causa en cada arranque). **Reforzada la resiliencia ante fallos**: claves de admin persistidas tras factory reset (`keys_ls`/`keys_clear`, `full_reset`/`wipe`). |
+| **4.3.3 — "NavaTastic F21 / V4"** (17/08/2026, versión actual) | **Gestión Remota Avanzada de Canales e Infraestructura (F21)**: soporte completo para creación, borrado, listado y URL de canales secundarios (`ch_set`, `ch_del`, `ch_ls`, `ch_url`, `ch_reset`). **Redirección de NavaCLI** y silenciamiento opcional de Navadmin (`set_cli_chan`, `navadmin_mute`). **Control MQTT por canal** (`ch_mqtt`, `set_ok_to_mqtt`), **coordenadas fijas** (`set_pos`), **baliza ajustable** (`set_beacon`), **PIN Bluetooth** (`set_pin`), **modo silencioso temporal** (`mute`), **diagnósticos y log en RAM** (`stats`, `log`, `test_tx`). Persistencia atómica `/resilience.bin` V4 (`NAV4`). |
 
 ---
 
@@ -520,4 +521,5 @@ headless**, through two channels:
 | **4.2** | Ported to Meshtastic 2.7.26 Beta, more boards supported. Added **Branch 2** for infrastructure routers (Flash protection + auto-favoriting of direct radio routers). Previous branch renamed **Branch 1**. |
 | **4.3** | Renamed **NavaTastic** and integrated **remote control of the node by commands, no PC needed**: it is administered over the radio (Navadmin channel for queries, encrypted direct messages for changes), with protections against misuse. The node already had direct-router auto-favoriting and the node database in **RAM** (Flash no longer written constantly). |
 | **4.3.1 — "NavaTastic Eclipse"** (12/08/2026) ⭐ first distribution to colleagues | Many new commands (`fav auto`, on-air help and queries, readable fragmented replies, energy and diagnostic management). The **message queue and disposable data stopped being written to Flash**: moved to RAM, protecting the node's lifespan. |
-| **4.3.2 — "NavaTastic Eclipse V3"** (15-16/08/2026, current) | **Deep-sleep/wake timings readjusted** so they do not affect the radio nor produce erroneous readings (mitigation in aggressive environments), and **the node announces its state over the radio when it sleeps/wakes** (with the reset cause on every boot). **Strengthened resilience against failures so the user never loses remote control**: added admin keys are stored on the node and come back on their own after a factory reset (`keys_ls`/`keys_clear` commands; remote resets `full_reset`/`wipe`; low-battery filter at 8 readings for all boards). The node shows its generation (`NAVA V3`) in `status` and in the boot notice. **Additional commands**: see the NavaTastic documentation; on any node, `/nava help` lists the commands available for its version. Bench verified 7/7 (Faketec). |
+| **4.3.2 — "NavaTastic Eclipse V3"** (15-16/08/2026) | **Deep-sleep/wake timings readjusted** so they do not affect the radio nor produce erroneous readings, and **the node announces its state over the radio when it sleeps/wakes** (with the reset cause on every boot). Strengthened resilience: admin keys survive factory reset (`keys_ls`/`keys_clear`, `full_reset`/`wipe`). |
+| **4.3.3 — "NavaTastic F21 / V4"** (17/08/2026, current) | **Advanced Remote Channels & Infrastructure Management (F21)**: Full secondary channel management (`ch_set`, `ch_del`, `ch_ls`, `ch_url`, `ch_reset`), CLI listener and notice redirection (`set_cli_chan`, `navadmin_mute`), MQTT controls (`ch_mqtt`, `set_ok_to_mqtt`), static coordinates (`set_pos`), adjustable beacon interval (`set_beacon`), Bluetooth PIN (`set_pin`), temporary RF mute (`mute`), RAM-only diagnostics and logs (`stats`, `log`, `test_tx`). Atomic `/resilience.bin` V4 (`NAV4`) persistence. |

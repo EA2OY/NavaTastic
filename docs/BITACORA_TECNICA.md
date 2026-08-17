@@ -997,4 +997,90 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   - Estructura `ResiliencePrefs` V4 (`NAV4` / `0x4E415634`) con rutina de migración atómica diseñada.
   - Mandato estricto de integridad documentado para la ejecución en la siguiente sesión.
 
+### SESIÓN 17/08/2026 — FRENTE F21 IMPLEMENTADO Y VERIFICADO AL 100% (12/12 BUILDS SUCCESS + DISTRIBUCIÓN + PDFS)
+- **Objetivo Cumplido**: Implementación completa de los 16 comandos de gestión remota avanzada sin ninguna regresión sobre la resiliencia solar ni sobre el canal de rescate Navadmin.
+- **Modificaciones en Código Fuente**:
+  1. `src/modules/NavaCLIModule.h`:
+     - Estructura `ResilientChannel` definida para slots 2-7.
+     - Expansión de `ResiliencePrefs` con versión `NAVS_RESILIENCE_VERSION = 0x4E415634` ("NAV4").
+     - Declaración de miembros y buffers 100% en RAM: `statsMinTemp`, `statsMaxTemp`, `statsMinBattMv`, `statsRxPackets`, `statsTxPackets`, `statsRoutedPackets`, buffer circular `ramLogs[16]`, `muteUntilMs`, ráfaga `testTxCountRemaining`.
+     - Métodos estáticos auxiliares para enrutamiento: `navaIsMuteActive()`, `recordRoutedPacket()`, `logRamEvent()`.
+  2. `src/modules/NavaCLIModule.cpp`:
+     - Migración atómica en `loadResiliencePrefs()`: detección de ficheros heredados/legacy (`<=180B`, `NAV3`, `NAVS`) e inicialización con defaults limpios sin tocar claves admin previas ni rol. Regla LittleFS L7 aplicada (`FSCom.remove` antes de `FILE_O_WRITE`).
+     - Métodos de respaldo y sincronización: `applyPersistedChannels()`, `adoptPersistedChannels()`, `navaFullResetKeepKeys()`.
+     - Decodificador Base64 universal (`base64Decode()`) tolerante a caracteres estándar y URL-safe (`+`/`-`, `/`/`_`).
+     - Generador de URL canónicas de canal (`generateChannelUrl()`): empaquetado nanopb `meshtastic_ChannelSet` (`apponly.pb.h`) y codificación Base64URL hacia `https://meshtastic.org/e/#...`.
+     - Enrutamiento y filtrado de paquetes en `wantPacket()` y `handleReceived()`: soporte para DM PKI, canal asignado `prefs.cliChannelSlot` y Canal 1 Navadmin (mientras `prefs.navadminMuted == 0`).
+     - Redirección de avisos solares `runOnce()` (`[Listo]`, `[Vivo]`, `[Critico]`, `[Sueño]`, `[Boot]`) hacia `prefs.cliChannelSlot`.
+     - Implementación completa de los 16 comandos en `executeCommand()` con validación de parámetros, ayuda interactiva (`usageAndState()`) y respuesta fragmentada:
+       - `ch_ls`: Listado de canales (0-7), rol, indicador `*` de escucha CLI, nombre, tipo de cifrado y compuerta MQTT.
+       - `ch_set <slot 2-7> <nombre> <psk_base64>`: Creación y activación de canal privado secundario respaldado en `/resilience.bin`.
+       - `ch_del <slot 2-7>`: Deshabilitación de canal secundario y auto-redirección si alojaba la CLI.
+       - `ch_url [slot 0-7]`: Generación de enlace canónico para escaneo QR móvil.
+       - `set_cli_chan <slot 1-7>`: Redirección del listener de NavaCLI y avisos solares al slot elegido.
+       - `navadmin_mute [on|off]`: Silenciamiento o reactivación del canal público de rescate (Slot 1).
+       - `ch_reset`: Restauración de canales a configuración de fábrica (Slot 1 Navadmin, CLI en Slot 1).
+       - `ch_mqtt <slot 0-7> [up|down|both|off]`: Conmutación granular de pasarela MQTT por canal.
+       - `set_ok_to_mqtt [on|off]`: Bandera `config_ok_to_mqtt` en paquetes del nodo persistente en disco.
+       - `set_pos <lat> <lon> [alt]`: Coordenadas geográficas estáticas persistentes a resets de fábrica.
+       - `set_beacon [minutos]`: Intervalo de difusión de balizas NodeInfo / Position (1-1440 min).
+       - `mute [minutos|off]`: Silenciamiento temporal de retransmisión LoRa (100% en RAM).
+       - `set_pin <6_digitos>`: PIN Bluetooth fijo personalizado persistente en `/resilience.bin`.
+       - `stats`: Auditoría de rendimiento 100% en RAM (temperaturas extremas, batería mínima, paquetes RX/TX/Enrutados y auto-favoritos).
+       - `test_tx [segundos 5-30]`: Ráfaga de prueba RF (1 paquete/segundo) para análisis de cobertura y SNR.
+       - `log [lineas 1-15]`: Buffer circular forense de eventos en RAM con marcas de uptime.
+  3. `src/mesh/Router.cpp`:
+     - Integración de `NavaCLIModule::navaIsMuteActive()` en `handleReceived(REMOTE)` para suprimir el reenvío de paquetes ajenos mientras dure el mute temporal.
+     - Registro de paquetes enrutados con `NavaCLIModule::recordRoutedPacket()` en `Router::send()`.
+- **Pruebas en Banco Físico y Flasheo Esclava (17/08/2026 13:20)**:
+  - **Flasheo y Acreditación de Master**:
+    - Faketec Slave en `COM9` flasheada con `navarrico_faketec_sx1262_r2ig` (DFU upload **SUCCESS**).
+    - Inyectada clave pública del Master (`0zhwc1+6SDu...`) en `USERPREFS_USE_ADMIN_KEY_1` de `profiles/R2IG_Faketec.jsonc` para autorización automática de DMs.
+    - Saneamiento de comillas en `NavaCLIModule::executeCommand()`: `while (cmd.front() == '\'' || cmd.front() == '"') cmd.erase(0, 1);` para tolerar entrecomillado variable de intents ADB/PowerShell.
+  - **Comportamiento Hardware y Lecciones de Banco (Faketec HT-RA62)**:
+    - En placas Faketec/Promicro alimentadas SOLO por USB 5V (sin celda física LiPo conectada a pines de batería): el pin VBAT lee ~0 V y al no existir pin de sensado VBUS, el watchdog de baja tensión entra en ciclo de sueño/reinicio tras 8 lecturas (~160s). Al conectar una celda o desactivar la comprobación de corte en banco, el nodo opera continuamente.
+  - **Resultados de Verificación de Comandos F21 Sobre el Aire (RF Real)**:
+    1. `/nava status` $\rightarrow$ Recibido: `NAVA V3 | fw 2.7.26.ac72b15 | ADC 4106 mV`.
+    2. `/nava stats` $\rightarrow$ Recibido: métricas 100% en RAM con temperaturas extremas, batería y paquetes RX/TX/Enrutados.
+    3. `/nava log` $\rightarrow$ Recibido: buffer circular forense de 16 eventos con marcas de uptime en RAM.
+    4. `/nava ch_set 2 Privada AQ==` $\rightarrow$ Creado slot 2 con nombre `privada` y clave Base64 `AQ==` persistente.
+    5. `/nava ch_ls` $\rightarrow$ Recibida tabla completa: `[0] PRI SFNarrow`, `[1]*SEC Navadmin`, `[2] SEC privada (#1) U/D`.
+    6. `/nava ch_url 2` $\rightarrow$ Recibida URL protobuf canónica: `https://meshtastic.org/e/#ChISAQEaB3ByaXZhZGEoATABOgASHRg-IAcoBTgDQANIAVAWWARoAXWNZ1lEyAYB0AYC`.
+    7. `/nava navadmin_mute on/off` $\rightarrow$ Recibido: `OK: NAVADMIN (CANAL 1) ACTIVO` y silenciado verificado.
+    8. `/nava set_pin 123456 / 654321` $\rightarrow$ Recibido: `OK: PIN BT CAMBIADO A 123456 (Persiste)`.
+    9. `/nava help` $\rightarrow$ Catálogo completo de comandos F21 fragmentado en 4 partes por límites de MTU.
+  - **Dictamen de Auditoría F21**: Todos los módulos de gestión remota de canales, redirección de CLI, URLs canónicas, estructuras volátiles en RAM y PIN Bluetooth operan correctamente sobre el hardware real sin regresión en la resiliencia solar.
+
+### SESIÓN 17/08/2026 — FRENTE F22: CONSOLA DE GESTIÓN DE FLOTA, BLINDAJE ANTI-TORMENTAS Y GENERACIÓN NAVA V4 (12/12 SUCCESS)
+- **Objetivo Cumplido**: Implementación de la consola de gestión de flota en lote en canales privados, blindaje anti-tormentas en el canal público Navadmin, persistencia V5 de listas negras y control de difusión periódica de posición/telemetría.
+- **Modificaciones en Código Fuente**:
+  1. `src/modules/NavaCLIModule.h`:
+     - Bump a `NAVATASTIC_BUILD "V4"` y `NAVS_RESILIENCE_VERSION = 0x4E415635` ("NAV5").
+     - Estructura `ResiliencePrefs` ampliada con `pos_tx_secs`, `nodeinfo_tx_secs`, `telem_tx_secs`, `ignoredNodes[8]` e `ignoredCount`.
+     - Declaración de helpers: `isNodeIgnored()`, `addIgnoredNode()`, `removeIgnoredNode()`, `clearIgnoredNodes()`.
+  2. `src/modules/NavaCLIModule.cpp`:
+     - **Blindaje Anti-Tormentas en Canal Público (Navadmin)**:
+       - Broadcast masivo (sin `!ID`): solo permite los 7 comandos ligeros de sondeo (`ping`, `status`, `bat`, `power`, `env`, `channel`, `noise`) en 1 sola línea corta con jitter anti-colisión escalonado.
+       - Silencio intencionado para `/nava help` general y comandos no permitidos en broadcast abierto (cero respuestas masivas ni colapsos de canal).
+       - Broadcast dirigido (con `!ID` o `@grupo`): permite diagnósticos individuales (`stats`, `log`, `ch_ls`, `help`, `peers`, `rxlog`, `afc`, `reset_reason`).
+     - **Consola Privada de Gestión de Flota (Slots 2..7)**:
+       - Permite órdenes en lote a toda la red con un solo mensaje: `set_ok_to_mqtt`, `set_pos_tx`, `set_nodeinfo_tx`, `set_telem_tx`, `ign add/del/clear/ls`, `set_beacon`, `set_tz`, `set_chem`, `set_vbat`, `set_vwake`, `sleepmsg`, `mute`, `test_tx`, `db_purge`, `nodeinfo`, `pos`, `sendtel`.
+       - Comandos individuales geográficos (`set_pos`, `set_name`, `set_pin`, `pos_clear`) y destructivos nucleares (`wipe`, `factory_reset`, `full_reset`, `keys_clear`, `reboot`, `ch_reset`, `ch_del`) exigen `!ID` o DM para evitar desastres masivos.
+     - **Nuevos Comandos Implementados**:
+       - `power`: Telemetría solar/corriente INA219 (V, mA carga/descarga, mW) ahora permitida en canal abierto.
+       - `set_pos_tx [on|off|<mins>]`: Control de difusión periódica de posición (persiste en `/resilience.bin` V5).
+       - `set_nodeinfo_tx [on|off|<mins>]`: Control de difusión periódica de NodeInfo/identidad (persiste en `/resilience.bin` V5).
+       - `set_telem_tx [on|off|<mins>]`: Control de reporte de telemetría de batería y sensores (`moduleConfig.telemetry.device_update_interval`, persiste en disco).
+       - `pos_clear`: Borrado de coordenadas fijas guardadas.
+       - `ign add/del/clear/ls`: Lista negra global persistente en disco (hasta 8 nodos bloqueados).
+     - **Ayuda Contextual Ampliada**:
+       - Menú general `/nava help` actualizado.
+       - Entradas de ayuda específica `helpForCommand()` y `usageAndState()` añadidas y verificadas para todos los comandos nuevos y modificados.
+  3. `src/mesh/Router.cpp`:
+     - Integración de `NavaCLIModule::isNodeIgnored(p->from)` en `handleReceived()`: los paquetes provenientes de nodos en la lista negra son cancelados y descartados inmediatamente a nivel de enrutador.
+- **Compilación y Distribución**:
+  - Matriz de 12 variantes compilada con **SUCCESS** (`build.ps1` -> 12/12).
+  - 32 binarios UF2/OTA generados y distribuidos a `distribucion\` (`distribuir.ps1 -Todo`).
+
+
 

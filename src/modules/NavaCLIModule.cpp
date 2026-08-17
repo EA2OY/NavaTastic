@@ -13,6 +13,9 @@
 #include "modules/NodeInfoModule.h"
 #include "mesh/RadioLibInterface.h"
 #include "buzz/buzz.h"
+#include "Channels.h"
+#include "RTC.h"
+#include "../mesh/generated/meshtastic/apponly.pb.h"
 #if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
 #include "modules/Telemetry/EnvironmentTelemetry.h"
 #endif
@@ -67,32 +70,53 @@ void NavaCLIModule::loadResiliencePrefs() {
             f.read((uint8_t*)&prefs, sizeof(prefs));
             f.close();
             if (prefs.magic == 0x52455349) {
-                // NAVARICO F20: fichero de version previa (84B "NAVS") o de tamano
-                // distinto (FS corrupto: FILE_O_WRITE no trunca) -> migrar.
+                // NAVARICO F21: si el fichero es de version previa (< NAV4) o tamano distinto -> migrar.
                 bool legacy = (fileSize != sizeof(prefs) || prefs.version != NAVS_RESILIENCE_VERSION);
-                // F15: campos legacy fuera de rango -> sanear (preservando los validos).
+                // F15/F21: campos fuera de rango -> sanear (preservando los validos).
                 bool fieldsBad = (prefs.chemistry > 3 ||
                     prefs.vbat_cutoff < 2400 || prefs.vbat_cutoff > 3600 || prefs.vwake_level < 1 || prefs.vwake_level > 5 ||
                     prefs.tx_disabled > 1 || prefs.ble_disabled > 1 || prefs.auto_fav > 1 ||
                     (prefs.role > meshtastic_Config_DeviceConfig_Role_ROUTER && prefs.role != 0xFF) ||
-                    prefs.autoFavCount > 16 || prefs.sleepMsgs > 1 || prefs.wasInSleep > 1);
+                    prefs.autoFavCount > 16 || prefs.sleepMsgs > 1 || prefs.wasInSleep > 1 ||
+                    prefs.cliChannelSlot < 1 || prefs.cliChannelSlot > 7 || prefs.navadminMuted > 1 ||
+                    prefs.ignoredCount > 8);
+
                 if (legacy) {
-                    // F20: campos nuevos a cero + adoptar las claves de usuario que ya
-                    // estan en la config (una sola vez por fichero migrado; el dedupe
-                    // descarta las del proyecto).
-                    memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
-                    memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
-                    memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
-                    adoptPersistedAdminKeys();
+                    // Inicializar los campos F21/F22 con defaults seguros
+                    prefs.cliChannelSlot = 1;
+                    prefs.navadminMuted = 0;
+                    memset(prefs.customChannels, 0, sizeof(prefs.customChannels));
+                    prefs.ok_to_mqtt = 0;
+                    prefs.fixed_pin = 0;
+                    prefs.fixed_pos_lat = 0;
+                    prefs.fixed_pos_lon = 0;
+                    prefs.fixed_pos_alt = 0;
+                    prefs.fixed_pos_enabled = 0;
+                    prefs.beacon_interval_secs = 0;
+                    prefs.pos_tx_secs = 259200;      // 72h por defecto para repetidores fijos
+                    prefs.nodeinfo_tx_secs = 259200; // 72h por defecto
+                    prefs.telem_tx_secs = 900;       // 15 min por defecto
+                    prefs.ignoredCount = 0;
+                    memset(prefs.ignoredNodes, 0, sizeof(prefs.ignoredNodes));
+
+                    // Si venia de version <=84B (pre-NAV3), adoptar claves de admin
+                    if (fileSize <= 84) {
+                        memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
+                        memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
+                        memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
+                        adoptPersistedAdminKeys();
+                    }
                 }
+
                 if (legacy || fieldsBad) {
-                    prefs.auto_fav = 1;
-                    prefs.role = 0xFF; // sin rol fijado (fichero de version previa o corrupto)
-                    prefs.autoFavCount = 0;
-                    memset(prefs.autoFavIds, 0, sizeof(prefs.autoFavIds));
-                    prefs.sleepMsgs = 1;
-                    prefs.wasInSleep = 0;
-                    prefs.reserved = 0;
+                    if (prefs.cliChannelSlot < 1 || prefs.cliChannelSlot > 7) prefs.cliChannelSlot = 1;
+                    if (prefs.navadminMuted > 1) prefs.navadminMuted = 0;
+                    if (prefs.auto_fav > 1) prefs.auto_fav = 1;
+                    if (prefs.sleepMsgs > 1) prefs.sleepMsgs = 1;
+                    if (prefs.ignoredCount > 8) {
+                        prefs.ignoredCount = 0;
+                        memset(prefs.ignoredNodes, 0, sizeof(prefs.ignoredNodes));
+                    }
                     if (prefs.chemistry > 3) {
                         #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
                             prefs.chemistry = 2; // SODIUM
@@ -116,9 +140,10 @@ void NavaCLIModule::loadResiliencePrefs() {
                     }
                     if (prefs.tx_disabled > 1) prefs.tx_disabled = 0;
                     if (prefs.ble_disabled > 1) prefs.ble_disabled = 0;
-                    prefs.version = NAVS_RESILIENCE_VERSION; // NAVARICO: marcador de formato
+                    prefs.version = NAVS_RESILIENCE_VERSION; // Marcador NAV5
                     saveResiliencePrefs();
                 }
+
                 navaAutoFavoriteEnabled = (prefs.auto_fav != 0);
                 // Aplicar parámetros cargados a RAM
                 power->setChemistryProfile(prefs.chemistry);
@@ -126,22 +151,46 @@ void NavaCLIModule::loadResiliencePrefs() {
                 config.lora.tx_enabled = (prefs.tx_disabled == 0);
                 currentWakeLevel = prefs.vwake_level;
                 if (prefs.ble_disabled == 1) {
-                    // BLE off: usar el switch nativo de Meshtastic (startDisabled:
-                    // advertising parado + tx power -40). Se fija en config y se
-                    // deja que setBluetoothEnable tome esa rama en el arranque.
                     config.bluetooth.enabled = false;
                     setBleForceDisabled(true);
                 } else {
                     config.bluetooth.enabled = true;
                     setBleForceDisabled(false);
                 }
-                // V2.1 Rama 1 y Rama 2: rol semi-permanente (sobrevive a factory reset).
-                // 0xFF = sin fijar. Valores validos: 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER.
-                // Con CLIENT/CLIENT_MUTE installRoleDefaults no cambia nada (solo aplica
-                // defaults a roles de infraestructura).
+                // V2.1 Rama 1 y Rama 2: rol semi-permanente
                 if (prefs.role <= meshtastic_Config_DeviceConfig_Role_ROUTER) {
                     config.device.role = (meshtastic_Config_DeviceConfig_Role)prefs.role;
                     nodeDB->installRoleDefaults(config.device.role);
+                }
+                if (prefs.fixed_pin > 0) {
+                    config.bluetooth.fixed_pin = prefs.fixed_pin;
+                }
+                if (prefs.ok_to_mqtt == 1) {
+                    config.lora.config_ok_to_mqtt = true;
+                } else if (prefs.ok_to_mqtt == 2) {
+                    config.lora.config_ok_to_mqtt = false;
+                }
+                if (prefs.fixed_pos_enabled == 1) {
+                    config.position.fixed_position = true;
+                    meshtastic_Position pos = meshtastic_Position_init_zero;
+                    pos.latitude_i = prefs.fixed_pos_lat;
+                    pos.longitude_i = prefs.fixed_pos_lon;
+                    pos.altitude = prefs.fixed_pos_alt;
+                    pos.time = getValidTime(RTCQualityFromNet);
+                    nodeDB->setLocalPosition(pos);
+                }
+                if (prefs.beacon_interval_secs > 0) {
+                    config.device.node_info_broadcast_secs = prefs.beacon_interval_secs;
+                    config.position.position_broadcast_secs = prefs.beacon_interval_secs;
+                }
+                if (prefs.pos_tx_secs > 0) {
+                    config.position.position_broadcast_secs = prefs.pos_tx_secs;
+                }
+                if (prefs.nodeinfo_tx_secs > 0) {
+                    config.device.node_info_broadcast_secs = prefs.nodeinfo_tx_secs;
+                }
+                if (prefs.telem_tx_secs > 0) {
+                    moduleConfig.telemetry.device_update_interval = prefs.telem_tx_secs;
                 }
                 return;
             }
@@ -168,13 +217,26 @@ void NavaCLIModule::loadResiliencePrefs() {
     prefs.sleepMsgs = 1;
     prefs.wasInSleep = 0;
     prefs.reserved = 0;
-    prefs.version = NAVS_RESILIENCE_VERSION; // NAVARICO: marcador de formato
-    // NAVARICO F20: campos nuevos a cero + adopcion (tras wipe el config solo tiene
-    // claves del proyecto -> el dedupe no adopta nada; cubre FS perdido con /prefs vivo).
+    prefs.version = NAVS_RESILIENCE_VERSION; // NAVARICO: marcador NAV5
     memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
     memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
     memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
     adoptPersistedAdminKeys();
+    prefs.cliChannelSlot = 1;
+    prefs.navadminMuted = 0;
+    memset(prefs.customChannels, 0, sizeof(prefs.customChannels));
+    prefs.ok_to_mqtt = 0;
+    prefs.fixed_pin = 0;
+    prefs.fixed_pos_lat = 0;
+    prefs.fixed_pos_lon = 0;
+    prefs.fixed_pos_alt = 0;
+    prefs.fixed_pos_enabled = 0;
+    prefs.beacon_interval_secs = 0;
+    prefs.pos_tx_secs = 259200;
+    prefs.nodeinfo_tx_secs = 259200;
+    prefs.telem_tx_secs = 900;
+    prefs.ignoredCount = 0;
+    memset(prefs.ignoredNodes, 0, sizeof(prefs.ignoredNodes));
     navaAutoFavoriteEnabled = true;
     setBleForceDisabled(false);
     saveResiliencePrefs();
@@ -197,8 +259,6 @@ static bool navaResiliencePeek(uint8_t &sleepMsgsOut, uint8_t &wasInSleepOut)
             f.close();
             if (tmp.magic == 0x52455349) {
                 if (fileSize != sizeof(tmp) || tmp.version != NAVS_RESILIENCE_VERSION) {
-                    // NAVARICO: F15 - fichero de version previa, corrupto o sin
-                    // marcador V2: defaults, igual que la migracion de loadResiliencePrefs
                     sleepMsgsOut = 1;
                     wasInSleepOut = 0;
                     return true;
@@ -240,13 +300,26 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
                 if (tmp.magic == 0x52455349) {
                     exists = true;
                     if (fileSize != sizeof(tmp) || tmp.version != NAVS_RESILIENCE_VERSION) {
-                        // V2: migrar fichero previo o sin marcador (defaults de los campos nuevos)
                         tmp.autoFavCount = 0;
                         memset(tmp.autoFavIds, 0, sizeof(tmp.autoFavIds));
                         tmp.sleepMsgs = 1;
                         tmp.reserved = 0;
-                        // NAVARICO: F15 - el byte 11 era padding en R2IG previo: rol sin fijar
                         tmp.role = 0xFF;
+                        tmp.cliChannelSlot = 1;
+                        tmp.navadminMuted = 0;
+                        memset(tmp.customChannels, 0, sizeof(tmp.customChannels));
+                        tmp.ok_to_mqtt = 0;
+                        tmp.fixed_pin = 0;
+                        tmp.fixed_pos_lat = 0;
+                        tmp.fixed_pos_lon = 0;
+                        tmp.fixed_pos_alt = 0;
+                        tmp.fixed_pos_enabled = 0;
+                        tmp.beacon_interval_secs = 0;
+                        tmp.pos_tx_secs = 259200;
+                        tmp.nodeinfo_tx_secs = 259200;
+                        tmp.telem_tx_secs = 900;
+                        tmp.ignoredCount = 0;
+                        memset(tmp.ignoredNodes, 0, sizeof(tmp.ignoredNodes));
                         tmp.version = NAVS_RESILIENCE_VERSION;
                         if (tmp.chemistry > 3) tmp.chemistry = 0;
                         if (tmp.vbat_cutoff < 2400 || tmp.vbat_cutoff > 3600) tmp.vbat_cutoff = 3500;
@@ -279,11 +352,24 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
         memset(tmp.autoFavIds, 0, sizeof(tmp.autoFavIds));
         tmp.wasInSleep = 0;
         tmp.reserved = 0;
-        tmp.version = NAVS_RESILIENCE_VERSION; // NAVARICO: F15 - marcador de formato
+        tmp.cliChannelSlot = 1;
+        tmp.navadminMuted = 0;
+        memset(tmp.customChannels, 0, sizeof(tmp.customChannels));
+        tmp.ok_to_mqtt = 0;
+        tmp.fixed_pin = 0;
+        tmp.fixed_pos_lat = 0;
+        tmp.fixed_pos_lon = 0;
+        tmp.fixed_pos_alt = 0;
+        tmp.fixed_pos_enabled = 0;
+        tmp.beacon_interval_secs = 0;
+        tmp.pos_tx_secs = 259200;
+        tmp.nodeinfo_tx_secs = 259200;
+        tmp.telem_tx_secs = 900;
+        tmp.ignoredCount = 0;
+        memset(tmp.ignoredNodes, 0, sizeof(tmp.ignoredNodes));
+        tmp.version = NAVS_RESILIENCE_VERSION;
     }
     tmp.wasInSleep = on ? 1 : 0;
-    // NAVARICO: F15 - el FILE_O_WRITE de InternalFS NO trunca: recrear el fichero
-    // para garantizar tamano exacto y evitar ficheros corruptos que crecen.
     FSCom.remove("/resilience.bin");
     File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
     if (f) {
@@ -312,9 +398,75 @@ bool NavaCLIModule::navaGetReservaPending()
     return navaReservaPendingGlobal;
 }
 
+bool NavaCLIModule::navaIsMuteActive()
+{
+    if (navaCLIModule && navaCLIModule->muteUntilMs > 0) {
+        if ((int32_t)(millis() - navaCLIModule->muteUntilMs) < 0) {
+            return true;
+        } else {
+            navaCLIModule->muteUntilMs = 0;
+            return false;
+        }
+    }
+    return false;
+}
+
+void NavaCLIModule::recordRoutedPacket()
+{
+    if (navaCLIModule) {
+        navaCLIModule->statsRoutedPackets++;
+    }
+}
+
+void NavaCLIModule::logRamEvent(const char *msg)
+{
+    if (navaCLIModule) {
+        navaCLIModule->logEvent("%s", msg);
+    }
+}
+
+void NavaCLIModule::logEvent(const char *fmt, ...)
+{
+    char buf[48];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+
+    ramLogs[ramLogHead].uptime = millis() / 1000;
+    strncpy(ramLogs[ramLogHead].msg, buf, sizeof(ramLogs[0].msg) - 1);
+    ramLogs[ramLogHead].msg[sizeof(ramLogs[0].msg) - 1] = '\0';
+    ramLogHead = (ramLogHead + 1) % 16;
+    if (ramLogCount < 16) ramLogCount++;
+}
+
+bool NavaCLIModule::handleLowBatteryEvent()
+{
+    if (sleepPending) {
+        return true;
+    }
+    sleepPending = true;
+    sleepTime = millis() + 5000; // fallback por si no hay aviso o falla encolar
+    prefs.wasInSleep = 1;
+    saveResiliencePrefs();
+
+    logEvent("LOWBAT sleep diferido");
+
+    if (prefs.sleepMsgs) {
+        char buf[220];
+        snprintf(buf, sizeof(buf), "[Sueno] %s id%08x | %s | sueno profundo, despertara >= %u mV",
+                 owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str(),
+                 (unsigned int)navaGetLpcompWakeMv());
+        uint8_t targetChan = prefs.cliChannelSlot;
+        if (targetChan < 1 || targetChan > 7) targetChan = 1;
+        enqueueResponse(NODENUM_BROADCAST, targetChan, buf, true, true);
+    }
+    return true;
+}
+
 void NavaCLIModule::saveResiliencePrefs() {
-    // NAVARICO: F15 - el FILE_O_WRITE de InternalFS NO trunca: recrear el fichero
-    // para garantizar tamano exacto y evitar ficheros corruptos que crecen.
+    prefs.magic = 0x52455349;
+    prefs.version = NAVS_RESILIENCE_VERSION;
     FSCom.remove("/resilience.bin");
     File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
     if (f) {
@@ -323,11 +475,46 @@ void NavaCLIModule::saveResiliencePrefs() {
     }
 }
 
-// --- NAVARICO F20: claves admin PUBLICAS persistidas en /resilience.bin ---
+// Helper: motivo de reset de Nordic nRF52 decodificado a texto corto
+static const char *navaricoResetReasonName(uint32_t reas)
+{
+    if (reas == 0) return "POWER_ON";
+    if (reas & 0x01) return "RESETPIN";
+    if (reas & 0x02) return "DOG";
+    if (reas & 0x04) return "SREQ";
+    if (reas & 0x08) return "LOCKUP";
+    if (reas & 0x10) return "OFF_RESET";
+    if (reas & 0x20) return "LPCOMP";
+    if (reas & 0x40) return "DIF";
+    if (reas & 0x80) return "NFC";
+    if (reas & 0x10000) return "VBUS";
+    return "UNKNOWN";
+}
 
+// V2: construye la linea de energia: ADC mV + INA si presente
+std::string NavaCLIModule::buildEnergyLine()
+{
+    char buf[128];
+    uint16_t adcV = powerStatus->getBatteryVoltageMv();
+#if HAS_TELEMETRY && !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR && __has_include(<Adafruit_INA219.h>)
+    uint16_t inaMv = ina219Sensor.getBusVoltageMv();
+    if (inaMv > 0) {
+        int16_t inamA = ina219Sensor.getCurrentMa();
+        float inaV = inaMv / 1000.0f;
+        const char *estado = (inamA > 1) ? "CARGANDO" : (inamA < -1) ? "DESCARGANDO" : "STANDBY";
+        snprintf(buf, sizeof(buf), "ADC %u mV | INA %.2f V %+d mA %s",
+                 (unsigned int)adcV, inaV, (int)inamA, estado);
+        return std::string(buf);
+    }
+#endif
+    snprintf(buf, sizeof(buf), "ADC %u mV", (unsigned int)adcV);
+    return std::string(buf);
+}
+
+// NAVARICO F20: helpers de deteccion de clave vacia y de clave del proyecto
 bool NavaCLIModule::navaKeyIsEmpty(const uint8_t *key)
 {
-    for (uint8_t i = 0; i < 32; i++) {
+    for (size_t i = 0; i < 32; i++) {
         if (key[i] != 0) return false;
     }
     return true;
@@ -335,229 +522,213 @@ bool NavaCLIModule::navaKeyIsEmpty(const uint8_t *key)
 
 bool NavaCLIModule::navaKeyIsProjectKey(const uint8_t *key)
 {
-    // Dedupe contra las claves del proyecto del perfil. Los builds General solo
-    // definen K0; Propia define K0+K1. Nunca persistir la clave del proyecto como
-    // "clave de usuario" ni restaurarla por encima del estado previo.
+    if (navaKeyIsEmpty(key)) return false;
 #ifdef USERPREFS_USE_ADMIN_KEY_0
-    {
-        static const uint8_t k0[] = USERPREFS_USE_ADMIN_KEY_0;
-        if (memcmp(key, k0, 32) == 0) return true;
-    }
+    static const uint8_t pk0[] = USERPREFS_USE_ADMIN_KEY_0;
+    if (sizeof(pk0) == 32 && memcmp(key, pk0, 32) == 0) return true;
 #endif
 #ifdef USERPREFS_USE_ADMIN_KEY_1
-    {
-        static const uint8_t k1[] = USERPREFS_USE_ADMIN_KEY_1;
-        if (memcmp(key, k1, 32) == 0) return true;
-    }
+    static const uint8_t pk1[] = USERPREFS_USE_ADMIN_KEY_1;
+    if (sizeof(pk1) == 32 && memcmp(key, pk1, 32) == 0) return true;
 #endif
 #ifdef USERPREFS_USE_ADMIN_KEY_2
-    {
-        static const uint8_t k2[] = USERPREFS_USE_ADMIN_KEY_2;
-        if (memcmp(key, k2, 32) == 0) return true;
-    }
+    static const uint8_t pk2[] = USERPREFS_USE_ADMIN_KEY_2;
+    if (sizeof(pk2) == 32 && memcmp(key, pk2, 32) == 0) return true;
 #endif
     return false;
 }
 
 void NavaCLIModule::adoptPersistedAdminKeys()
 {
-    // F20: copiar hacia la persistencia (solo campos VACIOS) las claves de usuario que
-    // ya estan en la config. Corre en la migracion legacy y en el fichero nuevo (tras
-    // wipe el config solo tiene la del proyecto -> el dedupe no adopta nada).
-    const meshtastic_Config_SecurityConfig &sec = config.security;
-    if (navaKeyIsEmpty(prefs.keySlot0Own) && sec.admin_key[0].size == 32 &&
-        !navaKeyIsEmpty(sec.admin_key[0].bytes) && !navaKeyIsProjectKey(sec.admin_key[0].bytes)) {
-        memcpy(prefs.keySlot0Own, sec.admin_key[0].bytes, 32);
-    }
-    if (navaKeyIsEmpty(prefs.keySlot1) && sec.admin_key[1].size == 32 &&
-        !navaKeyIsEmpty(sec.admin_key[1].bytes) && !navaKeyIsProjectKey(sec.admin_key[1].bytes)) {
-        memcpy(prefs.keySlot1, sec.admin_key[1].bytes, 32);
-    }
-    if (navaKeyIsEmpty(prefs.keySlot2) && sec.admin_key[2].size == 32 &&
-        !navaKeyIsEmpty(sec.admin_key[2].bytes) && !navaKeyIsProjectKey(sec.admin_key[2].bytes)) {
-        memcpy(prefs.keySlot2, sec.admin_key[2].bytes, 32);
+    meshtastic_Config_SecurityConfig &sec = config.security;
+    for (pb_size_t i = 0; i < sec.admin_key_count && i < 3; i++) {
+        const uint8_t *k = sec.admin_key[i].bytes;
+        size_t sz = sec.admin_key[i].size;
+        if (sz != 32 || navaKeyIsEmpty(k) || navaKeyIsProjectKey(k)) {
+            continue;
+        }
+        if (i == 0) {
+            memcpy(prefs.keySlot0Own, k, 32);
+        } else if (i == 1) {
+            memcpy(prefs.keySlot1, k, 32);
+        } else if (i == 2) {
+            memcpy(prefs.keySlot2, k, 32);
+        }
     }
 }
 
 void NavaCLIModule::applyPersistedAdminKeys()
 {
-    // F20: primer tick del boot, DESPUES de NodeDB::init (config cargada y
-    // auto-recuperacion ya aplicada). Regla final: slot 0 = estado previo del usuario
-    // (keySlot0Own se restaura EN el slot 0, desplazando la del proyecto); slots 1-2
-    // se restauran SOLO si estan vacios. Guarda el config solo si algo cambio.
+    meshtastic_Config_SecurityConfig &sec = config.security;
     bool changed = false;
+
     if (!navaKeyIsEmpty(prefs.keySlot0Own)) {
-        if (config.security.admin_key[0].size != 32 ||
-            memcmp(config.security.admin_key[0].bytes, prefs.keySlot0Own, 32) != 0) {
-            memcpy(config.security.admin_key[0].bytes, prefs.keySlot0Own, 32);
-            config.security.admin_key[0].size = 32;
+        if (sec.admin_key[0].size != 32 || memcmp(sec.admin_key[0].bytes, prefs.keySlot0Own, 32) != 0) {
+            memcpy(sec.admin_key[0].bytes, prefs.keySlot0Own, 32);
+            sec.admin_key[0].size = 32;
             changed = true;
         }
     }
-    if (config.security.admin_key[1].size != 32 || navaKeyIsEmpty(config.security.admin_key[1].bytes)) {
-        if (!navaKeyIsEmpty(prefs.keySlot1)) {
-            memcpy(config.security.admin_key[1].bytes, prefs.keySlot1, 32);
-            config.security.admin_key[1].size = 32;
+
+    if (!navaKeyIsEmpty(prefs.keySlot1)) {
+        if (sec.admin_key_count < 2 || sec.admin_key[1].size != 32 ||
+            memcmp(sec.admin_key[1].bytes, prefs.keySlot1, 32) != 0) {
+            memcpy(sec.admin_key[1].bytes, prefs.keySlot1, 32);
+            sec.admin_key[1].size = 32;
             changed = true;
         }
     }
-    if (config.security.admin_key[2].size != 32 || navaKeyIsEmpty(config.security.admin_key[2].bytes)) {
-        if (!navaKeyIsEmpty(prefs.keySlot2)) {
-            memcpy(config.security.admin_key[2].bytes, prefs.keySlot2, 32);
-            config.security.admin_key[2].size = 32;
+
+    if (!navaKeyIsEmpty(prefs.keySlot2)) {
+        if (sec.admin_key_count < 3 || sec.admin_key[2].size != 32 ||
+            memcmp(sec.admin_key[2].bytes, prefs.keySlot2, 32) != 0) {
+            memcpy(sec.admin_key[2].bytes, prefs.keySlot2, 32);
+            sec.admin_key[2].size = 32;
             changed = true;
+        }
+    }
+
+    pb_size_t count = 0;
+    for (pb_size_t i = 0; i < 3; i++) {
+        if (sec.admin_key[i].size == 32 && !navaKeyIsEmpty(sec.admin_key[i].bytes)) {
+            count = i + 1;
+        }
+    }
+    if (sec.admin_key_count != count) {
+        sec.admin_key_count = count;
+        changed = true;
+    }
+
+    if (changed) {
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        LOG_INFO("F20: claves admin restauradas desde /resilience.bin");
+    }
+}
+
+void NavaCLIModule::syncAdminKeysFromConfig()
+{
+    meshtastic_Config_SecurityConfig &sec = config.security;
+    bool changed = false;
+
+    if (sec.admin_key_count > 0 && sec.admin_key[0].size == 32) {
+        const uint8_t *k0 = sec.admin_key[0].bytes;
+        if (navaKeyIsProjectKey(k0)) {
+            if (!navaKeyIsEmpty(prefs.keySlot0Own)) {
+                memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
+                changed = true;
+            }
+        } else if (!navaKeyIsEmpty(k0)) {
+            if (memcmp(prefs.keySlot0Own, k0, 32) != 0) {
+                memcpy(prefs.keySlot0Own, k0, 32);
+                changed = true;
+            }
+        }
+    }
+
+    if (sec.admin_key_count > 1 && sec.admin_key[1].size == 32) {
+        const uint8_t *k1 = sec.admin_key[1].bytes;
+        if (!navaKeyIsEmpty(k1) && memcmp(prefs.keySlot1, k1, 32) != 0) {
+            memcpy(prefs.keySlot1, k1, 32);
+            changed = true;
+        }
+    }
+
+    if (sec.admin_key_count > 2 && sec.admin_key[2].size == 32) {
+        const uint8_t *k2 = sec.admin_key[2].bytes;
+        if (!navaKeyIsEmpty(k2) && memcmp(prefs.keySlot2, k2, 32) != 0) {
+            memcpy(prefs.keySlot2, k2, 32);
+            changed = true;
+        }
+    }
+
+    if (changed) {
+        saveResiliencePrefs();
+        LOG_INFO("F20: claves admin sincronizadas hacia /resilience.bin");
+    }
+}
+
+void NavaCLIModule::applyPersistedChannels()
+{
+    bool changed = false;
+    for (uint8_t i = 2; i < MAX_NUM_CHANNELS; i++) {
+        const ResilientChannel &rc = prefs.customChannels[i - 2];
+        if (rc.is_active) {
+            meshtastic_Channel &current = channels.getByIndex(i);
+            if (!current.has_settings || current.role == meshtastic_Channel_Role_DISABLED ||
+                current.settings.psk.size != rc.psk_len ||
+                memcmp(current.settings.psk.bytes, rc.psk, rc.psk_len) != 0 ||
+                strncmp(current.settings.name, rc.name, sizeof(current.settings.name)) != 0) {
+                
+                meshtastic_Channel ch = meshtastic_Channel_init_zero;
+                ch.index = i;
+                ch.role = meshtastic_Channel_Role_SECONDARY;
+                ch.has_settings = true;
+                strncpy(ch.settings.name, rc.name, sizeof(ch.settings.name) - 1);
+                ch.settings.psk.size = rc.psk_len;
+                memcpy(ch.settings.psk.bytes, rc.psk, rc.psk_len);
+                ch.settings.uplink_enabled = (rc.uplink_enabled != 0);
+                ch.settings.downlink_enabled = (rc.downlink_enabled != 0);
+                ch.settings.has_module_settings = true;
+                channels.setChannel(ch);
+                changed = true;
+            }
         }
     }
     if (changed) {
-        uint8_t cnt = 0;
-        for (uint8_t i = 0; i < 3; i++) {
-            if (config.security.admin_key[i].size == 32 && !navaKeyIsEmpty(config.security.admin_key[i].bytes)) {
-                cnt = i + 1;
-            }
-        }
-        if (cnt < 1) cnt = 1;
-        config.security.admin_key_count = cnt;
-        nodeDB->saveToDisk(SEGMENT_CONFIG);
-        LOG_INFO("F20: claves admin restauradas desde resilience.bin (count=%u)", (unsigned)cnt);
+        channels.onConfigChanged();
+        nodeDB->saveToDisk(SEGMENT_CHANNELS);
+        LOG_INFO("F21: Canales secundarios restaurados desde /resilience.bin");
     }
 }
 
 void NavaCLIModule::navaFullResetKeepKeys()
 {
-    // NAVARICO F20 (fix banco 2a): full_reset NO borra el fichero: conserva SOLO las 3
-    // claves admin persistidas del usuario y resetea el resto a defaults de perfil
-    // (mismo criterio que el fallback de loadResiliencePrefs). Escritura con el patron
-    // L7 (FSCom.remove antes de escribir, en saveResiliencePrefs).
     uint8_t k1[32], k2[32], k0[32];
-    memcpy(k1, prefs.keySlot1, sizeof(k1));
-    memcpy(k2, prefs.keySlot2, sizeof(k2));
-    memcpy(k0, prefs.keySlot0Own, sizeof(k0));
+    memcpy(k1, prefs.keySlot1, 32);
+    memcpy(k2, prefs.keySlot2, 32);
+    memcpy(k0, prefs.keySlot0Own, 32);
+
+    memset(&prefs, 0, sizeof(prefs));
     prefs.magic = 0x52455349;
+    prefs.version = NAVS_RESILIENCE_VERSION;
     #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
-        prefs.chemistry = 2; // SODIUM
+        prefs.chemistry = 2;
         prefs.vbat_cutoff = 2600;
         prefs.vwake_level = 1;
     #else
-        prefs.chemistry = 0; // LIPO
+        prefs.chemistry = 0;
         prefs.vbat_cutoff = 3500;
         prefs.vwake_level = 3;
     #endif
     prefs.tx_disabled = 0;
     prefs.ble_disabled = 0;
     prefs.auto_fav = 1;
-    prefs.role = 0xFF; // sin rol fijado (default: el del perfil del env)
+    prefs.role = 0xFF;
     prefs.autoFavCount = 0;
-    memset(prefs.autoFavIds, 0, sizeof(prefs.autoFavIds));
     prefs.sleepMsgs = 1;
     prefs.wasInSleep = 0;
     prefs.reserved = 0;
-    prefs.version = NAVS_RESILIENCE_VERSION;
-    memcpy(prefs.keySlot1, k1, sizeof(k1));
-    memcpy(prefs.keySlot2, k2, sizeof(k2));
-    memcpy(prefs.keySlot0Own, k0, sizeof(k0));
-    navaAutoFavoriteEnabled = true;
+    prefs.cliChannelSlot = 1;
+    prefs.navadminMuted = 0;
+    memset(prefs.customChannels, 0, sizeof(prefs.customChannels));
+    prefs.ok_to_mqtt = 0;
+    prefs.fixed_pin = 0;
+    prefs.fixed_pos_lat = 0;
+    prefs.fixed_pos_lon = 0;
+    prefs.fixed_pos_alt = 0;
+    prefs.fixed_pos_enabled = 0;
+    prefs.beacon_interval_secs = 0;
+
+    memcpy(prefs.keySlot1, k1, 32);
+    memcpy(prefs.keySlot2, k2, 32);
+    memcpy(prefs.keySlot0Own, k0, 32);
+
     saveResiliencePrefs();
 }
 
-void NavaCLIModule::syncAdminKeysFromConfig()
-{
-    // F20: merge desde la config (set_config de seguridad de la app/CLI).
-    // - slot 0 entrante NO vacio: == clave del proyecto -> limpiar keySlot0Own
-    //   (el usuario re-autoriza el rescate); otra -> guardarla como keySlot0Own.
-    // - slots 1-2 entrantes NO vacios y != proyecto -> persistir; vacios -> NO borrar
-    //   (purgar = /nava keys_clear o wipe). Escribe el fichero solo si algo cambio.
-    bool changed = false;
-    const meshtastic_Config_SecurityConfig &sec = config.security;
-    if (sec.admin_key[0].size == 32 && !navaKeyIsEmpty(sec.admin_key[0].bytes)) {
-        if (navaKeyIsProjectKey(sec.admin_key[0].bytes)) {
-            if (!navaKeyIsEmpty(prefs.keySlot0Own)) {
-                memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
-                changed = true;
-            }
-        } else if (memcmp(prefs.keySlot0Own, sec.admin_key[0].bytes, 32) != 0) {
-            memcpy(prefs.keySlot0Own, sec.admin_key[0].bytes, 32);
-            changed = true;
-        }
-    }
-    if (sec.admin_key[1].size == 32 && !navaKeyIsEmpty(sec.admin_key[1].bytes) && !navaKeyIsProjectKey(sec.admin_key[1].bytes)) {
-        if (memcmp(prefs.keySlot1, sec.admin_key[1].bytes, 32) != 0) {
-            memcpy(prefs.keySlot1, sec.admin_key[1].bytes, 32);
-            changed = true;
-        }
-    }
-    if (sec.admin_key[2].size == 32 && !navaKeyIsEmpty(sec.admin_key[2].bytes) && !navaKeyIsProjectKey(sec.admin_key[2].bytes)) {
-        if (memcmp(prefs.keySlot2, sec.admin_key[2].bytes, 32) != 0) {
-            memcpy(prefs.keySlot2, sec.admin_key[2].bytes, 32);
-            changed = true;
-        }
-    }
-    if (changed) {
-        saveResiliencePrefs();
-        LOG_INFO("F20: claves admin persistidas actualizadas");
-    }
-}
-
-// --- V2: mensajes de sueño/vivo/listo (canal Navadmin) ---
-// V2.4: nombre legible de la causa del ultimo reset (RESETREAS del nRF52) para [Boot]
-static const char *navaricoResetReasonName(uint32_t reason)
-{
-    if (reason & (1UL << 1)) return "WDT";        // watchdog del firmware
-    if (reason & (1UL << 3)) return "LOCKUP";     // CPU lockup
-    if (reason & (1UL << 0)) return "RESETPIN";   // pin de reset externo (ATtiny/boton)
-    if (reason & (1UL << 2)) return "SOFT";       // soft reset (reboot/storm/flash)
-    if (reason & (1UL << 17)) return "LPCOMP";    // wake de System OFF por LPCOMP
-    if (reason & (1UL << 16)) return "OFF";       // wake de System OFF (GPIO)
-    if (reason & (1UL << 20)) return "VBUS";      // deteccion de USB
-    return "?";
-}
-
-std::string NavaCLIModule::buildEnergyLine()
-{
-    char buf[96];
-    int adcMv = powerStatus ? powerStatus->getBatteryVoltageMv() : 0;
-    std::string line = "ADC " + std::to_string(adcMv) + " mV";
-    // V2.6: solo ADC + temperatura del CHIP (sensor interno del nRF52): los sensores
-    // I2C se inicializan mas tarde y no estan disponibles en estos momentos. Reintento
-    // con breve espera: a los pocos segundos del boot el SoftDevice puede rechazar la
-    // primera lectura (BUSY).
-#ifdef NRF52840_XXAA
-    {
-        int32_t tempRaw = 0;
-        uint32_t rc = sd_temp_get(&tempRaw);
-        if (rc != NRF_SUCCESS) {
-            delay(100);
-            rc = sd_temp_get(&tempRaw);
-        }
-        if (rc == NRF_SUCCESS) {
-            snprintf(buf, sizeof(buf), " | CPU %.1f C", tempRaw / 4.0f);
-            line += buf;
-        }
-    }
-#endif
-    return line;
-}
-
-bool NavaCLIModule::handleLowBatteryEvent()
-{
-    if (!prefs.sleepMsgs || sleepPending) return false;
-    // V2.6: sin atajos: el monitor ya confirmo las 5 lecturas bajas (~100s operando).
-    // Se anuncia [Sueno] y se duerme TODO (doDeepSleep con la cadena completa, como Eclipse).
-    prefs.wasInSleep = 1;
-    saveResiliencePrefs();
-    char buf[220];
-    snprintf(buf, sizeof(buf), "[Sueno] %s id%08x | %s | sueno profundo, despertara >= %u mV",
-             owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str(),
-             (unsigned int)navaGetLpcompWakeMv());
-    enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
-    sleepPending = true;
-    sleepTime = millis() + 5000; // estimacion; se recalcula tras el envio real
-    return true;
-}
-
-// --- V2: listado persistente de auto-favoritos (distincion Auto/Manual real tras reinicio) ---
 bool NavaCLIModule::isAutoFav(uint32_t nodeNum) const
 {
-    for (uint8_t i = 0; i < prefs.autoFavCount && i < sizeof(prefs.autoFavIds) / sizeof(prefs.autoFavIds[0]); i++) {
+    for (uint8_t i = 0; i < prefs.autoFavCount && i < 16; i++) {
         if (prefs.autoFavIds[i] == nodeNum) return true;
     }
     return false;
@@ -566,19 +737,24 @@ bool NavaCLIModule::isAutoFav(uint32_t nodeNum) const
 bool NavaCLIModule::addAutoFav(uint32_t nodeNum)
 {
     if (isAutoFav(nodeNum)) return false;
-    if (prefs.autoFavCount >= sizeof(prefs.autoFavIds) / sizeof(prefs.autoFavIds[0])) return false;
-    prefs.autoFavIds[prefs.autoFavCount++] = nodeNum;
-    return true;
+    if (prefs.autoFavCount < 16) {
+        prefs.autoFavIds[prefs.autoFavCount++] = nodeNum;
+        saveResiliencePrefs();
+        return true;
+    }
+    return false;
 }
 
 bool NavaCLIModule::removeAutoFav(uint32_t nodeNum)
 {
-    for (uint8_t i = 0; i < prefs.autoFavCount && i < sizeof(prefs.autoFavIds) / sizeof(prefs.autoFavIds[0]); i++) {
+    for (uint8_t i = 0; i < prefs.autoFavCount && i < 16; i++) {
         if (prefs.autoFavIds[i] == nodeNum) {
             for (uint8_t j = i; j + 1 < prefs.autoFavCount; j++) {
                 prefs.autoFavIds[j] = prefs.autoFavIds[j + 1];
             }
             prefs.autoFavCount--;
+            prefs.autoFavIds[prefs.autoFavCount] = 0;
+            saveResiliencePrefs();
             return true;
         }
     }
@@ -588,19 +764,165 @@ bool NavaCLIModule::removeAutoFav(uint32_t nodeNum)
 void NavaCLIModule::reconcileAutoFavs()
 {
     if (!navaAutoFavoriteEnabled || !router) return;
+    static uint32_t lastReconcile = 0;
+    if (millis() - lastReconcile < 60000) return;
+    lastReconcile = millis();
+
     bool changed = false;
-    for (NodeNum num : router->activeDirectRouters) {
-        meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(num);
-        if (n && n->is_favorite && addAutoFav(num)) {
-            changed = true;
+    for (size_t i = 0; i < router->activeDirectRouters.size() && i < 16; i++) {
+        uint32_t id = router->activeDirectRouters[i];
+        if (id != 0 && !isAutoFav(id)) {
+            if (prefs.autoFavCount < 16) {
+                prefs.autoFavIds[prefs.autoFavCount++] = id;
+                changed = true;
+            }
         }
     }
-    if (changed) saveResiliencePrefs();
+    if (changed) {
+        saveResiliencePrefs();
+    }
+}
+
+bool NavaCLIModule::isNodeIgnored(NodeNum node)
+{
+    if (!navaCLIModule) return false;
+    for (uint8_t i = 0; i < navaCLIModule->prefs.ignoredCount && i < 8; i++) {
+        if (navaCLIModule->prefs.ignoredNodes[i] == node) return true;
+    }
+    return false;
+}
+
+bool NavaCLIModule::addIgnoredNode(uint32_t nodeNum)
+{
+    for (uint8_t i = 0; i < prefs.ignoredCount && i < 8; i++) {
+        if (prefs.ignoredNodes[i] == nodeNum) return false;
+    }
+    if (prefs.ignoredCount < 8) {
+        prefs.ignoredNodes[prefs.ignoredCount++] = nodeNum;
+        saveResiliencePrefs();
+        return true;
+    }
+    return false;
+}
+
+bool NavaCLIModule::removeIgnoredNode(uint32_t nodeNum)
+{
+    for (uint8_t i = 0; i < prefs.ignoredCount && i < 8; i++) {
+        if (prefs.ignoredNodes[i] == nodeNum) {
+            for (uint8_t j = i; j + 1 < prefs.ignoredCount; j++) {
+                prefs.ignoredNodes[j] = prefs.ignoredNodes[j + 1];
+            }
+            prefs.ignoredCount--;
+            prefs.ignoredNodes[prefs.ignoredCount] = 0;
+            saveResiliencePrefs();
+            return true;
+        }
+    }
+    return false;
+}
+
+void NavaCLIModule::clearIgnoredNodes()
+{
+    prefs.ignoredCount = 0;
+    memset(prefs.ignoredNodes, 0, sizeof(prefs.ignoredNodes));
+    saveResiliencePrefs();
+}
+
+bool NavaCLIModule::base64Decode(const std::string &in, uint8_t *out, size_t &outLen, size_t maxLen)
+{
+    static const int8_t b64inv[256] = {
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,62,-1,63,
+        52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1,
+        -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,
+        15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,63,
+        -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
+        41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+        -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+    };
+    size_t len = in.length();
+    while (len > 0 && (in[len - 1] == '=' || in[len - 1] == ' ' || in[len - 1] == '\r' || in[len - 1] == '\n')) {
+        len--;
+    }
+    size_t w = 0;
+    uint32_t buf = 0;
+    int bits = 0;
+    for (size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)in[i];
+        int8_t val = b64inv[c];
+        if (val < 0) continue;
+        buf = (buf << 6) | (uint8_t)val;
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            if (w < maxLen) {
+                out[w++] = (uint8_t)(buf >> bits);
+            }
+        }
+    }
+    outLen = w;
+    return (w > 0);
+}
+
+std::string NavaCLIModule::generateChannelUrl(uint8_t channelIndex)
+{
+    if (channelIndex >= MAX_NUM_CHANNELS) return "ERR: SLOT INVALIDO";
+    const meshtastic_Channel &targetCh = channels.getByIndex(channelIndex);
+    if (!targetCh.has_settings || targetCh.role == meshtastic_Channel_Role_DISABLED) {
+        return "ERR: CANAL DESHABILITADO";
+    }
+
+    meshtastic_ChannelSet cs = meshtastic_ChannelSet_init_zero;
+    cs.settings_count = 1;
+    cs.settings[0] = targetCh.settings;
+    cs.has_lora_config = true;
+    cs.lora_config = config.lora;
+
+    uint8_t buffer[MESHTASTIC_MESHTASTIC_APPONLY_PB_H_MAX_SIZE];
+    pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+    if (!pb_encode(&stream, &meshtastic_ChannelSet_msg, &cs)) {
+        return "ERR: FALLO ENCODING PROTOBUF";
+    }
+
+    static const char b64url[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    std::string b64;
+    size_t len = stream.bytes_written;
+    b64.reserve(((len + 2) / 3) * 4);
+    size_t i = 0;
+    while (i + 3 <= len) {
+        uint32_t n = (buffer[i] << 16) | (buffer[i + 1] << 8) | buffer[i + 2];
+        b64 += b64url[(n >> 18) & 63];
+        b64 += b64url[(n >> 12) & 63];
+        b64 += b64url[(n >> 6) & 63];
+        b64 += b64url[n & 63];
+        i += 3;
+    }
+    if (i + 1 == len) {
+        uint32_t n = buffer[i] << 16;
+        b64 += b64url[(n >> 18) & 63];
+        b64 += b64url[(n >> 12) & 63];
+    } else if (i + 2 == len) {
+        uint32_t n = (buffer[i] << 16) | (buffer[i + 1] << 8);
+        b64 += b64url[(n >> 18) & 63];
+        b64 += b64url[(n >> 12) & 63];
+        b64 += b64url[(n >> 6) & 63];
+    }
+
+    return "https://meshtastic.org/e/#" + b64;
 }
 
 bool NavaCLIModule::wantPacket(const meshtastic_MeshPacket *p)
 {
     if (p != nullptr) {
+        statsRxPackets++;
         // --- INYECCIÓN NAVARRICO: REGISTRO PROMISCUO RXLOG ---
         RxLogEntry &entry = rxLog[rxLogIndex];
         entry.from = p->from;
@@ -614,12 +936,17 @@ bool NavaCLIModule::wantPacket(const meshtastic_MeshPacket *p)
     }
 
     if (p != nullptr && p->decoded.portnum == ourPortNum && p->decoded.payload.size >= 5) {
-        // Regla de aislamiento: solo aceptamos si es mensaje directo (DM)
-        // o si viaja por el Canal 1 (Navadmin)
         bool isDM = !isBroadcast(p->to) && (p->to == nodeDB->getNodeNum());
-        bool isChannel1 = (p->channel == 1);
-        
-        if (isDM || isChannel1) {
+        uint8_t cliSlot = prefs.cliChannelSlot;
+        if (cliSlot < 1 || cliSlot > 7) cliSlot = 1;
+
+        bool isCliChan = (p->channel == cliSlot);
+        bool isNavadmin = (p->channel == 1);
+        if (isNavadmin && prefs.navadminMuted && cliSlot != 1) {
+            isNavadmin = false;
+        }
+
+        if (isDM || isCliChan || isNavadmin) {
             return (memcmp(p->decoded.payload.bytes, "/nava", 5) == 0);
         }
     }
@@ -652,11 +979,14 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
     std::string text((char *)mp.decoded.payload.bytes, mp.decoded.payload.size);
     std::string cmd = (text.length() > 6) ? text.substr(6) : "";
 
+    uint8_t cliSlot = prefs.cliChannelSlot;
+    if (cliSlot < 1 || cliSlot > 7) cliSlot = 1;
+
     // Determinar canal y destinatario de la respuesta
     uint8_t replyChannel = 0;
     NodeNum replyDest = mp.from;
-    if (mp.channel == 1) {
-        replyChannel = 1;
+    if (mp.channel == cliSlot || (mp.channel == 1 && !prefs.navadminMuted)) {
+        replyChannel = mp.channel;
         replyDest = NODENUM_BROADCAST;
     }
 
@@ -670,8 +1000,6 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
 
         const meshtastic_NodeInfoLite *senderNode = nodeDB->getMeshNode(mp.from);
         if (!senderNode) {
-            // Caso límite: DM PKI de un nodo sin entrada en NodeDB. Normalmente esto
-            // no llega (PKI exige clave pública en la DB), pero respondemos una vez.
             if (unauthorizedReplied.insert(mp.from).second) {
                 LOG_WARN("Rechazado: DM PKI de nodo sin registrar 0x%08x", mp.from);
                 enqueueResponse(mp.from, 0, "NODO NO REGISTRADO EN NODEDB", true);
@@ -679,8 +1007,6 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
             return ProcessMessage::STOP;
         }
         if (!nodeDB->isAdminNode(*senderNode)) {
-            // Caso 1: nodo conocido pero no acreditado como admin. Respondemos una sola
-            // vez por nodo para dar feedback sin abrir un vector de abuso por aire.
             if (unauthorizedReplied.insert(mp.from).second) {
                 LOG_WARN("Rechazado: nodo 0x%08x no es admin verificado", mp.from);
                 enqueueResponse(mp.from, 0, "NO AUTORIZADO COMO ADMINISTRADOR", true);
@@ -688,20 +1014,19 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
             return ProcessMessage::STOP;
         }
     } else {
-        // Canal Navadmin (1): solo responden los admins verificados, en silencio.
+        // Canal de difusión: solo responden los admins verificados
         const meshtastic_NodeInfoLite *senderNode = nodeDB->getMeshNode(mp.from);
         if (!senderNode || !nodeDB->isAdminNode(*senderNode)) {
             LOG_WARN("Rechazado: Comando /nava en canal sin firma PKI desde 0x%08x", mp.from);
             return ProcessMessage::STOP;
         }
-        // Rate-limit generico del canal 1 (PSK publica, from falsificable): max 1 comando
-        // cada 30s por nodo emisor para evitar agotamiento de bateria/airtime remoto.
-        static std::map<NodeNum, uint32_t> lastChannel1Cmd;
-        auto it = lastChannel1Cmd.find(mp.from);
-        if (it != lastChannel1Cmd.end() && (int32_t)(millis() - it->second) < 30000) {
-            return ProcessMessage::STOP; // Silencio: no revelar rate-limit
+        // Rate-limit genérico del canal de difusión: max 1 comando cada 30s por nodo emisor
+        static std::map<NodeNum, uint32_t> lastBroadcastCmd;
+        auto it = lastBroadcastCmd.find(mp.from);
+        if (it != lastBroadcastCmd.end() && (int32_t)(millis() - it->second) < 30000) {
+            return ProcessMessage::STOP;
         }
-        lastChannel1Cmd[mp.from] = millis();
+        lastBroadcastCmd[mp.from] = millis();
     }
 
     executeCommand(mp.from, cmd, replyChannel, replyDest, mp.rx_snr);
@@ -717,12 +1042,9 @@ void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::
         resp.channel = channel;
         size_t len = std::min<size_t>(190, msg.length() - pos);
         if (pos + len < msg.length()) {
-            // Fix estetico V2: cortar primero en el ultimo salto de linea de la
-            // ventana (lineas enteras en cada fragmento). Si la linea es mas larga
-            // que la ventana, recaer en el ultimo espacio (no partir palabras).
             size_t cut = msg.find_last_of('\n', pos + len - 1);
             if (cut >= pos && cut <= pos + len - 1) {
-                len = cut - pos + 1; // incluir el \n en el fragmento actual
+                len = cut - pos + 1;
             } else {
                 cut = msg.find_last_of(' ', pos + len - 1);
                 if (cut > pos) {
@@ -734,7 +1056,7 @@ void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::
         responseQueue.push(resp);
         pos += len;
         if (pos < msg.length() && msg[pos] == ' ') {
-            pos++; // no arrastrar el espacio de separacion al siguiente fragmento
+            pos++;
         }
     }
     if (pos < msg.length()) {
@@ -745,32 +1067,33 @@ void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::
         responseQueue.push(resp);
     }
 
-    if (isFirstFragment && channel == 1) {
-        // Jitter dinámico anticolisión para el Canal 1. quick=true (mensajes de
-        // sueno/vivo/listo): ventana corta 300-2300ms para que el re-sueno no
-        // mate la transmision (la radio tarda ~1s en emitir SFNarrow).
-        uint32_t jitter = quick ? 300 + (nodeDB->getNodeNum() % 8) * 250 + (rand() % 300)
-                                : 500 + (nodeDB->getNodeNum() % 5) * 1200 + (rand() % 1000);
+    if (isFirstFragment && channel != 0) {
+        uint32_t jitter;
+        if (quick) {
+            jitter = 300 + (nodeDB->getNodeNum() % 2000);
+        } else {
+            jitter = 500 + (nodeDB->getNodeNum() % 6000);
+        }
         setIntervalFromNow(jitter);
-    } else {
-        setIntervalFromNow(50);
     }
 }
 
 void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t replyChannel, NodeNum replyDest, float rxSnr)
 {
-    // Limpieza de espacios y saltos de línea al final
-    while (!cmd.empty() && (cmd.back() == ' ' || cmd.back() == '\r' || cmd.back() == '\n' || cmd.back() == '\t')) {
+    while (!cmd.empty() && (cmd.front() == ' ' || cmd.front() == '\'' || cmd.front() == '"' || cmd.front() == '\t')) {
+        cmd.erase(0, 1);
+    }
+    while (!cmd.empty() && (cmd.back() == ' ' || cmd.back() == '\'' || cmd.back() == '"' || cmd.back() == '\r' || cmd.back() == '\n' || cmd.back() == '\t')) {
         cmd.pop_back();
     }
 
-    // Normalizar comando a minúsculas para comparaciones (ANTES del filtro de canal,
-    // para que REBOOT/SET_* en mayusculas no puedan saltarse la whitelist del canal 1)
     for (size_t i = 0; i < cmd.length() && i < 15; i++) {
-        if (cmd[i] == '"') break;
+        if (cmd[i] == '"' || cmd[i] == '\'') break;
         cmd[i] = tolower(cmd[i]);
     }
     
+    bool isDirected = false;
+
     // 1. Filtrado dinámico individual (!ID)
     if (cmd.rfind("!", 0) == 0) {
         size_t spacePos = cmd.find(" ");
@@ -778,9 +1101,13 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             std::string targetIdStr = cmd.substr(1, spacePos - 1);
             uint32_t targetId = strtoul(targetIdStr.c_str(), NULL, 16);
             if (targetId != nodeDB->getNodeNum()) {
-                return; // Abortar en silencio, no es para nosotros
+                return;
             }
+            isDirected = true;
             cmd = cmd.substr(spacePos + 1);
+            while (!cmd.empty() && (cmd.front() == ' ' || cmd.front() == '\'' || cmd.front() == '"' || cmd.front() == '\t')) {
+                cmd.erase(0, 1);
+            }
         }
     }
     // 2. Filtrado dinámico por grupo (@r, @c, @a, @name:)
@@ -805,28 +1132,70 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             }
             
             if (!matchesGroup) {
-                return; // Abortar en silencio
+                return;
             }
+            isDirected = true;
             cmd = cmd.substr(spacePos + 1);
+            while (!cmd.empty() && (cmd.front() == ' ' || cmd.front() == '\'' || cmd.front() == '"' || cmd.front() == '\t')) {
+                cmd.erase(0, 1);
+            }
         }
     }
 
-    // 3. Filtro de canal híbrido seguro: WHITELIST (denegar por defecto)
-    // Solo comandos de lectura/diagnóstico no destructivos. Todo lo demás solo DM cifrado PKI.
-    if (replyChannel == 1) { // Viene por el canal Navadmin
-        bool permitido = (cmd == "help" || cmd.rfind("help ", 0) == 0 ||
-                          cmd == "ping" || cmd == "status" || cmd == "env" ||
-                          cmd == "channel" || cmd == "peers" || cmd == "rxlog" || cmd == "afc" ||
-                          cmd == "reset_reason" || cmd == "noise" || cmd == "bat" ||
-                          cmd.rfind("route ", 0) == 0 || cmd.rfind("trace ", 0) == 0);
-        if (!permitido) {
-            enqueueResponse(replyDest, replyChannel, "ERR: SOLO DM SEGURO", true);
-            return;
+    // 3. Filtro de canal híbrido y gestión de flota
+    if (replyChannel != 0) {
+        bool isPrivateAdminChan = (replyChannel == prefs.cliChannelSlot && prefs.cliChannelSlot >= 2);
+        
+        if (isPrivateAdminChan) {
+            // Canal Privado de Flota (Slot 2..7):
+            // Comandos que por topología o seguridad nuclear exigen isDirected o DM
+            bool individualOnly = (cmd.rfind("fav", 0) == 0 ||
+                                  cmd.rfind("set_pos ", 0) == 0 ||
+                                  cmd.rfind("set_name", 0) == 0 ||
+                                  cmd.rfind("set_pin", 0) == 0 ||
+                                  cmd == "pos_clear" ||
+                                  cmd.rfind("ch_set", 0) == 0 ||
+                                  cmd.rfind("ch_del", 0) == 0 ||
+                                  cmd.rfind("set_cli_chan", 0) == 0 ||
+                                  cmd == "ch_reset" ||
+                                  cmd == "reboot" ||
+                                  cmd == "factory_reset" ||
+                                  cmd == "full_reset" ||
+                                  cmd == "wipe" ||
+                                  cmd == "keys_clear");
+            if (individualOnly && !isDirected) {
+                enqueueResponse(replyDest, replyChannel, "ERR: COMANDO INDIVIDUAL (USA !ID O DM)", true);
+                return;
+            }
+        } else {
+            // Canal Público Navadmin (Slot 1 o canal abierto no-privado):
+            if (!isDirected) {
+                // Broadcast no dirigido: solo 7 comandos ligeros de sondeo
+                bool ligeroPermitido = (cmd == "ping" || cmd == "status" || cmd == "bat" ||
+                                       cmd == "power" || cmd == "env" || cmd == "channel" ||
+                                       cmd == "noise");
+                if (!ligeroPermitido) {
+                    // Silencio intencionado para evitar tormentas de radio masivas
+                    return;
+                }
+            } else {
+                // Broadcast dirigido con !ID o @grupo: permite diagnósticos y lecturas
+                bool dirigidoPermitido = (cmd == "help" || cmd.rfind("help ", 0) == 0 ||
+                                         cmd == "ping" || cmd == "status" || cmd == "bat" ||
+                                         cmd == "power" || cmd == "env" || cmd == "channel" ||
+                                         cmd == "noise" || cmd == "stats" || cmd.rfind("log", 0) == 0 ||
+                                         cmd == "ch_ls" || cmd == "peers" || cmd == "rxlog" ||
+                                         cmd == "afc" || cmd == "reset_reason" ||
+                                         cmd.rfind("route", 0) == 0 || cmd.rfind("trace", 0) == 0);
+                if (!dirigidoPermitido) {
+                    enqueueResponse(replyDest, replyChannel, "ERR: SOLO DM SEGURO", true);
+                    return;
+                }
+            }
         }
     }
 
-    // Interrogacion generica: "/nava <cmd> ?" o "/nava <cmd> help" -> ayuda/estado del comando (cualquier comando).
-    // Excluido msg: "/nava msg help" sigue difundiendo el texto.
+    // Interrogacion generica: "/nava <cmd> ?" o "/nava <cmd> help"
     if (!(cmd.rfind("msg", 0) == 0)) {
         size_t sp = cmd.find_last_of(' ');
         if (sp != std::string::npos && sp + 1 < cmd.length()) {
@@ -849,12 +1218,10 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             enqueueResponse(replyDest, replyChannel, usageAndState(topic), true);
         } else {
             enqueueResponse(replyDest, replyChannel,
-                "CMDS:\n[Q] ping / status / env / channel / peers\n[Q] rxlog / afc / reset_reason / route / noise / bat\n[E] set_chem [lipo/nimh/sodium/lifepo4]\n[E] set_vbat [mV] / set_vwake [1-5]\n[E] storm [h] / storm test1|test2 / txoff / txon / ble [on/off]\n[E] msg [T] / pos / nodeinfo / sendtel / bell\n[E] fav (add/rm/ls/auto) / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg [on|off] / reboot / factory_reset / full_reset / wipe\n[E] admin_ls / keys_ls / keys_clear / power\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
+                "CMDS:\n[Q] ping / status / env / channel / peers / bat / power\n[Q] rxlog / afc / reset_reason / noise / stats / log\n[E] ch_ls / ch_set / ch_del / ch_url / set_cli_chan / navadmin_mute / ch_reset\n[E] ch_mqtt / set_ok_to_mqtt / set_pos / set_pos_tx / set_nodeinfo_tx / set_telem_tx / pos_clear\n[E] set_beacon / mute / set_pin / test_tx / set_chem / set_vbat / set_vwake / storm / txoff / txon / ble\n[E] msg / bell / pos / nodeinfo / sendtel / fav / ign / db_purge / db_clear\n[E] set_name / set_role / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg / reboot / factory_reset / full_reset / wipe / admin_ls / keys_ls / keys_clear\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true);
         }
     }
     else if (cmd == "ping") {
-        // Rate-limit suave: max 1 ping respondido cada 10s por nodo emisor,
-        // para evitar que un admin spammee el canal y gaste aire/bateria.
         auto it = lastPingTime.find(fromNode);
         if (it != lastPingTime.end() && (int32_t)(millis() - it->second) < 10000) {
             return;
@@ -865,7 +1232,6 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         uint32_t upSecs = millis() / 1000;
         uint32_t upD = upSecs / 86400;
         uint32_t upH = (upSecs % 86400) / 3600;
-        // Piso de ruido si la radio esta disponible
         int noiseFloor = 0;
         bool hasNoise = false;
         if (router && router->getInterface()) {
@@ -886,578 +1252,1002 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         }
         enqueueResponse(replyDest, replyChannel, buf, true);
     }
+    else if (cmd == "ch_ls") {
+        std::string out = "CANALES (0-7):\n";
+        for (uint8_t i = 0; i < MAX_NUM_CHANNELS; i++) {
+            const meshtastic_Channel &ch = channels.getByIndex(i);
+            char buf[64];
+            const char *roleStr = (ch.role == meshtastic_Channel_Role_PRIMARY) ? "PRI" :
+                                  (ch.role == meshtastic_Channel_Role_SECONDARY) ? "SEC" : "DIS";
+            const char *activeMark = (i == prefs.cliChannelSlot) ? "*" : " ";
+            
+            std::string pskStr = "-";
+            if (ch.has_settings && ch.role != meshtastic_Channel_Role_DISABLED) {
+                if (ch.settings.psk.size == 0) {
+                    pskStr = (ch.role == meshtastic_Channel_Role_SECONDARY) ? "DEF_PRI" : "NO_KEY";
+                } else if (ch.settings.psk.size == 1) {
+                    pskStr = "#" + std::to_string((int)ch.settings.psk.bytes[0]);
+                } else if (ch.settings.psk.size == 16) {
+                    pskStr = "AES128";
+                } else if (ch.settings.psk.size == 32) {
+                    pskStr = "AES256";
+                } else {
+                    pskStr = std::to_string(ch.settings.psk.size) + "B";
+                }
+            }
+            const char *name = (ch.has_settings && ch.role != meshtastic_Channel_Role_DISABLED) ? channels.getName(i) : "-";
+            char mqttStr[8] = "-";
+            if (ch.has_settings && ch.role != meshtastic_Channel_Role_DISABLED) {
+                if (ch.settings.uplink_enabled && ch.settings.downlink_enabled) strcpy(mqttStr, "U/D");
+                else if (ch.settings.uplink_enabled) strcpy(mqttStr, "U");
+                else if (ch.settings.downlink_enabled) strcpy(mqttStr, "D");
+            }
+            snprintf(buf, sizeof(buf), "[%d]%s%s %s (%s) %s\n", i, activeMark, roleStr, name, pskStr.c_str(), mqttStr);
+            out += buf;
+        }
+        char tail[80];
+        snprintf(tail, sizeof(tail), "CLI: Slot %d | Navadmin: %s", prefs.cliChannelSlot, prefs.navadminMuted ? "MUTED" : "ACTIVO");
+        out += tail;
+        enqueueResponse(replyDest, replyChannel, out, true);
+    }
+    else if (cmd.rfind("ch_set", 0) == 0) {
+        std::string arg = (cmd.length() > 6) ? cmd.substr(6) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("ch_set"), true);
+            return;
+        }
+        size_t sp1 = arg.find(' ');
+        if (sp1 == std::string::npos) {
+            enqueueResponse(replyDest, replyChannel, "ERR: USO: ch_set <slot 2-7> <nombre> <psk_base64>", true);
+            return;
+        }
+        int slot = atoi(arg.substr(0, sp1).c_str());
+        if (slot < 2 || slot > 7) {
+            enqueueResponse(replyDest, replyChannel, "ERR: SLOT INVALIDO (SOLO 2-7; 0 y 1 protegidos)", true);
+            return;
+        }
+        std::string rest = arg.substr(sp1 + 1);
+        while (!rest.empty() && rest.front() == ' ') rest.erase(0, 1);
+        size_t sp2 = rest.find(' ');
+        if (sp2 == std::string::npos) {
+            enqueueResponse(replyDest, replyChannel, "ERR: FALTA CLAVE PSK. USO: ch_set <slot> <nombre> <psk_base64>", true);
+            return;
+        }
+        std::string chName = rest.substr(0, sp2);
+        if (chName.length() > 11) {
+            enqueueResponse(replyDest, replyChannel, "ERR: NOMBRE MAX 11 CARACTERES", true);
+            return;
+        }
+        std::string pskB64 = rest.substr(sp2 + 1);
+        while (!pskB64.empty() && pskB64.front() == ' ') pskB64.erase(0, 1);
+        while (!pskB64.empty() && (pskB64.back() == ' ' || pskB64.back() == '\r' || pskB64.back() == '\n')) pskB64.pop_back();
+
+        uint8_t pskBytes[32];
+        size_t pskLen = 0;
+        if (!base64Decode(pskB64, pskBytes, pskLen, sizeof(pskBytes)) || (pskLen != 1 && pskLen != 16 && pskLen != 32)) {
+            enqueueResponse(replyDest, replyChannel, "ERR: CLAVE BASE64 INVALIDA (debe ser 1, 16 o 32 bytes)", true);
+            return;
+        }
+
+        meshtastic_Channel ch = meshtastic_Channel_init_zero;
+        ch.index = slot;
+        ch.role = meshtastic_Channel_Role_SECONDARY;
+        ch.has_settings = true;
+        strncpy(ch.settings.name, chName.c_str(), sizeof(ch.settings.name) - 1);
+        ch.settings.psk.size = pskLen;
+        memcpy(ch.settings.psk.bytes, pskBytes, pskLen);
+        ch.settings.uplink_enabled = true;
+        ch.settings.downlink_enabled = true;
+        ch.settings.has_module_settings = true;
+        channels.setChannel(ch);
+        channels.onConfigChanged();
+        nodeDB->saveToDisk(SEGMENT_CHANNELS);
+
+        ResilientChannel &rc = prefs.customChannels[slot - 2];
+        strncpy(rc.name, chName.c_str(), 11);
+        rc.name[11] = '\0';
+        rc.psk_len = pskLen;
+        memcpy(rc.psk, pskBytes, pskLen);
+        rc.uplink_enabled = 1;
+        rc.downlink_enabled = 1;
+        rc.is_active = 1;
+        saveResiliencePrefs();
+
+        logEvent("CH_SET slot %d %s", slot, chName.c_str());
+        const char *tStr = (pskLen == 1) ? "#1" : (pskLen == 16) ? "AES128" : "AES256";
+        char respBuf[100];
+        snprintf(respBuf, sizeof(respBuf), "OK: CANAL %d \"%s\" CREADO (%s)", slot, chName.c_str(), tStr);
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd.rfind("ch_del", 0) == 0) {
+        std::string arg = (cmd.length() > 6) ? cmd.substr(6) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("ch_del"), true);
+            return;
+        }
+        int slot = atoi(arg.c_str());
+        if (slot < 2 || slot > 7) {
+            enqueueResponse(replyDest, replyChannel, "ERR: SLOT INVALIDO (SOLO 2-7)", true);
+            return;
+        }
+        if (prefs.cliChannelSlot == slot) {
+            prefs.cliChannelSlot = 1;
+        }
+        meshtastic_Channel ch = meshtastic_Channel_init_zero;
+        ch.index = slot;
+        ch.role = meshtastic_Channel_Role_DISABLED;
+        channels.setChannel(ch);
+        channels.onConfigChanged();
+        nodeDB->saveToDisk(SEGMENT_CHANNELS);
+
+        memset(&prefs.customChannels[slot - 2], 0, sizeof(ResilientChannel));
+        saveResiliencePrefs();
+
+        logEvent("CH_DEL slot %d", slot);
+        char respBuf[60];
+        snprintf(respBuf, sizeof(respBuf), "OK: CANAL %d DESHABILITADO", slot);
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd.rfind("ch_url", 0) == 0) {
+        std::string arg = (cmd.length() > 6) ? cmd.substr(6) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        int slot = 0;
+        if (!arg.empty()) {
+            slot = atoi(arg.c_str());
+            if (slot < 0 || slot > 7) {
+                enqueueResponse(replyDest, replyChannel, "ERR: SLOT INVALIDO (0-7)", true);
+                return;
+            }
+        }
+        std::string url = generateChannelUrl(slot);
+        enqueueResponse(replyDest, replyChannel, url, true);
+    }
+    else if (cmd.rfind("set_cli_chan", 0) == 0) {
+        std::string arg = (cmd.length() > 12) ? cmd.substr(12) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_cli_chan"), true);
+            return;
+        }
+        int slot = atoi(arg.c_str());
+        if (slot < 1 || slot > 7) {
+            enqueueResponse(replyDest, replyChannel, "ERR: SLOT INVALIDO (1-7)", true);
+            return;
+        }
+        if (slot > 1) {
+            const meshtastic_Channel &ch = channels.getByIndex(slot);
+            if (!ch.has_settings || ch.role == meshtastic_Channel_Role_DISABLED) {
+                enqueueResponse(replyDest, replyChannel, "ERR: EL CANAL INDICADO NO ESTA ACTIVO", true);
+                return;
+            }
+        }
+        prefs.cliChannelSlot = slot;
+        saveResiliencePrefs();
+        logEvent("CLI_CHAN -> slot %d", slot);
+        char respBuf[80];
+        snprintf(respBuf, sizeof(respBuf), "OK: NAVACLI ASIGNADO AL SLOT %d (%s)", slot, channels.getName(slot));
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd.rfind("navadmin_mute", 0) == 0) {
+        std::string arg = (cmd.length() > 13) ? cmd.substr(13) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("navadmin_mute"), true);
+            return;
+        }
+        if (arg == "on" || arg == "1") {
+            prefs.navadminMuted = 1;
+            saveResiliencePrefs();
+            logEvent("NAVADMIN MUTE ON");
+            enqueueResponse(replyDest, replyChannel, "OK: NAVADMIN (CANAL 1) SILENCIADO", true);
+        } else if (arg == "off" || arg == "0") {
+            prefs.navadminMuted = 0;
+            saveResiliencePrefs();
+            logEvent("NAVADMIN MUTE OFF");
+            enqueueResponse(replyDest, replyChannel, "OK: NAVADMIN (CANAL 1) ACTIVO", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USO: navadmin_mute [on|off]", true);
+        }
+    }
+    else if (cmd == "ch_reset") {
+        for (uint8_t i = 2; i < MAX_NUM_CHANNELS; i++) {
+            meshtastic_Channel ch = meshtastic_Channel_init_zero;
+            ch.index = i;
+            ch.role = meshtastic_Channel_Role_DISABLED;
+            channels.setChannel(ch);
+        }
+        meshtastic_Channel ch1 = channels.getByIndex(1);
+        ch1.role = meshtastic_Channel_Role_SECONDARY;
+        ch1.has_settings = true;
+        strcpy(ch1.settings.name, "Navadmin");
+        ch1.settings.psk.size = 1;
+        ch1.settings.psk.bytes[0] = 0x01;
+        ch1.settings.uplink_enabled = true;
+        ch1.settings.downlink_enabled = true;
+        ch1.settings.has_module_settings = true;
+        channels.setChannel(ch1);
+        channels.onConfigChanged();
+        nodeDB->saveToDisk(SEGMENT_CHANNELS);
+
+        prefs.cliChannelSlot = 1;
+        prefs.navadminMuted = 0;
+        memset(prefs.customChannels, 0, sizeof(prefs.customChannels));
+        saveResiliencePrefs();
+
+        logEvent("CH_RESET de fabrica");
+        enqueueResponse(replyDest, replyChannel, "OK: CANALES RESTAURADOS A FABRICA (Navadmin Slot 1)", true);
+    }
+    else if (cmd.rfind("ch_mqtt", 0) == 0) {
+        std::string arg = (cmd.length() > 7) ? cmd.substr(7) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("ch_mqtt"), true);
+            return;
+        }
+        size_t sp = arg.find(' ');
+        if (sp == std::string::npos) {
+            int slot = atoi(arg.c_str());
+            if (slot < 0 || slot > 7) {
+                enqueueResponse(replyDest, replyChannel, "ERR: SLOT INVALIDO (0-7)", true);
+                return;
+            }
+            const meshtastic_Channel &ch = channels.getByIndex(slot);
+            char buf[80];
+            snprintf(buf, sizeof(buf), "MQTT CANAL %d: UP=%d DOWN=%d", slot, ch.settings.uplink_enabled, ch.settings.downlink_enabled);
+            enqueueResponse(replyDest, replyChannel, buf, true);
+            return;
+        }
+        int slot = atoi(arg.substr(0, sp).c_str());
+        if (slot < 0 || slot > 7) {
+            enqueueResponse(replyDest, replyChannel, "ERR: SLOT INVALIDO (0-7)", true);
+            return;
+        }
+        std::string mode = arg.substr(sp + 1);
+        while (!mode.empty() && mode.front() == ' ') mode.erase(0, 1);
+        while (!mode.empty() && (mode.back() == ' ' || mode.back() == '\r' || mode.back() == '\n')) mode.pop_back();
+
+        meshtastic_Channel ch = channels.getByIndex(slot);
+        if (!ch.has_settings || ch.role == meshtastic_Channel_Role_DISABLED) {
+            enqueueResponse(replyDest, replyChannel, "ERR: EL CANAL NO ESTA ACTIVO", true);
+            return;
+        }
+        if (mode == "up") {
+            ch.settings.uplink_enabled = true;
+            ch.settings.downlink_enabled = false;
+        } else if (mode == "down") {
+            ch.settings.uplink_enabled = false;
+            ch.settings.downlink_enabled = true;
+        } else if (mode == "both") {
+            ch.settings.uplink_enabled = true;
+            ch.settings.downlink_enabled = true;
+        } else if (mode == "off") {
+            ch.settings.uplink_enabled = false;
+            ch.settings.downlink_enabled = false;
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: MODO INVALIDO (up|down|both|off)", true);
+            return;
+        }
+        channels.setChannel(ch);
+        channels.onConfigChanged();
+        nodeDB->saveToDisk(SEGMENT_CHANNELS);
+
+        if (slot >= 2) {
+            prefs.customChannels[slot - 2].uplink_enabled = ch.settings.uplink_enabled ? 1 : 0;
+            prefs.customChannels[slot - 2].downlink_enabled = ch.settings.downlink_enabled ? 1 : 0;
+            saveResiliencePrefs();
+        }
+        char respBuf[60];
+        snprintf(respBuf, sizeof(respBuf), "OK: MQTT CANAL %d -> %s", slot, mode.c_str());
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd.rfind("set_ok_to_mqtt", 0) == 0) {
+        std::string arg = (cmd.length() > 14) ? cmd.substr(14) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_ok_to_mqtt"), true);
+            return;
+        }
+        if (arg == "on" || arg == "1") {
+            config.lora.config_ok_to_mqtt = true;
+            prefs.ok_to_mqtt = 1;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: OK_TO_MQTT ON (Persiste)", true);
+        } else if (arg == "off" || arg == "0") {
+            config.lora.config_ok_to_mqtt = false;
+            prefs.ok_to_mqtt = 2;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: OK_TO_MQTT OFF (Persiste)", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: USO: set_ok_to_mqtt [on|off]", true);
+        }
+    }
+    else if (cmd.rfind("set_pos", 0) == 0) {
+        std::string arg = (cmd.length() > 7) ? cmd.substr(7) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_pos"), true);
+            return;
+        }
+        float lat = 0.0f, lon = 0.0f;
+        int alt = 0;
+        if (sscanf(arg.c_str(), "%f %f %d", &lat, &lon, &alt) < 2) {
+            enqueueResponse(replyDest, replyChannel, "ERR: USO: set_pos <lat> <lon> [alt]", true);
+            return;
+        }
+        config.position.fixed_position = true;
+        meshtastic_Position pos = meshtastic_Position_init_zero;
+        pos.latitude_i = (int32_t)(lat * 1e7f);
+        pos.longitude_i = (int32_t)(lon * 1e7f);
+        pos.altitude = alt;
+        pos.time = getValidTime(RTCQualityFromNet);
+        nodeDB->setLocalPosition(pos);
+
+        prefs.fixed_pos_lat = pos.latitude_i;
+        prefs.fixed_pos_lon = pos.longitude_i;
+        prefs.fixed_pos_alt = alt;
+        prefs.fixed_pos_enabled = 1;
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        saveResiliencePrefs();
+
+        logEvent("SET_POS Lat:%.4f Lon:%.4f", lat, lon);
+        char respBuf[100];
+        snprintf(respBuf, sizeof(respBuf), "OK: POSICION FIJADA (Lat: %.5f, Lon: %.5f, Alt: %dm)", lat, lon, alt);
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd == "pos_clear") {
+        prefs.fixed_pos_enabled = 0;
+        prefs.fixed_pos_lat = 0;
+        prefs.fixed_pos_lon = 0;
+        prefs.fixed_pos_alt = 0;
+        config.position.fixed_position = false;
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        saveResiliencePrefs();
+        logEvent("POS_CLEAR ejecutado");
+        enqueueResponse(replyDest, replyChannel, "OK: POSICION FIJA BORRADA", true);
+    }
+    else if (cmd.rfind("set_pos_tx", 0) == 0) {
+        std::string arg = (cmd.length() > 10) ? cmd.substr(10) : "";
+        while (!arg.empty() && (arg.front() == ' ' || arg.front() == '\t')) arg.erase(0, 1);
+        if (arg == "off" || arg == "0") {
+            prefs.pos_tx_secs = 0;
+            config.position.position_broadcast_secs = 0;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: DIFUSION DE POSICION DESACTIVADA (OFF)", true);
+        } else if (arg == "on" || arg == "1") {
+            prefs.pos_tx_secs = 259200;
+            config.position.position_broadcast_secs = 259200;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: DIFUSION DE POSICION ACTIVADA (cada 72h / 259200s)", true);
+        } else if (!arg.empty()) {
+            uint32_t mins = strtoul(arg.c_str(), NULL, 10);
+            if (mins >= 1 && mins <= 10080) {
+                prefs.pos_tx_secs = mins * 60;
+                config.position.position_broadcast_secs = prefs.pos_tx_secs;
+                nodeDB->saveToDisk(SEGMENT_CONFIG);
+                saveResiliencePrefs();
+                char bBuf[100];
+                snprintf(bBuf, sizeof(bBuf), "OK: DIFUSION DE POSICION CADA %u min (Persiste)", (unsigned int)mins);
+                enqueueResponse(replyDest, replyChannel, bBuf, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, usageAndState("set_pos_tx"), true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_pos_tx"), true);
+        }
+    }
+    else if (cmd.rfind("set_nodeinfo_tx", 0) == 0) {
+        std::string arg = (cmd.length() > 15) ? cmd.substr(15) : "";
+        while (!arg.empty() && (arg.front() == ' ' || arg.front() == '\t')) arg.erase(0, 1);
+        if (arg == "off" || arg == "0") {
+            prefs.nodeinfo_tx_secs = 0;
+            config.device.node_info_broadcast_secs = 0;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: DIFUSION DE NODEINFO DESACTIVADA (OFF)", true);
+        } else if (arg == "on" || arg == "1") {
+            prefs.nodeinfo_tx_secs = 259200;
+            config.device.node_info_broadcast_secs = 259200;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: DIFUSION DE NODEINFO ACTIVADA (cada 72h / 259200s)", true);
+        } else if (!arg.empty()) {
+            uint32_t mins = strtoul(arg.c_str(), NULL, 10);
+            if (mins >= 1 && mins <= 10080) {
+                prefs.nodeinfo_tx_secs = mins * 60;
+                config.device.node_info_broadcast_secs = prefs.nodeinfo_tx_secs;
+                nodeDB->saveToDisk(SEGMENT_CONFIG);
+                saveResiliencePrefs();
+                char bBuf[100];
+                snprintf(bBuf, sizeof(bBuf), "OK: DIFUSION DE NODEINFO CADA %u min (Persiste)", (unsigned int)mins);
+                enqueueResponse(replyDest, replyChannel, bBuf, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, usageAndState("set_nodeinfo_tx"), true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_nodeinfo_tx"), true);
+        }
+    }
+    else if (cmd.rfind("set_telem_tx", 0) == 0) {
+        std::string arg = (cmd.length() > 12) ? cmd.substr(12) : "";
+        while (!arg.empty() && (arg.front() == ' ' || arg.front() == '\t')) arg.erase(0, 1);
+        if (arg == "off" || arg == "0") {
+            prefs.telem_tx_secs = 0;
+            moduleConfig.telemetry.device_update_interval = 0;
+            nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: REPORTE DE TELEMETRIA DESACTIVADO (OFF)", true);
+        } else if (arg == "on" || arg == "1") {
+            prefs.telem_tx_secs = 900;
+            moduleConfig.telemetry.device_update_interval = 900;
+            nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: REPORTE DE TELEMETRIA ACTIVADO (cada 15 min)", true);
+        } else if (!arg.empty()) {
+            uint32_t mins = strtoul(arg.c_str(), NULL, 10);
+            if (mins >= 1 && mins <= 1440) {
+                prefs.telem_tx_secs = mins * 60;
+                moduleConfig.telemetry.device_update_interval = prefs.telem_tx_secs;
+                nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
+                saveResiliencePrefs();
+                char bBuf[100];
+                snprintf(bBuf, sizeof(bBuf), "OK: REPORTE DE TELEMETRIA CADA %u min (Persiste)", (unsigned int)mins);
+                enqueueResponse(replyDest, replyChannel, bBuf, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, usageAndState("set_telem_tx"), true);
+            }
+        } else {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_telem_tx"), true);
+        }
+    }
+    else if (cmd.rfind("set_beacon", 0) == 0) {
+        std::string arg = (cmd.length() > 10) ? cmd.substr(10) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_beacon"), true);
+            return;
+        }
+        uint32_t mins = strtoul(arg.c_str(), NULL, 10);
+        if (mins < 1 || mins > 1440) {
+            enqueueResponse(replyDest, replyChannel, "ERR: MINUTOS INVALIDOS (1-1440)", true);
+            return;
+        }
+        config.device.node_info_broadcast_secs = mins * 60;
+        config.position.position_broadcast_secs = mins * 60;
+        prefs.beacon_interval_secs = mins * 60;
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        saveResiliencePrefs();
+
+        char respBuf[80];
+        snprintf(respBuf, sizeof(respBuf), "OK: BALIZA CONFIGURADA CADA %lu MINUTOS", (unsigned long)mins);
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd.rfind("mute", 0) == 0) {
+        std::string arg = (cmd.length() > 4) ? cmd.substr(4) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty() || arg == "off" || arg == "0") {
+            muteUntilMs = 0;
+            logEvent("MUTE OFF");
+            enqueueResponse(replyDest, replyChannel, "OK: MUTE DESACTIVADO (Servicio Normal)", true);
+            return;
+        }
+        uint32_t mins = strtoul(arg.c_str(), NULL, 10);
+        if (mins < 1 || mins > 720) {
+            enqueueResponse(replyDest, replyChannel, "ERR: MINUTOS INVALIDOS (1-720)", true);
+            return;
+        }
+        muteUntilMs = millis() + (mins * 60000);
+        logEvent("MUTE ON %lu min", (unsigned long)mins);
+        char respBuf[80];
+        snprintf(respBuf, sizeof(respBuf), "OK: REPETIDOR EN MUTE TEMPORAL POR %lu MINUTOS (RAM)", (unsigned long)mins);
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd.rfind("set_pin", 0) == 0) {
+        std::string arg = (cmd.length() > 7) ? cmd.substr(7) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_pin"), true);
+            return;
+        }
+        uint32_t pin = strtoul(arg.c_str(), NULL, 10);
+        if (pin < 100000 || pin > 999999) {
+            enqueueResponse(replyDest, replyChannel, "ERR: EL PIN DEBE TENER 6 DIGITOS (100000-999999)", true);
+            return;
+        }
+        config.bluetooth.fixed_pin = pin;
+        prefs.fixed_pin = pin;
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        saveResiliencePrefs();
+
+        logEvent("SET_PIN cambiado");
+        char respBuf[80];
+        snprintf(respBuf, sizeof(respBuf), "OK: PIN BT CAMBIADO A %lu (Persiste)", (unsigned long)pin);
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd == "stats") {
+        char buf[220];
+        float curTemp = 0.0f;
+        #ifdef NRF52840_XXAA
+        int32_t tRaw = 0;
+        if (sd_temp_get(&tRaw) == NRF_SUCCESS) curTemp = tRaw / 4.0f;
+        #endif
+        uint16_t curBat = powerStatus->getBatteryVoltageMv();
+        float minT = (statsMinTemp < 500.0f) ? statsMinTemp : curTemp;
+        float maxT = (statsMaxTemp > -500.0f) ? statsMaxTemp : curTemp;
+        uint16_t minB = (statsMinBattMv < 60000) ? statsMinBattMv : curBat;
+
+        snprintf(buf, sizeof(buf),
+            "STATS (RAM):\nCPU: min %.1fC / max %.1fC (act %.1fC)\nBat Min: %dmV (act %dmV)\nPkts: RX %lu / TX %lu / Rout %lu\nAutoFav: %d activos",
+            minT, maxT, curTemp, minB, curBat,
+            (unsigned long)statsRxPackets, (unsigned long)statsTxPackets, (unsigned long)statsRoutedPackets,
+            prefs.autoFavCount);
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd.rfind("test_tx", 0) == 0) {
+        std::string arg = (cmd.length() > 7) ? cmd.substr(7) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        uint8_t secs = 10;
+        if (!arg.empty()) {
+            secs = (uint8_t)atoi(arg.c_str());
+            if (secs < 5) secs = 5;
+            if (secs > 30) secs = 30;
+        }
+        testTxCountRemaining = secs;
+        testTxNextMs = millis();
+        logEvent("TEST_TX %ds", (int)secs);
+        char respBuf[60];
+        snprintf(respBuf, sizeof(respBuf), "OK: TEST TX INICIADO (%ds a 1 pkt/s)", (int)secs);
+        enqueueResponse(replyDest, replyChannel, respBuf, true);
+    }
+    else if (cmd == "log" || cmd.rfind("log ", 0) == 0) {
+        std::string arg = (cmd.length() > 3) ? cmd.substr(3) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        uint8_t lines = 10;
+        if (!arg.empty()) {
+            lines = (uint8_t)atoi(arg.c_str());
+            if (lines < 1) lines = 1;
+            if (lines > 15) lines = 15;
+        }
+        if (ramLogCount == 0) {
+            enqueueResponse(replyDest, replyChannel, "LOG RAM: VACIO", true);
+            return;
+        }
+        if (lines > ramLogCount) lines = ramLogCount;
+        std::string out = "LOG EVENTOS RAM:\n";
+        for (uint8_t i = 0; i < lines; i++) {
+            uint8_t idx = (ramLogHead + 16 - lines + i) % 16;
+            const NavaLogEntry &le = ramLogs[idx];
+            uint32_t h = (le.uptime % 86400) / 3600;
+            uint32_t m = (le.uptime % 3600) / 60;
+            uint32_t s = le.uptime % 60;
+            char lbuf[64];
+            snprintf(lbuf, sizeof(lbuf), "[%02lu:%02lu:%02lu] %s\n", (unsigned long)h, (unsigned long)m, (unsigned long)s, le.msg);
+            out += lbuf;
+        }
+        enqueueResponse(replyDest, replyChannel, out, true);
+    }
     else if (cmd == "factory_reset") {
         enqueueResponse(replyDest, replyChannel, "OK: RESET DE FABRICA PROGRAMADO", true);
-        // Diferido: se ejecuta en runOnce() cuando la cola de respuestas esté vacía,
-        // garantizando que el ACK llegue al aire antes de borrar la configuración.
         factoryResetPending = true;
         rebootScheduled = true;
         rebootTime = millis() + 3000;
     }
     else if (cmd == "full_reset") {
-        // NAVARICO V3 (FASE R1): reset completo = perfil + semi-persistentes (/resilience.bin)
-        // a defaults CONSERVANDO el par PKI y los bonds BLE -> revert remoto sin romper la malla.
         enqueueResponse(replyDest, replyChannel, "OK: RESET COMPLETO PROGRAMADO (PKI conservado)", true);
         fullResetPending = true;
         rebootScheduled = true;
         rebootTime = millis() + 3000;
     }
     else if (cmd == "wipe") {
-        // NAVARICO V3 (FASE R1): purga de compromiso = erase total + par PKI NUEVO.
-        // El NodeNum se conserva (deriva de la MAC); los peers deberan re-aprender la
-        // pubkey nueva (H3/updateUser) o fallaran el DM PKI hasta entonces (L11).
-        enqueueResponse(replyDest, replyChannel, "OK: WIPE PROGRAMADO (par PKI nuevo, peers re-aprenderan)", true);
+        enqueueResponse(replyDest, replyChannel, "OK: WIPE PROGRAMADO (par PKI nuevo al reiniciar)", true);
         wipePending = true;
         rebootScheduled = true;
         rebootTime = millis() + 3000;
     }
-    else if (cmd.rfind("fav auto", 0) == 0) {
-        std::string arg = (cmd.length() > 9) ? cmd.substr(9) : "";
-        while (!arg.empty() && (arg.back() == ' ' || arg.back() == '\r' || arg.back() == '\n')) arg.pop_back();
-        if (arg == "on") {
-            prefs.auto_fav = 1;
-            navaAutoFavoriteEnabled = true;
-            saveResiliencePrefs();
-            enqueueResponse(replyDest, replyChannel, "OK: AUTO-FAVORITEO ACTIVADO", true);
-        } else if (arg == "off") {
-            prefs.auto_fav = 0;
-            navaAutoFavoriteEnabled = false;
-            saveResiliencePrefs();
-            enqueueResponse(replyDest, replyChannel, "OK: AUTO-FAVORITEO DESACTIVADO", true);
-        } else {
-            char buf[96];
-            uint32_t autoCount = router ? (uint32_t)router->activeDirectRouters.size() : 0;
-            snprintf(buf, sizeof(buf), "AUTO-FAV: %s | auto-favs: %u. USO: fav auto [on|off]", navaAutoFavoriteEnabled ? "ON" : "OFF", autoCount);
-            enqueueResponse(replyDest, replyChannel, buf, true);
-        }
-    }
-    else if (cmd.rfind("sleepmsg", 0) == 0) {
-        // F15 fix: "sleepmsg" son 8 chars + espacio separador -> substr(9)
-        std::string arg = (cmd.length() > 9) ? cmd.substr(9) : "";
-        while (!arg.empty() && (arg.back() == ' ' || arg.back() == '\r' || arg.back() == '\n')) arg.pop_back();
-        if (arg == "on") {
-            prefs.sleepMsgs = 1;
-            saveResiliencePrefs();
-            enqueueResponse(replyDest, replyChannel, "OK: MENSAJES SUENO/VIVO/LISTO ACTIVADOS", true);
-        } else if (arg == "off") {
-            prefs.sleepMsgs = 0;
-            saveResiliencePrefs();
-            enqueueResponse(replyDest, replyChannel, "OK: MENSAJES SUENO/VIVO/LISTO DESACTIVADOS", true);
-        } else {
-            char buf[96];
-            snprintf(buf, sizeof(buf), "SLEEPMSGS: %s. USO: sleepmsg [on|off]", prefs.sleepMsgs ? "ON" : "OFF");
-            enqueueResponse(replyDest, replyChannel, buf, true);
-        }
-    }
-    else if (cmd.rfind("fav add", 0) == 0) {
-        if (cmd.length() > 8) {
-            std::string idStr = cmd.substr(8);
-            while (!idStr.empty() && (idStr.back() == ' ' || idStr.back() == '\r' || idStr.back() == '\n')) idStr.pop_back();
-            
-            uint32_t targetId = strtoul(idStr.c_str() + (idStr[0] == '!' ? 1 : 0), NULL, 16);
-            meshtastic_NodeInfoLite *node = nodeDB->getOrCreateMeshNode(targetId);
-            if (node != nullptr) {
-                node->is_favorite = true;
-                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
-                enqueueResponse(replyDest, replyChannel, "OK: FAVORITO ANADIDO " + idStr, true);
-            } else {
-                enqueueResponse(replyDest, replyChannel, "ERR: BD LLENA", true);
-            }
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("fav"), true);
-        }
-    }
-    else if (cmd.rfind("fav rm", 0) == 0) {
-        if (cmd.length() > 7) {
-            std::string idStr = cmd.substr(7);
-            while (!idStr.empty() && (idStr.back() == ' ' || idStr.back() == '\r' || idStr.back() == '\n')) idStr.pop_back();
-            
-            uint32_t targetId = strtoul(idStr.c_str() + (idStr[0] == '!' ? 1 : 0), NULL, 16);
-            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
-            if (node != nullptr) {
-                node->is_favorite = false;
-                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
-                if (removeAutoFav(targetId)) {
-                    saveResiliencePrefs();
-                }
-                enqueueResponse(replyDest, replyChannel, "OK: FAVORITO ELIMINADO " + idStr, true);
-            } else {
-                enqueueResponse(replyDest, replyChannel, "ERR: NO ENCONTRADO", true);
-            }
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("fav"), true);
-        }
-    }
-    else if (cmd == "fav ls") {
-        std::string reply = "FAVORITOS:\n";
-        bool empty = true;
-        for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
-            auto n = nodeDB->getMeshNodeByIndex(i);
-            if (n && n->is_favorite) {
-                char buf[24];
-                snprintf(buf, sizeof(buf), "%s !%08x\n", isAutoFav(n->num) ? "[AUTO]" : "[MAN] ", n->num);
-                reply += buf;
-                empty = false;
-            }
-        }
-        if (empty) reply += "NINGUNO";
-        enqueueResponse(replyDest, replyChannel, reply, true);
-    }
-    else if (cmd.rfind("ign add", 0) == 0) {
-        if (cmd.length() > 8) {
-            std::string idStr = cmd.substr(8);
-            while (!idStr.empty() && (idStr.back() == ' ' || idStr.back() == '\r' || idStr.back() == '\n')) idStr.pop_back();
-            
-            uint32_t targetId = strtoul(idStr.c_str() + (idStr[0] == '!' ? 1 : 0), NULL, 16);
-            
-            if (targetId == fromNode) {
-                enqueueResponse(replyDest, replyChannel, "ERR: NO PUEDES IGNORARTE A TI MISMO", true);
-                return;
-            }
-            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
-            if (node != nullptr) {
-                bool isVerifiedAdmin = nodeDB->isAdminNode(*node);
-                bool isHardcodedAdmin = false;
-                if (node->user.public_key.size == 32) {
-                    if ((config.security.admin_key[0].size == 32 && memcmp(node->user.public_key.bytes, config.security.admin_key[0].bytes, 32) == 0) ||
-                        (config.security.admin_key[1].size == 32 && memcmp(node->user.public_key.bytes, config.security.admin_key[1].bytes, 32) == 0) ||
-                        (config.security.admin_key[2].size == 32 && memcmp(node->user.public_key.bytes, config.security.admin_key[2].bytes, 32) == 0)) {
-                        isHardcodedAdmin = true;
-                    }
-                }
-                if (isVerifiedAdmin || isHardcodedAdmin) {
-                    enqueueResponse(replyDest, replyChannel, "ERR: NO SE PUEDE IGNORAR A UN ADMIN", true);
-                    return;
-                }
-            } else {
-                // El nodo objetivo no está en caché: no podemos verificar que NO es admin.
-                // Invertimos la carga de la prueba: rechazar en lugar de proceder a ciegas.
-                enqueueResponse(replyDest, replyChannel, "ERR: NODO DESCONOCIDO, NO SE PUEDE VERIFICAR ADMIN", true);
-                return;
-            }
-
-            node = nodeDB->getOrCreateMeshNode(targetId);
-            if (node != nullptr) {
-                node->is_ignored = true;
-                node->has_device_metrics = false;
-                node->has_position = false;
-                node->user.public_key.size = 0;
-                memset(node->user.public_key.bytes, 0, sizeof(node->user.public_key.bytes));
-                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
-                enqueueResponse(replyDest, replyChannel, "OK: NODO IGNORADO " + idStr, true);
-            } else {
-                enqueueResponse(replyDest, replyChannel, "ERR: BD LLENA", true);
-            }
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("ign"), true);
-        }
-    }
-    else if (cmd.rfind("ign rm", 0) == 0) {
-        if (cmd.length() > 7) {
-            std::string idStr = cmd.substr(7);
-            while (!idStr.empty() && (idStr.back() == ' ' || idStr.back() == '\r' || idStr.back() == '\n')) idStr.pop_back();
-            
-            uint32_t targetId = strtoul(idStr.c_str() + (idStr[0] == '!' ? 1 : 0), NULL, 16);
-            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
-            if (node != nullptr) {
-                node->is_ignored = false;
-                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
-                enqueueResponse(replyDest, replyChannel, "OK: NODO DESBLOQUEADO " + idStr, true);
-            } else {
-                enqueueResponse(replyDest, replyChannel, "ERR: NO ENCONTRADO", true);
-            }
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("ign"), true);
-        }
-    }
-    else if (cmd == "ign ls") {
-        std::string reply = "IGNORADOS:\n";
-        bool empty = true;
-        for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
-            auto n = nodeDB->getMeshNodeByIndex(i);
-            if (n && n->is_ignored) {
-                char buf[16];
-                snprintf(buf, sizeof(buf), "!%08x\n", n->num);
-                reply += buf;
-                empty = false;
-            }
-        }
-        if (empty) reply += "NINGUNO";
-        enqueueResponse(replyDest, replyChannel, reply, true);
-    }
-    else if (cmd == "peers") {
-        std::string reply = "VECINOS (0 saltos):\n";
-        bool empty = true;
-        for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
-            auto n = nodeDB->getMeshNodeByIndex(i);
-            if (n && n->has_hops_away && n->hops_away == 0) {
-                uint32_t nowSecs = millis() / 1000;
-                uint32_t agoSecs = (nowSecs > n->last_heard) ? (nowSecs - n->last_heard) : 0;
-                char buf[80];
-                snprintf(buf, sizeof(buf), "!%08x | R:%s | S:%.1f | Hace:%lus\n", 
-                         n->num, getRoleName(n->user.role).c_str(), n->snr, (unsigned long)agoSecs);
-                reply += buf;
-                empty = false;
-            }
-        }
-        if (empty) reply += "NINGUNO";
-        enqueueResponse(replyDest, replyChannel, reply, true);
-    }
     else if (cmd == "status") {
+        char buf[200];
+        uint32_t totalNodos = nodeDB->getNumMeshNodes();
         uint32_t manualFavs = 0;
         uint32_t autoFavs = 0;
-        for (uint32_t i = 0; i < nodeDB->getNumMeshNodes(); i++) {
-            auto n = nodeDB->getMeshNodeByIndex(i);
-            if (n && n->is_favorite) {
-                if (isAutoFav(n->num)) {
-                    autoFavs++;
-                } else {
-                    manualFavs++;
-                }
+        for (size_t i = 0; i < totalNodos; i++) {
+            const meshtastic_NodeInfoLite *node = nodeDB->getMeshNodeByIndex(i);
+            if (node && node->is_favorite) {
+                if (isAutoFav(node->num)) autoFavs++;
+                else manualFavs++;
             }
         }
-        char buf[280];
-        // NAVARICO F22: primera linea = etiqueta de build NavaTastic + version Meshtastic
-        snprintf(buf, sizeof(buf), "NAVA %s | fw %s\nNodos RAM: %d/80\nFavs huerfanas: %d\nFavs (Manual): %d\nFavs (Auto): %d\nAuto-Fav: %s\nTiempo activo: %lu s\n%s", 
-                 NAVATASTIC_BUILD, optstr(APP_VERSION),
-                 nodeDB->getNumMeshNodes(), nodeDB->countOrphanFavorites(), manualFavs, autoFavs, navaAutoFavoriteEnabled ? "ON" : "OFF", (unsigned long)(millis()/1000), buildEnergyLine().c_str());
+        snprintf(buf, sizeof(buf),
+            "NAVA %s | fw %s\nNodos RAM: %u/%u | Favs (Manual): %u | Favs (Auto): %u | Auto-Fav: %s\n%s",
+            NAVATASTIC_BUILD, optstr(APP_VERSION),
+            (unsigned int)totalNodos, (unsigned int)MAX_NUM_NODES,
+            (unsigned int)manualFavs, (unsigned int)autoFavs,
+            navaAutoFavoriteEnabled ? "ON" : "OFF",
+            buildEnergyLine().c_str());
         enqueueResponse(replyDest, replyChannel, buf, true);
     }
     else if (cmd == "env") {
-        uint32_t freeHeap = memGet.getFreeHeap();
-        float chipTemp = 0.0f;
-        bool hasChipTemp = false;
-
-        #ifdef NRF52840_XXAA
-            int32_t temp_raw = 0;
-            if (sd_temp_get(&temp_raw) == NRF_SUCCESS) {
-                chipTemp = temp_raw / 4.0f;
-                hasChipTemp = true;
-            }
-        #endif
-
-        float latestTemp = 0.0f;
-        float latestHum = 0.0f;
-        bool hasExtSensor = false;
-
-#if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
-        if (environmentTelemetryModule) {
-            meshtastic_Telemetry extTelem = meshtastic_Telemetry_init_zero;
-            if (environmentTelemetryModule->getEnvironmentTelemetry(&extTelem)) {
-                if (extTelem.which_variant == meshtastic_Telemetry_environment_metrics_tag) {
-                    latestTemp = extTelem.variant.environment_metrics.temperature;
-                    latestHum = extTelem.variant.environment_metrics.relative_humidity;
-                    hasExtSensor = true;
-                }
-            }
-        }
-#endif
-        if (!hasExtSensor && hasTelemetryCache) {
-            latestTemp = this->latestTemp;
-            latestHum = this->latestHum;
-            hasExtSensor = true;
-        }
-
         char buf[200];
-        char extBuf[64] = "Ext: ERROR/SIN I2C";
-        if (hasExtSensor) {
-            snprintf(extBuf, sizeof(extBuf), "Ext: %.1f C | %.1f%%", latestTemp, latestHum);
-        }
-        
-        if (hasChipTemp) {
-            snprintf(buf, sizeof(buf), "Bat: %d mV\nHeap: %lu B\nChip: %.1f C\n%s", 
-                     powerStatus->getBatteryVoltageMv(), (unsigned long)freeHeap, chipTemp, extBuf);
+        uint32_t freeHeap = memGet.getFreeHeap();
+        float cpuTemp = 0.0f;
+        #ifdef NRF52840_XXAA
+        int32_t tempRaw = 0;
+        if (sd_temp_get(&tempRaw) == NRF_SUCCESS) cpuTemp = tempRaw / 4.0f;
+        #endif
+        if (hasTelemetryCache) {
+            snprintf(buf, sizeof(buf), "Bat: %d mV | Heap: %lu B | Chip: %.1f C | Ext: %.1f C %.0f%%",
+                     powerStatus->getBatteryVoltageMv(), (unsigned long)freeHeap, cpuTemp, latestTemp, latestHum);
         } else {
-            snprintf(buf, sizeof(buf), "Bat: %d mV\nHeap: %lu B\nChip: NA\n%s", 
-                     powerStatus->getBatteryVoltageMv(), (unsigned long)freeHeap, extBuf);
+            snprintf(buf, sizeof(buf), "Bat: %d mV | Heap: %lu B | Chip: %.1f C | Ext: ERROR/SIN I2C",
+                     powerStatus->getBatteryVoltageMv(), (unsigned long)freeHeap, cpuTemp);
         }
         enqueueResponse(replyDest, replyChannel, buf, true);
     }
     else if (cmd == "channel") {
-        float channelUtil = 0.0f;
-        float txUtil = 0.0f;
-        if (airTime) {
-            channelUtil = airTime->channelUtilizationPercent();
-            txUtil = airTime->utilizationTXPercent();
-        }
-        char buf[128];
-        snprintf(buf, sizeof(buf), "Uso canal: %.1f%%\nUso TX: %.1f%%", channelUtil, txUtil);
+        char buf[120];
+        snprintf(buf, sizeof(buf), "Uso canal: %.1f%% | Uso TX: %.1f%%",
+                 airTime->channelUtilizationPercent(), airTime->utilizationTXPercent());
         enqueueResponse(replyDest, replyChannel, buf, true);
     }
-    else if (cmd.rfind("set_name", 0) == 0) {
-        std::string args = (cmd.length() > 9) ? cmd.substr(9) : "";
-        std::string longName = "";
-        std::string shortName = "";
-        
-        if (!args.empty()) {
-            size_t firstQuote = args.find('"');
-            if (firstQuote != std::string::npos) {
-                size_t secondQuote = args.find('"', firstQuote + 1);
-                if (secondQuote != std::string::npos) {
-                    longName = args.substr(firstQuote + 1, secondQuote - firstQuote - 1);
-                    size_t thirdQuote = args.find('"', secondQuote + 1);
-                    if (thirdQuote != std::string::npos) {
-                        size_t fourthQuote = args.find('"', thirdQuote + 1);
-                        if (fourthQuote != std::string::npos) {
-                            shortName = args.substr(thirdQuote + 1, fourthQuote - thirdQuote - 1);
-                        }
-                    }
-                }
-            }
-            if (longName.empty() || shortName.empty()) {
-                size_t space = args.find(' ');
-                if (space != std::string::npos) {
-                    longName = args.substr(0, space);
-                    shortName = args.substr(space + 1);
-                }
+    else if (cmd == "peers") {
+        std::string peersList = "VECINOS (0 saltos):\n";
+        uint32_t totalNodos = nodeDB->getNumMeshNodes();
+        bool found = false;
+        for (size_t i = 0; i < totalNodos; i++) {
+            const meshtastic_NodeInfoLite *node = nodeDB->getMeshNodeByIndex(i);
+            if (node && node->hops_away == 0 && node->num != nodeDB->getNodeNum()) {
+                found = true;
+                char pBuf[80];
+                uint32_t ago = (millis() - node->last_heard) / 1000;
+                const char *rol = (node->has_user && node->user.role == meshtastic_Config_DeviceConfig_Role_ROUTER) ? "R:ROUTER" : "R:CLIENT";
+                snprintf(pBuf, sizeof(pBuf), "!%08x | %s | S:%.1f | Hace:%lus\n",
+                         (unsigned int)node->num, rol, node->snr, (unsigned long)ago);
+                peersList += pBuf;
             }
         }
-        
-        if (!longName.empty() && !shortName.empty()) {
-            strncpy(owner.long_name, longName.c_str(), sizeof(owner.long_name));
-            owner.long_name[sizeof(owner.long_name) - 1] = '\0';
-            strncpy(owner.short_name, shortName.c_str(), sizeof(owner.short_name));
-            owner.short_name[sizeof(owner.short_name) - 1] = '\0';
-            service->reloadOwner(true);
-            nodeDB->saveToDisk(SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE);
-            
-            std::string reply = "OK: NOMBRE CAMBIADO A \"" + longName + "\" [" + shortName + "]";
-            enqueueResponse(replyDest, replyChannel, reply, true);
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_name"), true);
-        }
+        if (!found) peersList += "NINGUNO DETECTADO";
+        enqueueResponse(replyDest, replyChannel, peersList, true);
     }
-    else if (cmd.rfind("set_role", 0) == 0) {
-        std::string roleStr = (cmd.length() > 9) ? cmd.substr(9) : "";
-        bool valid = true;
-        if (roleStr == "client") {
-            config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT;
-        } else if (roleStr == "mute") {
-            config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT_MUTE;
-        } else if (roleStr == "router") {
-            config.device.role = meshtastic_Config_DeviceConfig_Role_ROUTER;
-        } else {
-            valid = false;
+    else if (cmd == "rxlog") {
+        std::string logOut = "ULTIMOS PAQUETES (RXLOG):\n";
+        for (int i = 0; i < rxLogCount; i++) {
+            int idx = (rxLogIndex - 1 - i + 5) % 5;
+            char lBuf[80];
+            uint32_t ago = (millis() / 1000) - rxLog[idx].timestamp;
+            snprintf(lBuf, sizeof(lBuf), "[%d] !%08x | Port:%d | SNR:%.1f | RSSI:%d | Hace:%lus\n",
+                     i+1, (unsigned int)rxLog[idx].from, rxLog[idx].portnum, (float)rxLog[idx].snr, rxLog[idx].rssi, (unsigned long)ago);
+            logOut += lBuf;
         }
-        
-        if (valid) {
-            nodeDB->installRoleDefaults(config.device.role);
-            owner.is_unmessagable = false;
-            owner.has_is_unmessagable = true;
-            nodeDB->saveToDisk(SEGMENT_CONFIG | SEGMENT_NODEDATABASE);
-            // V2.1 Rama 1 y Rama 2: rol semi-permanente en /resilience.bin (sobrevive
-            // a factory reset de la app y de /nava; solo se pierde con nrf erase o
-            // corrupcion del fichero -> vuelve al rol del perfil del env)
-            prefs.role = (uint8_t)config.device.role;
-            saveResiliencePrefs();
-            enqueueResponse(replyDest, replyChannel, "OK: ROL CAMBIADO", true);
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_role"), true);
-        }
+        if (rxLogCount == 0) logOut += "VACIO";
+        enqueueResponse(replyDest, replyChannel, logOut, true);
     }
-    else if (cmd.rfind("set_mqtt", 0) == 0) {
-        std::string stateStr = (cmd.length() > 9) ? cmd.substr(9) : "";
-        if (stateStr == "on") {
-            moduleConfig.mqtt.enabled = true;
-            nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
-            enqueueResponse(replyDest, replyChannel, "OK: MQTT ACTIVADO", true);
-        } else if (stateStr == "off") {
-            moduleConfig.mqtt.enabled = false;
-            nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
-            enqueueResponse(replyDest, replyChannel, "OK: MQTT DESACTIVADO", true);
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_mqtt"), true);
-        }
-    }
-    else if (cmd.rfind("set_tz", 0) == 0) {
-        if (cmd.length() > 7) {
-            std::string tzStr = cmd.substr(7);
-            strncpy(config.device.tzdef, tzStr.c_str(), sizeof(config.device.tzdef));
-            config.device.tzdef[sizeof(config.device.tzdef) - 1] = '\0';
-            nodeDB->saveToDisk(SEGMENT_CONFIG);
-            enqueueResponse(replyDest, replyChannel, "OK: ZONA HORARIA ESTABLECIDA", true);
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_tz"), true);
-        }
-    }
-    else if (cmd.rfind("set_hops", 0) == 0) {
-        if (cmd.length() > 9) {
-            std::string hopsStr = cmd.substr(9);
-            uint32_t hops = strtoul(hopsStr.c_str(), NULL, 10);
-            if (hops >= 1 && hops <= 7) {
-                config.lora.hop_limit = hops;
-                nodeDB->saveToDisk(SEGMENT_CONFIG);
-                char buf[32];
-                snprintf(buf, sizeof(buf), "OK: SALTOS ESTABLECIDOS A %d", hops);
-                enqueueResponse(replyDest, replyChannel, buf, true);
-            } else {
-                enqueueResponse(replyDest, replyChannel, "ERR: LOS SALTOS DEBEN SER 1-7", true);
-            }
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_hops"), true);
-        }
-    }
-    else if (cmd.rfind("set_txpower", 0) == 0) {
-        if (cmd.length() > 12) {
-            std::string pwrStr = cmd.substr(12);
-            uint32_t pwr = strtoul(pwrStr.c_str(), NULL, 10);
-            // NAVARICO: rango de potencia por radio (E22P 0-12 / SX1262 0-22) - lo decide el env
-#ifdef NAVARICO_RADIO_E22P
-            if (pwr >= 0 && pwr <= 12) {
-#else
-            if (pwr >= 0 && pwr <= 22) {
-#endif
-                config.lora.tx_power = pwr;
-                nodeDB->saveToDisk(SEGMENT_CONFIG);
-                char buf[32];
-                snprintf(buf, sizeof(buf), "OK: POTENCIA TX ESTABLECIDA A %d", pwr);
-                enqueueResponse(replyDest, replyChannel, buf, true);
-            } else {
-#ifdef NAVARICO_RADIO_E22P
-                enqueueResponse(replyDest, replyChannel, "ERR: LA POTENCIA DEBE SER 0-12", true);
-#else
-                enqueueResponse(replyDest, replyChannel, "ERR: LA POTENCIA DEBE SER 0-22", true);
-#endif
-            }
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_txpower"), true);
-        }
-    }
-    else if (cmd == "db_purge") {
-        int writeIndex = 1; 
-        for (uint32_t i = 1; i < nodeDB->getNumMeshNodes(); i++) {
-            auto n = nodeDB->getMeshNodeByIndex(i);
-            if (n && (n->is_favorite || nodeDB->isAdminNode(*n))) {
-                *nodeDB->getMeshNodeByIndex(writeIndex++) = *n;
-            }
-        }
-        nodeDB->numMeshNodes = writeIndex;
-        char buf[64];
-        snprintf(buf, sizeof(buf), "OK: RAM PURGADA. Nodos activos: %d", writeIndex);
+    else if (cmd == "afc") {
+        char buf[80];
+        snprintf(buf, sizeof(buf), "AFC FREQ ERROR: %.1f Hz", lastRxFrequencyError);
         enqueueResponse(replyDest, replyChannel, buf, true);
     }
-    else if (cmd == "db_clear") {
-        nodeDB->numMeshNodes = 1;
-        if (router) {
-            router->activeDirectRouters.clear();
-        }
-        nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
-        enqueueResponse(replyDest, replyChannel, "OK: BD BORRADA. TODOS LOS NODOS ELIMINADOS.", true);
+    else if (cmd == "reset_reason") {
+        char buf[120];
+        snprintf(buf, sizeof(buf), "RESETREAS: 0x%08X (%s)",
+                 (unsigned int)rawResetReason, navaricoResetReasonName(rawResetReason));
+        enqueueResponse(replyDest, replyChannel, buf, true);
     }
-    else if (cmd == "reboot") {
-        enqueueResponse(replyDest, replyChannel, "OK: REINICIO PROGRAMADO", true);
-        rebootScheduled = true;
-        rebootTime = millis() + 3000;
-    }
-    // --- NUEVOS COMANDOS SECUENCIA REMOTA 2 ---
-    else if (cmd.rfind("set_chem", 0) == 0) {
-        std::string chem = (cmd.length() > 9) ? cmd.substr(9) : "";
-        if (chem == "lipo") {
-            prefs.chemistry = 0;
-            prefs.vbat_cutoff = 3500;
-            prefs.vwake_level = 3;
-        } else if (chem == "nimh") {
-            prefs.chemistry = 1;
-            prefs.vbat_cutoff = 3400;
-            prefs.vwake_level = 3;
-        } else if (chem == "sodium") {
-            prefs.chemistry = 2;
-            prefs.vbat_cutoff = 2600;
-            prefs.vwake_level = 3;
-        } else if (chem == "lifepo4") {
-#if defined(SEEED_SOLAR_NODE) || defined(SEEED_XIAO_NRF52840_KIT) || defined(HELTEC_T114)
-            // LPCOMP fijo por hardware: umbral (3_8/2_8 ~3.67-4.04V) > Vmax LiFePO4 (~3.65V)
-            enqueueResponse(replyDest, replyChannel, "ERR: LIFEPO4 NO COMPATIBLE, UMBRAL LPCOMP FIJO", true);
+    else if (cmd.rfind("route", 0) == 0) {
+        std::string targetStr = (cmd.length() > 5) ? cmd.substr(5) : "";
+        while (!targetStr.empty() && (targetStr.front() == ' ' || targetStr.front() == '!')) targetStr.erase(0, 1);
+        if (targetStr.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("route"), true);
             return;
+        }
+        uint32_t targetId = strtoul(targetStr.c_str(), NULL, 16);
+        const meshtastic_NodeInfoLite *targetNode = nodeDB->getMeshNode(targetId);
+        if (targetNode) {
+            char buf[100];
+            snprintf(buf, sizeof(buf), "RUTA A !%08x: Saltos:%d | SNR:%.1f | Hace:%lus",
+                     (unsigned int)targetId, targetNode->hops_away, targetNode->snr, (unsigned long)((millis() - targetNode->last_heard)/1000));
+            enqueueResponse(replyDest, replyChannel, buf, true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "NODO NO ENCONTRADO EN TABLA", true);
+        }
+    }
+    else if (cmd.rfind("trace", 0) == 0) {
+        std::string targetStr = (cmd.length() > 5) ? cmd.substr(5) : "";
+        while (!targetStr.empty() && (targetStr.front() == ' ' || targetStr.front() == '!')) targetStr.erase(0, 1);
+        if (targetStr.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("trace"), true);
+            return;
+        }
+        uint32_t targetId = strtoul(targetStr.c_str(), NULL, 16);
+        if (traceRouteModule) {
+            traceRouteModule->startTraceRoute(targetId);
+            enqueueResponse(replyDest, replyChannel, "OK: TRACEROUTE INICIADO", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: MODULO TRACEROUTE NO ACTIVO", true);
+        }
+    }
+    else if (cmd == "noise") {
+        char buf[80];
+        int noiseFloor = 0;
+        if (router && router->getInterface()) {
+            RadioLibInterface* rLib = static_cast<RadioLibInterface*>(router->getInterface());
+            if (rLib) noiseFloor = rLib->getNoiseFloor();
+        }
+        snprintf(buf, sizeof(buf), "PISO DE RUIDO: %d dBm", noiseFloor);
+        enqueueResponse(replyDest, replyChannel, buf, true);
+    }
+    else if (cmd == "power") {
+        char buf[200];
+        uint16_t adcV = powerStatus->getBatteryVoltageMv();
+#if HAS_TELEMETRY && !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR && __has_include(<Adafruit_INA219.h>)
+        uint16_t inaMv = ina219Sensor.getBusVoltageMv();
+        if (inaMv > 0) {
+            int16_t inamA = ina219Sensor.getCurrentMa();
+            float inaV = inaMv / 1000.0f;
+            float inamW = inaV * inamA;
+            const char *estado = (inamA > 1) ? "CARGANDO" : (inamA < -1) ? "DESCARGANDO" : "STANDBY";
+            snprintf(buf, sizeof(buf), "POWER: ADC %u mV | INA219: %.2f V | %+d mA | %s | %.0f mW",
+                     (unsigned int)adcV, inaV, (int)inamA, estado, inamW);
+            enqueueResponse(replyDest, replyChannel, buf, true);
+            return;
+        }
 #endif
-            prefs.chemistry = 3;
-            prefs.vbat_cutoff = 2800;
-            prefs.vwake_level = 5;
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_chem"), true);
-            return;
-        }
-        power->setChemistryProfile(prefs.chemistry);
-        power->updateOcvCurve(prefs.vbat_cutoff);
-        currentWakeLevel = prefs.vwake_level;
-        saveResiliencePrefs();
-        enqueueResponse(replyDest, replyChannel, "OK: QUIMICA CAMBIADA A " + chem + ". AVISO: ROLLBACK SOLO: nrf erase", true);
-    }
-    else if (cmd.rfind("set_vbat", 0) == 0) {
-        std::string arg = (cmd.length() > 9) ? cmd.substr(9) : "";
-        while (!arg.empty() && (arg.back() == ' ' || arg.back() == '\r' || arg.back() == '\n')) arg.pop_back();
-        if (arg.empty()) {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_vbat"), true);
-        } else {
-            uint32_t val = strtoul(arg.c_str(), NULL, 10);
-            if (val >= 2400 && val <= 3600) {
-                prefs.vbat_cutoff = val;
-                power->updateOcvCurve(val);
-                saveResiliencePrefs();
-                enqueueResponse(replyDest, replyChannel, "OK: CORTE VBAT ESTABLECIDO. AVISO: ROLLBACK SOLO: nrf erase", true);
-            } else {
-                enqueueResponse(replyDest, replyChannel, "ERR: RANGO 2400-3600", true);
-            }
-        }
-    }
-    else if (cmd.rfind("set_vwake", 0) == 0) {
-        std::string arg = (cmd.length() > 10) ? cmd.substr(10) : "";
-        while (!arg.empty() && (arg.back() == ' ' || arg.back() == '\r' || arg.back() == '\n')) arg.pop_back();
-        if (arg.empty()) {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_vwake"), true);
-        } else {
-            uint32_t val = strtoul(arg.c_str(), NULL, 10);
-            if (val >= 1 && val <= 5) {
-                prefs.vwake_level = val;
-                currentWakeLevel = val;
-                saveResiliencePrefs();
-                enqueueResponse(replyDest, replyChannel, "OK: NIVEL VWAKE ESTABLECIDO. AVISO: ROLLBACK SOLO: nrf erase", true);
-            } else {
-                enqueueResponse(replyDest, replyChannel, "ERR: RANGO 1-5", true);
-            }
-        }
+        snprintf(buf, sizeof(buf), "POWER: ADC %u mV | INA: NO DETECTADO (solo ADC)", (unsigned int)adcV);
+        enqueueResponse(replyDest, replyChannel, buf, true);
     }
     else if (cmd == "bat") {
-        char buf[128];
-        const char* chemNames[] = { "LIPO", "NIMH", "SODIO", "LIFEPO4" };
-        snprintf(buf, sizeof(buf), "QUIMICA: %s\nBat: %d mV | OCV: %d%%\nTX: %s", 
-                 chemNames[prefs.chemistry], powerStatus->getBatteryVoltageMv(), powerStatus->getBatteryChargePercent(),
+        char buf[140];
+        const char *qca = (prefs.chemistry == 1) ? "NIMH" : (prefs.chemistry == 2) ? "SODIUM" : (prefs.chemistry == 3) ? "LIFEPO4" : "LIPO";
+        snprintf(buf, sizeof(buf), "QUIMICA: %s | Bat: %d mV | OCV: %d%% | TX: %s",
+                 qca, powerStatus->getBatteryVoltageMv(), powerStatus->getBatteryChargePercent(),
                  config.lora.tx_enabled ? "ON" : "OFF");
         enqueueResponse(replyDest, replyChannel, buf, true);
     }
-    else if (cmd.rfind("storm", 0) == 0) {
-        // Modo test rápido: storm test1 = 60s, storm test2 = 120s
-        std::string arg = (cmd.length() > 6) ? cmd.substr(6) : "";
-        bool testMode = false;
-        uint32_t seconds = 0;
-        if (arg == "test1") {
-            testMode = true;
-            seconds = 60;
-        } else if (arg == "test2") {
-            testMode = true;
-            seconds = 120;
+    else if (cmd.rfind("fav", 0) == 0) {
+        std::string sub = (cmd.length() > 3) ? cmd.substr(3) : "";
+        while (!sub.empty() && sub.front() == ' ') sub.erase(0, 1);
+        if (sub.rfind("auto", 0) == 0) {
+            std::string autoArg = (sub.length() > 4) ? sub.substr(4) : "";
+            while (!autoArg.empty() && autoArg.front() == ' ') autoArg.erase(0, 1);
+            if (autoArg == "on" || autoArg == "1") {
+                navaAutoFavoriteEnabled = true;
+                prefs.auto_fav = 1;
+                saveResiliencePrefs();
+                enqueueResponse(replyDest, replyChannel, "OK: AUTO-FAV ACTIVADO", true);
+            } else if (autoArg == "off" || autoArg == "0") {
+                navaAutoFavoriteEnabled = false;
+                prefs.auto_fav = 0;
+                saveResiliencePrefs();
+                enqueueResponse(replyDest, replyChannel, "OK: AUTO-FAV DESACTIVADO", true);
+            } else {
+                char buf[80];
+                snprintf(buf, sizeof(buf), "AUTO-FAV: %s | auto-favs: %d", navaAutoFavoriteEnabled ? "ON" : "OFF", prefs.autoFavCount);
+                enqueueResponse(replyDest, replyChannel, buf, true);
+            }
         }
-        uint32_t hours = (cmd.length() > 6) ? strtoul(cmd.substr(6).c_str(), NULL, 10) : 0;
-        if (testMode) {
-            char buf[96];
-            snprintf(buf, sizeof(buf), "MODO TORMENTA ACTIVADO. Durmiendo durante %lu segundos.", (unsigned long)seconds);
-            enqueueResponse(replyDest, replyChannel, buf, true);
-            stormPending = true;
-            stormSeconds = seconds;
-            stormTime = millis() + 15000; // esperar 15s: da tiempo a transmitir el ACK
-        } else if (hours >= 1 && hours <= 720) { // m�x 30 d�as
-            char buf[96];
-            snprintf(buf, sizeof(buf), "MODO TORMENTA ACTIVADO. Durmiendo durante %lu horas.", (unsigned long)hours);
-            enqueueResponse(replyDest, replyChannel, buf, true);
-            stormPending = true;
-            stormSeconds = hours * 3600;
-            stormTime = millis() + 15000; // esperar 15s: da tiempo a transmitir el ACK
+        else if (sub.rfind("add", 0) == 0) {
+            std::string targetStr = sub.substr(3);
+            while (!targetStr.empty() && (targetStr.front() == ' ' || targetStr.front() == '!')) targetStr.erase(0, 1);
+            if (targetStr.empty()) {
+                enqueueResponse(replyDest, replyChannel, usageAndState("fav"), true);
+                return;
+            }
+            uint32_t targetId = strtoul(targetStr.c_str(), NULL, 16);
+            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
+            if (node) {
+                removeAutoFav(targetId);
+                node->is_favorite = true;
+                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+                enqueueResponse(replyDest, replyChannel, "OK: FAVORITO MANUAL GUARDADO", true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "NODO NO EXISTE EN TABLA RAM", true);
+            }
+        }
+        else if (sub.rfind("rm", 0) == 0) {
+            std::string targetStr = sub.substr(2);
+            while (!targetStr.empty() && (targetStr.front() == ' ' || targetStr.front() == '!')) targetStr.erase(0, 1);
+            if (targetStr.empty()) {
+                enqueueResponse(replyDest, replyChannel, usageAndState("fav"), true);
+                return;
+            }
+            uint32_t targetId = strtoul(targetStr.c_str(), NULL, 16);
+            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
+            if (node) {
+                node->is_favorite = false;
+                removeAutoFav(targetId);
+                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+                enqueueResponse(replyDest, replyChannel, "OK: FAVORITO ELIMINADO", true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "NODO NO EXISTE EN TABLA RAM", true);
+            }
+        }
+        else if (sub == "ls") {
+            std::string favList = "FAVORITOS:\n";
+            uint32_t totalNodos = nodeDB->getNumMeshNodes();
+            bool found = false;
+            for (size_t i = 0; i < totalNodos; i++) {
+                const meshtastic_NodeInfoLite *node = nodeDB->getMeshNodeByIndex(i);
+                if (node && node->is_favorite) {
+                    found = true;
+                    char fBuf[80];
+                    const char *tag = isAutoFav(node->num) ? "[AUTO]" : "[MAN]";
+                    snprintf(fBuf, sizeof(fBuf), "!%08x %s (S:%d)\n", (unsigned int)node->num, tag, node->hops_away);
+                    favList += fBuf;
+                }
+            }
+            if (!found) favList += "NINGUNO";
+            enqueueResponse(replyDest, replyChannel, favList, true);
+        }
+        else {
+            enqueueResponse(replyDest, replyChannel, usageAndState("fav"), true);
+        }
+    }
+    else if (cmd.rfind("ign", 0) == 0) {
+        std::string sub = (cmd.length() > 3) ? cmd.substr(3) : "";
+        while (!sub.empty() && sub.front() == ' ') sub.erase(0, 1);
+        if (sub.rfind("add", 0) == 0) {
+            std::string targetStr = sub.substr(3);
+            while (!targetStr.empty() && (targetStr.front() == ' ' || targetStr.front() == '!')) targetStr.erase(0, 1);
+            if (targetStr.empty()) {
+                enqueueResponse(replyDest, replyChannel, usageAndState("ign"), true);
+                return;
+            }
+            uint32_t targetId = strtoul(targetStr.c_str(), NULL, 16);
+            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
+            if (node) {
+                node->is_ignored = true;
+            }
+            if (addIgnoredNode(targetId)) {
+                enqueueResponse(replyDest, replyChannel, "OK: NODO IGNORADO (Persiste)", true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "OK: NODO YA EN LISTA NEGRA", true);
+            }
+        }
+        else if (sub.rfind("rm", 0) == 0 || sub.rfind("del", 0) == 0) {
+            std::string targetStr = sub.substr((sub.rfind("del", 0) == 0) ? 3 : 2);
+            while (!targetStr.empty() && (targetStr.front() == ' ' || targetStr.front() == '!')) targetStr.erase(0, 1);
+            if (targetStr.empty()) {
+                enqueueResponse(replyDest, replyChannel, usageAndState("ign"), true);
+                return;
+            }
+            uint32_t targetId = strtoul(targetStr.c_str(), NULL, 16);
+            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
+            if (node) {
+                node->is_ignored = false;
+            }
+            if (removeIgnoredNode(targetId)) {
+                enqueueResponse(replyDest, replyChannel, "OK: NODO DESBLOQUEADO (Persiste)", true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "NODO NO ESTABA EN LISTA NEGRA", true);
+            }
+        }
+        else if (sub == "clear") {
+            clearIgnoredNodes();
+            enqueueResponse(replyDest, replyChannel, "OK: LISTA NEGRA BORRADA POR COMPLETO", true);
+        }
+        else if (sub == "ls") {
+            std::string ignList = "IGNORADOS (Persistentes):\n";
+            if (prefs.ignoredCount > 0) {
+                for (uint8_t i = 0; i < prefs.ignoredCount && i < 8; i++) {
+                    char iBuf[60];
+                    snprintf(iBuf, sizeof(iBuf), "[%u] !%08x\n", (unsigned int)i, (unsigned int)prefs.ignoredNodes[i]);
+                    ignList += iBuf;
+                }
+            } else {
+                ignList += "NINGUNO";
+            }
+            enqueueResponse(replyDest, replyChannel, ignList, true);
+        }
+        else {
+            enqueueResponse(replyDest, replyChannel, usageAndState("ign"), true);
+        }
+    }
+    else if (cmd.rfind("set_chem", 0) == 0) {
+        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_chem"), true);
+            return;
+        }
+        if (arg == "lipo") {
+            prefs.chemistry = 0;
+            prefs.vbat_cutoff = 3500;
+            prefs.vwake_level = 3;
+        } else if (arg == "nimh") {
+            prefs.chemistry = 1;
+            prefs.vbat_cutoff = 3400;
+            prefs.vwake_level = 3;
+        } else if (arg == "sodium") {
+            prefs.chemistry = 2;
+            prefs.vbat_cutoff = 2600;
+            prefs.vwake_level = 1;
+        } else if (arg == "lifepo4") {
+#if defined(SEEED_SOLAR_NODE) || defined(SEEED_XIAO_NRF52840_KIT) || defined(HELTEC_T114)
+            enqueueResponse(replyDest, replyChannel, "ERR: LIFEPO4 NO COMPATIBLE, UMBRAL LPCOMP FIJO", true);
+            return;
+#else
+            prefs.chemistry = 3;
+            prefs.vbat_cutoff = 2800;
+            prefs.vwake_level = 5;
+#endif
         } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: QUIMICA INVALIDA (lipo/nimh/sodium/lifepo4)", true);
+            return;
+        }
+        saveResiliencePrefs();
+        power->setChemistryProfile(prefs.chemistry);
+        power->updateOcvCurve(prefs.vbat_cutoff);
+        currentWakeLevel = prefs.vwake_level;
+        enqueueResponse(replyDest, replyChannel, "OK: QUIMICA APLICADA (Persiste. ROLLBACK SOLO: nrf erase)", true);
+    }
+    else if (cmd.rfind("set_vbat", 0) == 0) {
+        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_vbat"), true);
+            return;
+        }
+        uint16_t val = atoi(arg.c_str());
+        if (val < 2400 || val > 3600) {
+            enqueueResponse(replyDest, replyChannel, "ERR: RANGO INVALIDO (2400-3600 mV)", true);
+            return;
+        }
+        prefs.vbat_cutoff = val;
+        saveResiliencePrefs();
+        power->updateOcvCurve(prefs.vbat_cutoff);
+        enqueueResponse(replyDest, replyChannel, "OK: CORTE VBAT APLICADO (Persiste. ROLLBACK SOLO: nrf erase)", true);
+    }
+    else if (cmd.rfind("set_vwake", 0) == 0) {
+        std::string arg = (cmd.length() > 9) ? cmd.substr(9) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_vwake"), true);
+            return;
+        }
+        uint8_t lvl = atoi(arg.c_str());
+        if (lvl < 1 || lvl > 5) {
+            enqueueResponse(replyDest, replyChannel, "ERR: NIVEL INVALIDO (1-5)", true);
+            return;
+        }
+        prefs.vwake_level = lvl;
+        saveResiliencePrefs();
+        currentWakeLevel = lvl;
+        enqueueResponse(replyDest, replyChannel, "OK: NIVEL VWAKE APLICADO (Persiste. ROLLBACK SOLO: nrf erase)", true);
+    }
+    else if (cmd.rfind("storm", 0) == 0) {
+        std::string arg = (cmd.length() > 5) ? cmd.substr(5) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg == "test1") {
+            stormSeconds = 60;
+            stormPending = true;
+            stormTime = millis();
+            enqueueResponse(replyDest, replyChannel, "OK: HIBERNACION TEST 1 MIN EN 15s", true);
+        } else if (arg == "test2") {
+            stormSeconds = 120;
+            stormPending = true;
+            stormTime = millis();
+            enqueueResponse(replyDest, replyChannel, "OK: HIBERNACION TEST 2 MIN EN 15s", true);
+        } else if (arg.empty()) {
             enqueueResponse(replyDest, replyChannel, usageAndState("storm"), true);
+        } else {
+            uint32_t hours = atoi(arg.c_str());
+            if (hours >= 1 && hours <= 720) {
+                stormSeconds = hours * 3600;
+                stormPending = true;
+                stormTime = millis();
+                char sBuf[80];
+                snprintf(sBuf, sizeof(sBuf), "OK: MODO TORMENTA %lu HORAS EN 15s", (unsigned long)hours);
+                enqueueResponse(replyDest, replyChannel, sBuf, true);
+            } else {
+                enqueueResponse(replyDest, replyChannel, "ERR: HORAS INVALIDAS (1-720)", true);
+            }
         }
     }
     else if (cmd == "txoff") {
-        enqueueResponse(replyDest, replyChannel, "OK: TX DESACTIVADO. AVISO: ROLLBACK SOLO: nrf erase", true);
+        enqueueResponse(replyDest, replyChannel, "OK: TX APAGADO EN 3s (Persiste. ROLLBACK SOLO: nrf erase)", true);
         txOffScheduled = true;
         txOffTime = millis() + 3000;
     }
@@ -1466,187 +2256,268 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         prefs.tx_disabled = 0;
         saveResiliencePrefs();
         nodeDB->saveToDisk(SEGMENT_CONFIG);
-        enqueueResponse(replyDest, replyChannel, "OK: TX ACTIVADO", true);
+        enqueueResponse(replyDest, replyChannel, "OK: TX LORA REACTIVADO", true);
     }
     else if (cmd.rfind("ble", 0) == 0) {
-        std::string mode = (cmd.length() > 4) ? cmd.substr(4) : "";
-        if (mode == "on") {
+        std::string arg = (cmd.length() > 3) ? cmd.substr(3) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg == "on") {
             prefs.ble_disabled = 0;
+            saveResiliencePrefs();
+            config.bluetooth.enabled = true;
             setBleForceDisabled(false);
-            saveResiliencePrefs();
-            rebootScheduled = true;
-            rebootTime = millis() + 3000;
-            enqueueResponse(replyDest, replyChannel, "OK: BLE ACTIVADO. REINICIO PROGRAMADO. AVISO: ROLLBACK SOLO: nrf erase", true);
-        } else if (mode == "off") {
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: BLE ACTIVADO (REQUIERE REINICIO)", true);
+        } else if (arg == "off") {
             prefs.ble_disabled = 1;
-            setBleForceDisabled(true);
             saveResiliencePrefs();
-            rebootScheduled = true;
-            rebootTime = millis() + 3000;
-            enqueueResponse(replyDest, replyChannel, "OK: BLE DESACTIVADO. REINICIO PROGRAMADO. AVISO: ROLLBACK SOLO: nrf erase", true);
+            config.bluetooth.enabled = false;
+            setBleForceDisabled(true);
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: BLE APAGADO (Persiste. ROLLBACK SOLO: nrf erase)", true);
         } else {
             enqueueResponse(replyDest, replyChannel, usageAndState("ble"), true);
         }
     }
-    else if (cmd == "rxlog") {
-        std::string reply = "RXLOG (Ultimas 5):\n";
-        for (int i = 0; i < rxLogCount; i++) {
-            int idx = (rxLogIndex - 1 - i + 5) % 5;
-            char buf[80];
-            snprintf(buf, sizeof(buf), "!%08x | P:%d | S:%.1f | R:%d\n",
-                     rxLog[idx].from, rxLog[idx].portnum, rxLog[idx].snr, rxLog[idx].rssi);
-            reply += buf;
-        }
-        enqueueResponse(replyDest, replyChannel, reply, true);
-    }
-    else if (cmd == "afc") {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "Deriva TCXO: %.2f Hz", lastRxFrequencyError);
-        enqueueResponse(replyDest, replyChannel, buf, true);
-    }
-    else if (cmd == "reset_reason") {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "Ultimo arranque: 0x%08X", rawResetReason);
-        enqueueResponse(replyDest, replyChannel, buf, true);
-    }
-    else if (cmd.rfind("trace", 0) == 0) {
-        if (cmd.length() > 6) {
-            uint32_t targetId = strtoul(cmd.substr(6).c_str() + (cmd[6] == '!' ? 1 : 0), NULL, 16);
-            traceRouteModule->startTraceRoute(targetId);
-            enqueueResponse(replyDest, replyChannel, "OK: TRAZADO DE RUTA INICIADO", true);
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("trace"), true);
-        }
-    }
-    else if (cmd.rfind("route", 0) == 0) {
-        if (cmd.length() > 6) {
-            uint32_t targetId = strtoul(cmd.substr(6).c_str() + (cmd[6] == '!' ? 1 : 0), NULL, 16);
-            meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(targetId);
-            if (node != nullptr) {
-                char buf[128];
-                uint32_t nowSecs = millis() / 1000;
-                uint32_t agoSecs = (nowSecs > node->last_heard) ? (nowSecs - node->last_heard) : 0;
-                snprintf(buf, sizeof(buf), "RUTA a !%08x:\nSaltos: %d\nSNR: %.1f dB\nOido hace: %lu s",
-                         node->num, node->hops_away, node->snr, (unsigned long)agoSecs);
-                enqueueResponse(replyDest, replyChannel, buf, true);
-            } else {
-                // El nodo no está en la NodeDB: no hay ruta conocida todavía.
-                // Lanzamos un TraceRoute nativo (no requiere que el nodo esté en la BD)
-                // para intentar descubrirlo en la malla.
-                traceRouteModule->startTraceRoute(targetId);
-                enqueueResponse(replyDest, replyChannel, "NODO NO OIDO AUN. TRAZADO DE RUTA INICIADO.", true);
-            }
-        } else {
-            enqueueResponse(replyDest, replyChannel, usageAndState("route"), true);
-        }
-    }
     else if (cmd.rfind("msg", 0) == 0) {
-        std::string text = (cmd.length() > 4) ? cmd.substr(4) : "";
-        // Quitar espacios iniciales del texto
-        while (!text.empty() && (text[0] == ' ' || text[0] == '\t')) text.erase(0, 1);
-        if (text.empty()) {
-            enqueueResponse(replyDest, replyChannel, "ERR: USE msg \"TEXTO\"", true);
-        } else {
-            meshtastic_MeshPacket *p = allocDataPacket();
-            if (p) {
-                p->decoded.portnum = meshtastic_PortNum_TEXT_MESSAGE_APP;
-                p->decoded.payload.size = text.length();
-                memcpy(p->decoded.payload.bytes, text.c_str(), text.length());
-                p->to = NODENUM_BROADCAST;
-                p->channel = 0;
-                p->want_ack = false;
-                service->sendToMesh(p);
-                enqueueResponse(replyDest, replyChannel, "OK: MENSAJE DIFUNDIDO", true);
-            } else {
-                enqueueResponse(replyDest, replyChannel, "ERR: SIN MEMORIA PARA MENSAJE", true);
-            }
+        std::string msgStr = (cmd.length() > 3) ? cmd.substr(3) : "";
+        while (!msgStr.empty() && (msgStr.front() == ' ' || msgStr.front() == '"')) msgStr.erase(0, 1);
+        while (!msgStr.empty() && (msgStr.back() == ' ' || msgStr.back() == '"')) msgStr.pop_back();
+        if (msgStr.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("msg"), true);
+            return;
         }
+        enqueueResponse(NODENUM_BROADCAST, 0, msgStr, true);
+        enqueueResponse(replyDest, replyChannel, "OK: MENSAJE DIFUNDIDO EN CANAL 0", true);
     }
     else if (cmd == "bell") {
-        playStartMelody();
-        enqueueResponse(replyDest, replyChannel, "OK: SONANDO", true);
+        playComboTune();
+        enqueueResponse(replyDest, replyChannel, "OK: TONO DE ALARMA EMITIDO", true);
     }
     else if (cmd == "pos") {
-        positionModule->sendOurPosition();
-        enqueueResponse(replyDest, replyChannel, "OK: POSICION ENVIADA", true);
+        if (positionModule) {
+            positionModule->sendOurPosition(NODENUM_BROADCAST, true);
+            enqueueResponse(replyDest, replyChannel, "OK: POSICION ENVIADA", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: MODULO POSICION NO ACTIVO", true);
+        }
     }
     else if (cmd == "nodeinfo") {
-        nodeInfoModule->sendOurNodeInfo(NODENUM_BROADCAST, false);
-        enqueueResponse(replyDest, replyChannel, "OK: NODEINFO ENVIADO", true);
+        if (nodeInfoModule) {
+            nodeInfoModule->sendOurNodeInfo(NODENUM_BROADCAST);
+            enqueueResponse(replyDest, replyChannel, "OK: NODEINFO ENVIADO", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: MODULO NODEINFO NO ACTIVO", true);
+        }
     }
     else if (cmd == "sendtel") {
 #if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
         if (environmentTelemetryModule) {
-            environmentTelemetryModule->sendTelemetry(NODENUM_BROADCAST, false);
-            enqueueResponse(replyDest, replyChannel, "OK: TELEMETRIA ENVIADA", true);
+            environmentTelemetryModule->sendTelemetry(NODENUM_BROADCAST);
+            enqueueResponse(replyDest, replyChannel, "OK: TELEMETRIA AMBIENTAL ENVIADA", true);
         } else {
-            enqueueResponse(replyDest, replyChannel, "ERR: SIN SENSORES I2C", true);
+            enqueueResponse(replyDest, replyChannel, "ERR: TELEMETRIA NO ACTIVA", true);
         }
 #else
-        enqueueResponse(replyDest, replyChannel, "ERR: TELEMETRIA DESACTIVADA", true);
+        enqueueResponse(replyDest, replyChannel, "ERR: TELEMETRIA EXCLUIDA EN FIRMWARE", true);
 #endif
     }
-    else if (cmd == "power") {
-#if !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
-        if (environmentTelemetryModule) {
-            meshtastic_Telemetry extTelem = meshtastic_Telemetry_init_zero;
-            if (environmentTelemetryModule->getEnvironmentTelemetry(&extTelem)) {
-                if (extTelem.which_variant == meshtastic_Telemetry_environment_metrics_tag) {
-                    auto &m = extTelem.variant.environment_metrics;
-                    if (m.voltage != 0.0f || m.current != 0.0f) {
-                        char buf[160];
-                        float pwr_mw = m.voltage * m.current;
-                        snprintf(buf, sizeof(buf), "SENSOR DE POTENCIA:\nADC: %d mV\nINA: %.2f V | %+.0f mA %s\nPotencia: %.1f mW",
-                                 powerStatus->getBatteryVoltageMv(), m.voltage, m.current,
-                                 m.current >= 0.0f ? "CARGANDO" : "DESCARGANDO", pwr_mw);
-                        enqueueResponse(replyDest, replyChannel, buf, true);
-                        return;
-                    }
-                }
-            }
+    else if (cmd.rfind("set_name", 0) == 0) {
+        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_name"), true);
+            return;
         }
-        enqueueResponse(replyDest, replyChannel, "ERR: SIN SENSOR DE POTENCIA", true);
+        size_t q1 = arg.find('"');
+        size_t q2 = (q1 != std::string::npos) ? arg.find('"', q1 + 1) : std::string::npos;
+        size_t q3 = (q2 != std::string::npos) ? arg.find('"', q2 + 1) : std::string::npos;
+        size_t q4 = (q3 != std::string::npos) ? arg.find('"', q3 + 1) : std::string::npos;
+        if (q1 != std::string::npos && q2 != std::string::npos && q3 != std::string::npos && q4 != std::string::npos) {
+            std::string longN = arg.substr(q1 + 1, q2 - q1 - 1);
+            std::string shortN = arg.substr(q3 + 1, q4 - q3 - 1);
+            strncpy(owner.long_name, longN.c_str(), sizeof(owner.long_name) - 1);
+            strncpy(owner.short_name, shortN.c_str(), sizeof(owner.short_name) - 1);
+            nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
+            enqueueResponse(replyDest, replyChannel, "OK: NOMBRE CAMBIADO", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: FORMATO set_name \"Largo\" \"Corto\"", true);
+        }
+    }
+    else if (cmd.rfind("set_role", 0) == 0) {
+        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_role"), true);
+            return;
+        }
+        if (arg == "client") {
+            config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT;
+            prefs.role = meshtastic_Config_DeviceConfig_Role_CLIENT;
+        } else if (arg == "mute") {
+            config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT_MUTE;
+            prefs.role = meshtastic_Config_DeviceConfig_Role_CLIENT_MUTE;
+        } else if (arg == "router") {
+            config.device.role = meshtastic_Config_DeviceConfig_Role_ROUTER;
+            prefs.role = meshtastic_Config_DeviceConfig_Role_ROUTER;
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: ROL INVALIDO (client/mute/router)", true);
+            return;
+        }
+        nodeDB->installRoleDefaults(config.device.role);
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        saveResiliencePrefs();
+        enqueueResponse(replyDest, replyChannel, "OK: ROL CAMBIADO (persiste a factory reset)", true);
+    }
+    else if (cmd.rfind("set_mqtt", 0) == 0) {
+        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg == "on") {
+            moduleConfig.mqtt.enabled = true;
+            nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: MQTT ON", true);
+        } else if (arg == "off") {
+            moduleConfig.mqtt.enabled = false;
+            nodeDB->saveToDisk(SEGMENT_MODULECONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: MQTT OFF", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_mqtt"), true);
+        }
+    }
+    else if (cmd.rfind("set_tz", 0) == 0) {
+        std::string arg = (cmd.length() > 6) ? cmd.substr(6) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_tz"), true);
+            return;
+        }
+        strncpy(config.device.tzdef, arg.c_str(), sizeof(config.device.tzdef) - 1);
+        nodeDB->saveToDisk(SEGMENT_CONFIG);
+        enqueueResponse(replyDest, replyChannel, "OK: ZONA HORARIA APLICADA", true);
+    }
+    else if (cmd.rfind("set_hops", 0) == 0) {
+        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_hops"), true);
+            return;
+        }
+        uint8_t h = atoi(arg.c_str());
+        if (h >= 1 && h <= 7) {
+            config.lora.hop_limit = h;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: LIMITE DE SALTOS APLICADO", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: SALTOS INVALIDOS (1-7)", true);
+        }
+    }
+    else if (cmd.rfind("set_txpower", 0) == 0) {
+        std::string arg = (cmd.length() > 11) ? cmd.substr(11) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg.empty()) {
+            enqueueResponse(replyDest, replyChannel, usageAndState("set_txpower"), true);
+            return;
+        }
+        int p = atoi(arg.c_str());
+#ifdef NAVARICO_RADIO_E22P
+        if (p >= 0 && p <= 12) {
+            config.lora.tx_power = p;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: POTENCIA TX E22P APLICADA", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: POTENCIA INVALIDA E22P (0-12 dBm)", true);
+        }
 #else
-        enqueueResponse(replyDest, replyChannel, "ERR: TELEMETRIA DESACTIVADA", true);
+        if (p >= 0 && p <= 22) {
+            config.lora.tx_power = p;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            enqueueResponse(replyDest, replyChannel, "OK: POTENCIA TX SX1262 APLICADA", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, "ERR: POTENCIA INVALIDA SX1262 (0-22 dBm)", true);
+        }
 #endif
     }
-    else if (cmd == "noise") {
-        if (router && router->getInterface()) {
-            RadioLibInterface* rLib = static_cast<RadioLibInterface*>(router->getInterface());
-            if (rLib) {
-                char buf[64];
-                snprintf(buf, sizeof(buf), "Piso de ruido: %d dBm", rLib->getNoiseFloor());
-                enqueueResponse(replyDest, replyChannel, buf, true);
-                return;
+    else if (cmd.rfind("sleepmsg", 0) == 0) {
+        std::string arg = (cmd.length() > 8) ? cmd.substr(8) : "";
+        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
+        if (arg == "on" || arg == "1") {
+            prefs.sleepMsgs = 1;
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: AVISOS DE SUENO ACTIVADOS (ON)", true);
+        } else if (arg == "off" || arg == "0") {
+            prefs.sleepMsgs = 0;
+            saveResiliencePrefs();
+            enqueueResponse(replyDest, replyChannel, "OK: AVISOS DE SUENO DESACTIVADOS (OFF)", true);
+        } else {
+            enqueueResponse(replyDest, replyChannel, usageAndState("sleepmsg"), true);
+        }
+    }
+    else if (cmd == "db_purge") {
+        uint32_t total = nodeDB->getNumMeshNodes();
+        uint32_t purged = 0;
+        for (int i = (int)total - 1; i >= 0; i--) {
+            const meshtastic_NodeInfoLite *node = nodeDB->getMeshNodeByIndex(i);
+            if (node && !node->is_favorite && !nodeDB->isAdminNode(*node) && node->num != nodeDB->getNodeNum()) {
+                nodeDB->removeNodeByNum(node->num);
+                purged++;
             }
         }
-        enqueueResponse(replyDest, replyChannel, "ERR: RADIO APAGADA", true);
+        char bBuf[80];
+        snprintf(bBuf, sizeof(bBuf), "OK: %u NODOS EXPULSADOS DE RAM", (unsigned int)purged);
+        enqueueResponse(replyDest, replyChannel, bBuf, true);
+    }
+    else if (cmd == "db_clear") {
+        nodeDB->resetNodes();
+        enqueueResponse(replyDest, replyChannel, "OK: BASE DE DATOS PURGADA POR COMPLETO", true);
+    }
+    else if (cmd == "reboot") {
+        enqueueResponse(replyDest, replyChannel, "OK: REINICIANDO EN 3s", true);
+        rebootScheduled = true;
+        rebootTime = millis() + 3000;
     }
     else if (cmd == "admin_ls") {
-        std::string reply = "CLAVES ADMIN:\n";
-        for (int i = 0; i < 3; i++) {
-            if (config.security.admin_key[i].size == 32) {
-                std::string b64 = base64Encode(config.security.admin_key[i].bytes, 32);
-                reply += "Clave " + std::to_string(i) + ": " + b64 + "\n";
+        std::string out = "CLAVES ADMIN CONFIG (base64):\n";
+        meshtastic_Config_SecurityConfig &sec = config.security;
+        for (pb_size_t i = 0; i < 3; i++) {
+            char line[100];
+            if (i < sec.admin_key_count && sec.admin_key[i].size > 0) {
+                std::string b64 = base64Encode(sec.admin_key[i].bytes, sec.admin_key[i].size);
+                snprintf(line, sizeof(line), "[%d] %s (%uB)\n", i, b64.c_str(), (unsigned int)sec.admin_key[i].size);
             } else {
-                reply += "Clave " + std::to_string(i) + ": VACIA\n";
+                snprintf(line, sizeof(line), "[%d] (vacio)\n", i);
             }
+            out += line;
         }
-        enqueueResponse(replyDest, replyChannel, reply, true);
+        enqueueResponse(replyDest, replyChannel, out, true);
     }
     else if (cmd == "keys_ls") {
-        // NAVARICO F20: claves admin persistidas en /resilience.bin (las que volveran
-        // tras un factory/full reset). Mismo formato base64 que admin_ls.
-        std::string reply = "CLAVES PERSISTIDAS:\n";
-        reply += std::string("S0: ") + (navaKeyIsEmpty(prefs.keySlot0Own) ? "VACIA" : base64Encode(prefs.keySlot0Own, 32)) + "\n";
-        reply += std::string("S1: ") + (navaKeyIsEmpty(prefs.keySlot1) ? "VACIA" : base64Encode(prefs.keySlot1, 32)) + "\n";
-        reply += std::string("S2: ") + (navaKeyIsEmpty(prefs.keySlot2) ? "VACIA" : base64Encode(prefs.keySlot2, 32)) + "\n";
-        enqueueResponse(replyDest, replyChannel, reply, true);
+        std::string out = "CLAVES ADMIN PERSISTIDAS (base64):\n";
+        char line[100];
+        if (!navaKeyIsEmpty(prefs.keySlot0Own)) {
+            std::string b64 = base64Encode(prefs.keySlot0Own, 32);
+            snprintf(line, sizeof(line), "[S0 propia] %s (32B)\n", b64.c_str());
+        } else {
+            snprintf(line, sizeof(line), "[S0 propia] (sin fijar -> fabrica)\n");
+        }
+        out += line;
+        if (!navaKeyIsEmpty(prefs.keySlot1)) {
+            std::string b64 = base64Encode(prefs.keySlot1, 32);
+            snprintf(line, sizeof(line), "[Slot 1]    %s (32B)\n", b64.c_str());
+        } else {
+            snprintf(line, sizeof(line), "[Slot 1]    (vacio)\n");
+        }
+        out += line;
+        if (!navaKeyIsEmpty(prefs.keySlot2)) {
+            std::string b64 = base64Encode(prefs.keySlot2, 32);
+            snprintf(line, sizeof(line), "[Slot 2]    %s (32B)", b64.c_str());
+        } else {
+            snprintf(line, sizeof(line), "[Slot 2]    (vacio)");
+        }
+        out += line;
+        enqueueResponse(replyDest, replyChannel, out, true);
     }
     else if (cmd == "keys_clear") {
-        // NAVARICO F20: borrado diferido de las claves persistidas (patron ANEXO:
-        // ACK primero, ejecucion en runOnce con la cola vacia, sin reboot).
-        enqueueResponse(replyDest, replyChannel, "OK: BORRADO DE CLAVES PERSISTIDAS PROGRAMADO", true);
+        enqueueResponse(replyDest, replyChannel, "OK: CLAVES PERSISTIDAS BORRADAS (config actual no cambia)", true);
         keysClearPending = true;
         keysClearTime = millis() + 3000;
     }
@@ -1657,42 +2528,69 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
 
 int32_t NavaCLIModule::runOnce()
 {
-    // V2: reconciliar el listado persistente de auto-favoritos con los routers
-    // directos actuales (persiste solo si cambia algo, max 1 escritura/60s).
+    // V2: reconciliar el listado persistente de auto-favoritos con los routers directos
     reconcileAutoFavs();
 
-    // V2: primer tick tras el boot: mensajes [Vivo]/[Listo]/[Reserva] segun como se desperto
+    // Actualizar métricas de stats en RAM
+    uint16_t curBat = powerStatus->getBatteryVoltageMv();
+    if (curBat > 1000 && curBat < statsMinBattMv) {
+        statsMinBattMv = curBat;
+    }
+#ifdef NRF52840_XXAA
+    int32_t tempRaw = 0;
+    if (sd_temp_get(&tempRaw) == NRF_SUCCESS) {
+        float curTemp = tempRaw / 4.0f;
+        if (curTemp < statsMinTemp) statsMinTemp = curTemp;
+        if (curTemp > statsMaxTemp) statsMaxTemp = curTemp;
+    }
+#endif
+
+    // Ráfaga periódica de prueba RF (test_tx)
+    if (testTxCountRemaining > 0 && (int32_t)(millis() - testTxNextMs) >= 0) {
+        uint8_t targetChan = prefs.cliChannelSlot;
+        if (targetChan < 1 || targetChan > 7) targetChan = 1;
+        enqueueResponse(NODENUM_BROADCAST, targetChan, "TEST TX BEACON", true, true);
+        testTxCountRemaining--;
+        testTxNextMs = millis() + 1000;
+    }
+
+    // Primer tick tras el boot
     if (!firstRunDone) {
         firstRunDone = true;
-        // NAVARICO F20: restaurar las claves admin persistidas (DESPUES de NodeDB::init)
+        // NAVARICO F20: restaurar claves admin persistidas
         applyPersistedAdminKeys();
+        // NAVARICO F21: restaurar canales secundarios persistidos
+        applyPersistedChannels();
+        logEvent("BOOT causa 0x%08X", (unsigned int)rawResetReason);
+
         if (wokeFromSleep || vivoPending || reservaPending) {
+            uint8_t targetChan = prefs.cliChannelSlot;
+            if (targetChan < 1 || targetChan > 7) targetChan = 1;
+
             if (reservaPending && prefs.sleepMsgs) {
-                // V3: despertado por reset con bateria en capacidad critica (< corte-100):
-                // anunciar [Critico] (Nivel 2) y operar 160s (8 lecturas) antes de re-dormir.
                 prefs.wasInSleep = 1;
                 saveResiliencePrefs();
                 char buf[220];
                 snprintf(buf, sizeof(buf), "[Critico] %s id%08x | %s | bateria en capacidad critica, operando 160s",
                          owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
-                enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
+                enqueueResponse(NODENUM_BROADCAST, targetChan, buf, true, true);
+                logEvent("ESTADO [Critico]");
             } else if (vivoPending && prefs.sleepMsgs) {
-                // V2.6: despertado por reset externo con bateria en la banda [corte-100,
-                // corte): anunciar [Vivo] (Nivel 1) y operar 160s antes de re-dormir.
                 prefs.wasInSleep = 1;
                 saveResiliencePrefs();
                 char buf[220];
                 snprintf(buf, sizeof(buf), "[Vivo] %s id%08x | %s | sigo vivo, al limite de carga",
                          owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
-                enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
+                enqueueResponse(NODENUM_BROADCAST, targetChan, buf, true, true);
+                logEvent("ESTADO [Vivo]");
             } else if (wokeFromSleep && prefs.sleepMsgs) {
-                // V2: despertar real por LPCOMP (solar): bateria ya cargada
                 prefs.wasInSleep = 0;
                 saveResiliencePrefs();
                 char buf[220];
                 snprintf(buf, sizeof(buf), "[Listo] %s id%08x | %s | despierto, cargando, listo para trabajar",
                          owner.long_name, (unsigned int)nodeDB->getNodeNum(), buildEnergyLine().c_str());
-                enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
+                enqueueResponse(NODENUM_BROADCAST, targetChan, buf, true, true);
+                logEvent("ESTADO [Listo]");
             } else {
                 if (wokeFromSleep) {
                     prefs.wasInSleep = 0;
@@ -1702,10 +2600,7 @@ int32_t NavaCLIModule::runOnce()
         }
     }
 
-    // V2.4: aviso de arranque [Boot] DIFERIDO 2 minutos (idea del operador): sirve para
-    // enterarse de reinicios externos/watchdog/brownouts, y el retraso es el anti-bucle:
-    // un nodo en ciclo de resets nunca llega a los 2 min -> no inunda la malla. Solo
-    // para arranques que NO vienen del ciclo de sueno (esos ya avisan con [Listo]/[Vivo]/[Reserva]).
+    // Aviso de arranque [Boot] DIFERIDO 2 minutos
     {
         static bool bootNoticeSent = false;
         static uint32_t bootNoticeAt = 0;
@@ -1716,12 +2611,13 @@ int32_t NavaCLIModule::runOnce()
             if ((int32_t)(millis() - bootNoticeAt) >= 0) {
                 bootNoticeSent = true;
                 char buf[240];
-                // NAVARICO F22: la etiqueta NAVA tambien en [Boot] (que lleva el nodo tras cada reinicio)
                 snprintf(buf, sizeof(buf), "[Boot] %s id%08x | NAVA %s | %s | causa: 0x%08X (%s)",
                          owner.long_name, (unsigned int)nodeDB->getNodeNum(), NAVATASTIC_BUILD,
                          buildEnergyLine().c_str(), (unsigned int)rawResetReason,
                          navaricoResetReasonName(rawResetReason));
-                enqueueResponse(NODENUM_BROADCAST, 1, buf, true, true);
+                uint8_t targetChan = prefs.cliChannelSlot;
+                if (targetChan < 1 || targetChan > 7) targetChan = 1;
+                enqueueResponse(NODENUM_BROADCAST, targetChan, buf, true, true);
             }
         }
     }
@@ -1737,22 +2633,19 @@ int32_t NavaCLIModule::runOnce()
             reply->to = response.dest;
             reply->channel = response.channel;
             reply->want_ack = false;
+            statsTxPackets++;
             service->sendToMesh(reply);
         }
 
-        // V2.2: si hay re-sueno pendiente y la cola ya dreno, el sueno se programa
-        // DESDE el envio (+3s de margen de airtime), no desde el encolado: sendToMesh
-        // es asincrono y antes la radio podia apagarse con el paquete sin emitir.
         if (sleepPending && responseQueue.empty()) {
             sleepTime = millis() + 3000;
         }
 
         if (!responseQueue.empty()) {
-            return 12000; // Retardo de 12 segundos para cumplir con el MTU de LoRa SFNarrow
+            return 12000;
         }
     }
 
-    // Comprobar si hay un txoff diferido programado
     if (txOffScheduled) {
         if ((int32_t)(millis() - txOffTime) >= 0) {
             config.lora.tx_enabled = false;
@@ -1771,13 +2664,9 @@ int32_t NavaCLIModule::runOnce()
                 factoryResetPending = false;
                 nodeDB->factoryReset(true);
             }
-            // NAVARICO V3 (FASE R1): full_reset conserva el par PKI; wipe lo regenera.
             if (fullResetPending) {
                 LOG_INFO("Executing deferred full reset (PKI preserved)...");
                 fullResetPending = false;
-                // NAVARICO F20 (fix banco 2a): NO borrar /resilience.bin entero (mataria
-                // las claves admin persistidas): conservar SOLO las claves y resetear el
-                // resto a defaults de perfil; el factory reset no toca el fichero.
                 navaFullResetKeepKeys();
                 nodeDB->factoryReset(false);
             }
@@ -1793,9 +2682,6 @@ int32_t NavaCLIModule::runOnce()
         return 1000;
     }
 
-    // NAVARICO F20: borrado diferido de las claves persistidas (/nava keys_clear).
-    // Patron del ANEXO: el ACK ya salio; se ejecuta con la cola vacia tras ~3s y
-    // SIN reboot (solo edita /resilience.bin; el config en RAM no se toca).
     if (keysClearPending && responseQueue.empty() && (int32_t)(millis() - keysClearTime) >= 0) {
         keysClearPending = false;
         memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
@@ -1808,23 +2694,16 @@ int32_t NavaCLIModule::runOnce()
         return 1000;
     }
 
-    // Ejecutar la hibernación de storm cuando la cola esté vacía y hayan pasado 15s
     if (stormPending && responseQueue.empty() && (int32_t)(millis() - stormTime) >= 0) {
         LOG_INFO("Entering storm mode: %lu seconds", (unsigned long)stormSeconds);
         stormPending = false;
         timedSystemSleepSeconds(stormSeconds);
     }
 
-    // Si hay un storm pendiente, revisar cada segundo (no esperar los 60s del
-    // intervalo normal) para que se duerma justo a los 15s de activarse.
     if (stormPending) {
         return 1000;
     }
 
-    // V2.6: sueño por bateria diferido: esperar a que la cola de mensajes drene
-    // (envia [Sueño]/[Vivo] al aire ANTES de apagar la radio). Se duerme por la
-    // misma puerta que Eclipse (doDeepSleep): preflight + radio->sleep + GPS +
-    // pantalla + System OFF -> apagado COMPLETO (~1 mA), para las 6 placas.
     if (sleepPending && responseQueue.empty() && (int32_t)(millis() - sleepTime) >= 0) {
         LOG_INFO("Entering battery sleep after status message");
         sleepPending = false;
@@ -1832,6 +2711,10 @@ int32_t NavaCLIModule::runOnce()
         return 1000;
     }
     if (sleepPending) {
+        return 1000;
+    }
+
+    if (testTxCountRemaining > 0) {
         return 1000;
     }
 
@@ -1875,9 +2758,49 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
     else if (topic == "noise")
         return "noise: Piso de ruido instantaneo del chip de radio. Uso: /nava noise";
     else if (topic == "power")
-        return "power: Metricas de energia: ADC interno + INA219/260 (V, +-mA, CARGANDO/DESCARGANDO, mW). SOLO DM SEGURO. Uso: /nava power";
+        return "power: Metricas de energia: ADC interno + INA219 (V, +-mA, CARGANDO/DESCARGANDO, mW). Uso: /nava power";
     else if (topic == "bat")
         return "bat: Estado de bateria: quimica activa, voltaje, % OCV y estado TX. Uso: /nava bat";
+    else if (topic == "ch_ls")
+        return "ch_ls: Lista los 8 slots de canales (0-7), rol, nombre, tipo de clave y MQTT. Uso: /nava ch_ls";
+    else if (topic == "ch_set")
+        return "ch_set: Configura y activa un canal secundario (slots 2-7). Uso: /nava ch_set <slot 2-7> <nombre> <psk_base64>";
+    else if (topic == "ch_del")
+        return "ch_del: Deshabilita el canal del slot seleccionado. Uso: /nava ch_del <slot 2-7>";
+    else if (topic == "ch_url")
+        return "ch_url: Genera la URL oficial para importar el canal en la app del movil. Uso: /nava ch_url [slot 0-7]";
+    else if (topic == "set_cli_chan")
+        return "set_cli_chan: Redirige escucha de NavaCLI y avisos solares al slot elegido. Uso: /nava set_cli_chan [slot 1-7]";
+    else if (topic == "navadmin_mute")
+        return "navadmin_mute: Silencia o reactiva el Canal 1 publico Navadmin. Uso: /nava navadmin_mute [on|off]";
+    else if (topic == "ch_reset")
+        return "ch_reset: Restaura configuracion de fabrica de canales (Navadmin Slot 1). Uso: /nava ch_reset";
+    else if (topic == "ch_mqtt")
+        return "ch_mqtt: Configura la compuerta MQTT por canal. Uso: /nava ch_mqtt <slot 0-7> [up|down|both|off]";
+    else if (topic == "set_ok_to_mqtt")
+        return "set_ok_to_mqtt: Autoriza a pasarelas ajenas a subir paquetes del nodo a internet. Uso: /nava set_ok_to_mqtt [on|off]";
+    else if (topic == "set_pos")
+        return "set_pos: Fija coordenadas GPS estaticas en el repetidor. Uso: /nava set_pos <lat> <lon> [alt]";
+    else if (topic == "pos_clear")
+        return "pos_clear: Borra las coordenadas fijas guardadas dejando el nodo sin posicion. Uso: /nava pos_clear";
+    else if (topic == "set_pos_tx")
+        return "set_pos_tx: Controla la difusion periodica de posicion de flota. Uso: /nava set_pos_tx [on|off|minutos]";
+    else if (topic == "set_nodeinfo_tx")
+        return "set_nodeinfo_tx: Controla la difusion periodica de NodeInfo/nombres de flota. Uso: /nava set_nodeinfo_tx [on|off|minutos]";
+    else if (topic == "set_telem_tx")
+        return "set_telem_tx: Controla la cadencia de reporte de telemetria de flota. Uso: /nava set_telem_tx [on|off|minutos]";
+    else if (topic == "set_beacon")
+        return "set_beacon: Ajusta cadencia de emision de NodeInfo/Posicion en minutos. Uso: /nava set_beacon [minutos]";
+    else if (topic == "mute")
+        return "mute: Silencia temporalmente el reenvio de paquetes ajenos (RAM). Uso: /nava mute [minutos|off]";
+    else if (topic == "set_pin")
+        return "set_pin: Cambia el PIN Bluetooth fijo de 6 digitos. Uso: /nava set_pin <6_digitos>";
+    else if (topic == "stats")
+        return "stats: Informe de rendimiento y extremos del uptime (100% RAM). Uso: /nava stats";
+    else if (topic == "test_tx")
+        return "test_tx: Emite una rafaga periodica de prueba (1 pkt/s) para medir senal. Uso: /nava test_tx [segundos 5-30]";
+    else if (topic == "log")
+        return "log: Muestra las ultimas lineas del buffer circular de eventos en RAM. Uso: /nava log [lineas]";
     else if (topic == "fav")
         return "fav: Gestiona favoritos (nodos con bypass de saltos). Uso: /nava fav add !ID | fav rm !ID | fav ls | fav auto [on|off]";
     else if (topic == "ign")
@@ -1887,7 +2810,7 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
     else if (topic == "set_vbat")
         return "set_vbat: Corte de apagado por bateria baja. Uso: /nava set_vbat [2400-3600] mV";
     else if (topic == "set_vwake")
-        return "set_vwake: Nivel LPCOMP de reencendido solar. 1=2.1V, 2=2.5V, 3=3.7V (LiPo/NiMH/Sodio), 4=4.5V, 5=3.3V (LiFePO4). Uso: /nava set_vwake [1-5]";
+        return "set_vwake: Nivel LPCOMP de reencendido solar. 1=2.1V, 2=2.5V, 3=3.7V, 4=4.5V, 5=3.3V. Uso: /nava set_vwake [1-5]";
     else if (topic == "storm")
         return "storm: Hibernacion con radio apagada. Uso: /nava storm [1-720]h | storm test1 (60s) | storm test2 (120s)";
     else if (topic == "txoff")
@@ -1917,7 +2840,6 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
     else if (topic == "set_hops")
         return "set_hops: Limite de saltos LoRa. Uso: /nava set_hops [1-7]";
     else if (topic == "set_txpower")
-        // NAVARICO: ayuda de set_txpower por radio (E22P 0-12 / SX1262 0-22)
 #ifdef NAVARICO_RADIO_E22P
         return "set_txpower: Potencia de transmision LoRa. Uso: /nava set_txpower [0-12]";
 #else
@@ -1945,11 +2867,68 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
         return "sleepmsg: Activa/desactiva los avisos de sueno/vivo/listo al canal Navadmin. Uso: /nava sleepmsg [on|off]";
     else if (topic == "help")
         return "help: Muestra la lista de comandos o ayuda de uno concreto. Uso: /nava help [comando]";
+    return "Comando no reconocido. Escribe /nava help para ver la lista.";
 }
 
 std::string NavaCLIModule::usageAndState(const std::string &topic)
 {
     char buf[220];
+    if (topic == "ch_set") {
+        return "USO: ch_set <slot 2-7> <nombre> <psk_base64>\nEj: ch_set 2 Privada AQ==\nEj: ch_set 2 MiMalla K8RUGJs...==";
+    }
+    if (topic == "ch_del") {
+        return "USO: ch_del <slot 2-7>\nDeshabilita el canal del slot.";
+    }
+    if (topic == "ch_url") {
+        return "USO: ch_url [slot 0-7]\nGenera la URL meshtastic.org/e/#... para importar el canal.";
+    }
+    if (topic == "set_cli_chan") {
+        snprintf(buf, sizeof(buf), "CLI CHAN ACT: Slot %d (%s). USO: set_cli_chan [slot 1-7]", prefs.cliChannelSlot, channels.getName(prefs.cliChannelSlot));
+        return buf;
+    }
+    if (topic == "navadmin_mute") {
+        snprintf(buf, sizeof(buf), "NAVADMIN MUTE: %s. USO: navadmin_mute [on|off]", prefs.navadminMuted ? "ON" : "OFF");
+        return buf;
+    }
+    if (topic == "ch_mqtt") {
+        return "USO: ch_mqtt <slot 0-7> [up|down|both|off]\nConfigura la compuerta MQTT para ese slot.";
+    }
+    if (topic == "set_ok_to_mqtt") {
+        snprintf(buf, sizeof(buf), "OK_TO_MQTT ACT: %s. USO: set_ok_to_mqtt [on|off]", config.lora.config_ok_to_mqtt ? "ON" : "OFF");
+        return buf;
+    }
+    if (topic == "set_pos") {
+        if (config.position.fixed_position && prefs.fixed_pos_enabled) {
+            snprintf(buf, sizeof(buf), "POS ACT: Lat:%.5f Lon:%.5f Alt:%dm. USO: set_pos <lat> <lon> [alt]",
+                     prefs.fixed_pos_lat / 1e7f, prefs.fixed_pos_lon / 1e7f, prefs.fixed_pos_alt);
+        } else {
+            snprintf(buf, sizeof(buf), "POS ACT: SIN FIJAR. USO: set_pos <lat> <lon> [alt]");
+        }
+        return buf;
+    }
+    if (topic == "set_beacon") {
+        snprintf(buf, sizeof(buf), "BALIZA ACT: %lu min. USO: set_beacon [minutos]", (unsigned long)(config.device.node_info_broadcast_secs / 60));
+        return buf;
+    }
+    if (topic == "mute") {
+        if (navaIsMuteActive()) {
+            uint32_t remMin = (muteUntilMs - millis()) / 60000;
+            snprintf(buf, sizeof(buf), "MUTE ACT: ACTIVO (quedan %lu min). USO: mute [minutos|off]", (unsigned long)remMin);
+        } else {
+            snprintf(buf, sizeof(buf), "MUTE ACT: DESACTIVADO. USO: mute [minutos|off]");
+        }
+        return buf;
+    }
+    if (topic == "set_pin") {
+        snprintf(buf, sizeof(buf), "PIN BT ACT: %lu. USO: set_pin <6_digitos>", (unsigned long)config.bluetooth.fixed_pin);
+        return buf;
+    }
+    if (topic == "test_tx") {
+        return "USO: test_tx [segundos 5-30]\nEmite rafaga periodica de 1 paquete/s para medir senal.";
+    }
+    if (topic == "log") {
+        return "USO: log [lineas 1-15]\nMuestra las ultimas lineas del buffer de eventos RAM.";
+    }
     if (topic == "set_chem") {
         const char *qca = (prefs.chemistry == 1) ? "nimh" : (prefs.chemistry == 2) ? "sodium" : (prefs.chemistry == 3) ? "lifepo4" : "lipo";
 #if defined(SEEED_SOLAR_NODE) || defined(SEEED_XIAO_NRF52840_KIT) || defined(HELTEC_T114)
@@ -1976,7 +2955,6 @@ std::string NavaCLIModule::usageAndState(const std::string &topic)
         return buf;
     }
     if (topic == "set_txpower") {
-        // NAVARICO: consulta de set_txpower por radio (E22P 0-12 / SX1262 0-22)
 #ifdef NAVARICO_RADIO_E22P
         snprintf(buf, sizeof(buf), "TXPWR ACT: %ddBm (0-12). USO: set_txpower [0-12]", config.lora.tx_power);
 #else
@@ -2015,7 +2993,34 @@ std::string NavaCLIModule::usageAndState(const std::string &topic)
         return "USO: fav add !ID | fav rm !ID | fav ls | fav auto [on|off]";
     }
     if (topic == "ign") {
-        return "USO: ign add !ID | ign rm !ID | ign ls";
+        return "USO: ign add !ID | ign del !ID | ign ls | ign clear";
+    }
+    if (topic == "pos_clear") {
+        return "USO: pos_clear\nBorra las coordenadas fijas guardadas.";
+    }
+    if (topic == "set_pos_tx") {
+        if (prefs.pos_tx_secs == 0) {
+            snprintf(buf, sizeof(buf), "POS_TX ACT: DESACTIVADO (OFF). USO: set_pos_tx [on|off|minutos]");
+        } else {
+            snprintf(buf, sizeof(buf), "POS_TX ACT: cada %lu min. USO: set_pos_tx [on|off|minutos]", (unsigned long)(prefs.pos_tx_secs / 60));
+        }
+        return buf;
+    }
+    if (topic == "set_nodeinfo_tx") {
+        if (prefs.nodeinfo_tx_secs == 0) {
+            snprintf(buf, sizeof(buf), "NODEINFO_TX ACT: DESACTIVADO (OFF). USO: set_nodeinfo_tx [on|off|minutos]");
+        } else {
+            snprintf(buf, sizeof(buf), "NODEINFO_TX ACT: cada %lu min. USO: set_nodeinfo_tx [on|off|minutos]", (unsigned long)(prefs.nodeinfo_tx_secs / 60));
+        }
+        return buf;
+    }
+    if (topic == "set_telem_tx") {
+        if (prefs.telem_tx_secs == 0) {
+            snprintf(buf, sizeof(buf), "TELEM_TX ACT: DESACTIVADO (OFF). USO: set_telem_tx [on|off|minutos]");
+        } else {
+            snprintf(buf, sizeof(buf), "TELEM_TX ACT: cada %lu min. USO: set_telem_tx [on|off|minutos]", (unsigned long)(prefs.telem_tx_secs / 60));
+        }
+        return buf;
     }
     return helpForCommand(topic);
 }

@@ -1,17 +1,17 @@
 <div align="center">
 
-<img src="branding/cartel_navatastic_github.jpg" alt="Cartel NavaTastic Eclipse V3" width="640"/>
+<img src="branding/cartel_navatastic_github.jpg" alt="Cartel NavaTastic Eclipse V4" width="640"/>
 
 <br/>
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
-[![Auditoría](https://img.shields.io/badge/Auditor%C3%ADa-100%25%20PASS-brightgreen?logo=checkmarx&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)
+[![Auditoría](https://img.shields.io/badge/Auditor%C3%ADa-100%25%20PASS-brightgreen?logo=checkmarx&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)
 
 </div>
 
-> 🏆 **Certificación y Doble Auditoría 100% PASS (17/08/2026)**:  
-> NavaTastic 4.3.2 V3 ha superado con éxito **26 de 26 pruebas exhaustivas** sobre hardware real en el aire, persistencia criptográfica y simulación de ciclo solar en laboratorio.  
-> 📄 **[Descargar Informe Técnico (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.2/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf)** · 📖 **[Leer Informe en GitHub (Markdown)](docs/INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md)** · 📘 **[Guía Maestra de Procedimiento](docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md)**
+> 🏆 **Generación NavaTastic Eclipse V4 (17/08/2026)**:  
+> NavaTastic 4.3.3 V4 incorpora **Consola Privada de Gestión de Flota en Lote**, **Blindaje Anti-Tormentas en Canal Público**, **Lista Negra Global Persistente**, **Control Granular de Telemetría/Posición** y **16 Comandos Avanzados**.  
+> 📄 **[Descargar Manual de Comandos (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** · 📖 **[Leer Manual en GitHub](docs/Manual_NavaTastic.md)** · 📘 **[Guía de Uso (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)**
 
 ---
 
@@ -30,58 +30,47 @@ NavaTastic resuelve de raíz los 5 grandes problemas del firmware estándar:
 | Problema en Firmware Oficial | Solución Exclusiva de NavaTastic |
 | :--- | :--- |
 | **Bloqueo de amanecer (*Brownout*)**: Si la batería se agota de noche, la subida lenta de voltaje con los primeros rayos de sol bloquea el microcontrolador en un bucle infinito del que solo sale quitando la pila físicamente. | **Modo de Resiliencia Solar de 5 Estados**: El hardware se apaga por completo (**0.4 mA**) y solo despierta cuando el comparador analógico por hardware (**LPCOMP**) detecta que el sol ha recargado la batería de verdad ($\ge 3.77\text{ V}$). |
-| **Desgaste y muerte de la memoria Flash**: El firmware estándar escribe continuamente en la memoria flash interna cada vez que recibe un paquete o nodo de paso, quemando las celdas de memoria en pocos meses. | **Cero Desgaste de Flash (`NodeDB RAM-Only`)**: La base de datos de nodos opera al 100% en memoria RAM. La memoria flash queda protegida y el repetidor puede operar durante años sin degradarse. |
+| **Desgaste y muerte de la memoria Flash**: El firmware estándar escribe continuamente en la memoria flash interna cada vez que recibe un paquete o nodo de paso, quemando las celdas de memoria en pocos meses. | **Cero Desgaste de Flash (`NodeDB RAM-Only`) y Diagnósticos Volátiles**: La base de datos de nodos y los registros de auditoría (`stats`, `log`, `mute`, `test_tx`) operan al 100% en memoria RAM sin degradar la memoria flash. |
 | **Saturación del canal y retransmisión ciega**: En mallas extensas, los paquetes agotan sus saltos (*hops*) antes de llegar al destino, y configurar listas de nodos favoritos para crear un *bypass* exige desplazarse físicamente a cada repetidor con cable. | **Auto-Favoritos Inteligentes 0-Hop y Gestión Remota**: El repetidor descubre a sus routers vecinos directos y los añade automáticamente a su lista de favoritos con retransmisión a 0 saltos (**Zero-Hop**). Además, el usuario puede añadir, consultar o borrar favoritos a distancia por radio (`/nava fav add/rm/ls`), sin ordenador ni cables. |
 | **Mantenimiento obligado con PC o cable**: Para cambiar un canal, rol, potencia o diagnosticar problemas hay que conectarse por Bluetooth al lado del nodo o llevar un portátil con cable USB. | **Administración Remota Total por Radio (`NavaCLI`)**: Más de 45 comandos ejecutables a distancia mediante mensajes directos privados (DM) desde mandos autorizados o con un solo toque desde la app **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
-| **Nodos huérfanos tras un reset**: Si un repetidor sufre un reseteo de configuración, se borran las claves de administración y los canales, quedando inaccesible e inservible en la montaña. | **Blindaje y Persistencia Criptográfica**: Las claves de administración y el canal de rescate se protegen en almacenamiento seguro semi-permanente; sobreviven a cualquier reset de configuración. |
+| **Nodos huérfanos tras un reset**: Si un repetidor sufre un reseteo de configuración, se borran las claves de administración y los canales, quedando inaccesible e inservible en la montaña. | **Blindaje y Persistencia Criptográfica V5 (`NAV5`)**: Las claves de administración, canales secundarios y parámetros de rescate se protegen en `/resilience.bin` y sobreviven a cualquier reset de configuración. |
 
 ---
 
 ## ☀️ Los 5 Estados del Ciclo Solar (Avisos Automáticos)
 
-El repetidor informa a la red de su estado de salud en tiempo real a través del canal Navadmin:
+El repetidor informa a la red de su estado de salud en tiempo real a través del canal Navadmin o canal privado asignado:
 
 1. **`[Listo]`** ($\ge 3.77\text{ V}$): Recuperación solar completada $\rightarrow$ El nodo anuncia *"despierto, cargando, listo para trabajar"* y opera de forma ininterrumpida.
 2. **`[Vivo]`** ($3.30\text{V} - 3.40\text{ V}$): Batería al límite (Nivel 1) $\rightarrow$ Anuncia *"sigo vivo, al límite de carga"* y opera 160s. Si la batería no remonta, vuelve a dormir.
 3. **`[Critico]`** ($< 3.30\text{ V}$): Capacidad crítica (Nivel 2) $\rightarrow$ Anuncia *"bateria en capacidad critica, operando 160s"* y se apaga limpiamente a **0.4 mA**. Permite al operador monitorizar día a día la rampa de recuperación solar en días nublados.
 4. **`[Sueño]`**: Corte de batería $\rightarrow$ Emite el aviso de despedida con la tensión exacta del ADC y la temperatura del chip, apagando la radio por bus SPI.
-5. **`[Boot]`**: Diagnóstico diferido a los 2 minutos de uptime exactos tras un reinicio en frío $\rightarrow$ Reporta la causa hardware del reinicio (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) y la versión `NAVA V3`. El retardo de 2 min actúa como anti-bucle de malla.
+5. **`[Boot]`**: Diagnóstico diferido a los 2 minutos de uptime exactos tras un reinicio en frío $\rightarrow$ Reporta la causa hardware del reinicio (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) y la versión `NAVA V4`. El retardo de 2 min actúa como anti-bucle de malla.
 
 ## NavaCLI: gestiona todo desde el móvil, sin PC
 
-Con un simple mensaje de texto (DM al repetidor) manejas el nodo completo: **no hace falta
-cable, ni PC, ni abrir la interfaz normal de administración**. Toda la gestión del nodo —
-consultar su estado, ajustar energía, reiniciar o rescatar un nodo — cabe en un mensaje. Y con
-la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes predefinidos.
+Con un simple mensaje de texto (DM al repetidor o en canal privado de flota) manejas el nodo completo: **no hace falta cable, ni PC, ni abrir la interfaz normal de administración**. Toda la gestión del nodo — consultar su estado, ajustar energía, reiniciar, crear canales o gestionar la flota en lote — cabe en un mensaje. Y con la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes predefinidos.
 
-| Comando | Qué hace | Acceso |
+| Comando | Qué hace | Nivel de Acceso |
 | :--- | :--- | :--- |
-| **`help [cmd]`** | Catálogo de comandos y ayuda detallada de cualquier comando (`/nava <cmd> ?`) | **Canal Abierto / DM** |
-| **`ping`** | Mide latencia, nivel de batería, tiempo de encendido (*uptime*) y piso de ruido | **Canal Abierto / DM** |
-| **`status`** | Salud global: memoria RAM libre, favoritos Auto/Manual, canal y versión `NAVA V3` | **Canal Abierto / DM** |
-| **`env`** | Voltaje, memoria *heap*, temperatura CPU y sensores I2C conectados (BME280, etc.) | **Canal Abierto / DM** |
-| **`bat`** | Diagnóstico de batería: química configurada, voltaje exacto en mV y % OCV | **Canal Abierto / DM** |
-| **`channel` · `peers` · `rxlog`** | Ocupación del canal (% ChUtil) · nodos vecinos directos · registro de últimos paquetes | **Canal Abierto / DM** |
-| **`afc` · `noise` · `reset_reason`** | Deriva del oscilador TCXO · piso de ruido de RF · causa hardware del último reinicio | **Canal Abierto / DM** |
-| **`route !ID` · `trace !ID`** | Calidad del enlace y ruta hacia un nodo · trazado activo de saltos (*traceroute*) | **Canal Abierto / DM** |
-| **`set_chem [química]`** | Cambia la química (`lipo/nimh/sodium/lifepo4`) y adapta los cortes de forma persistente | **Solo DM de Administrador** |
-| **`set_vbat [mV]` · `set_vwake [1-5]`** | Ajusta el umbral de corte por batería baja · nivel de despertar solar (LPCOMP) | **Solo DM de Administrador** |
-| **`power`** | Métricas de energía en tiempo real (voltaje, corriente mA de carga/descarga y mW con INA219/260) | **Solo DM de Administrador** |
-| **`set_txpower [dBm]` · `set_hops [1-7]`** | Ajusta la potencia de transmisión LoRa · límite de saltos de retransmisión | **Solo DM de Administrador** |
-| **`set_role [client/mute/router]`** | Cambia el rol de forma **semi-permanente** (se conserva tras resets de configuración) | **Solo DM de Administrador** |
-| **`set_name` · `set_mqtt` · `set_tz` · `ble`** | Cambia nombre del nodo · servidor MQTT · zona horaria · enciende/apaga Bluetooth | **Solo DM de Administrador** |
-| **`txoff` / `txon`** | Desactiva o activa la transmisión de radio temporalmente | **Solo DM de Administrador** |
-| **`sleepmsg [on/off]`** | Activa o desactiva la emisión de avisos de ciclo solar (`[Sueño]`, `[Vivo]`, `[Critico]`, `[Listo]`, `[Boot]`) | **Solo DM de Administrador** |
-| **`fav add/rm/ls` · `fav auto`** | Gestión de favoritos manuales (bypass 0-Hop) y activación de auto-favoritos de routers vecinos | **Solo DM de Administrador** |
-| **`ign add/rm/ls`** | Bloqueo y desbloqueo de nodos problemáticos (*lista negra*) | **Solo DM de Administrador** |
-| **`db_purge` · `db_clear`** | Limpieza y mantenimiento de la tabla de nodos en memoria RAM | **Solo DM de Administrador** |
-| **`storm [1-720]`** | Modo Tormenta: hibernación programada (radio apagada durante X horas para ahorrar energía) | **Solo DM de Administrador** |
-| **`msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel`** | Difundir mensaje · hacer sonar alarma · forzar envío de posición · baliza de nodo · telemetría | **Solo DM de Administrador** |
-| **`admin_ls` · `keys_ls` · `keys_clear`** | Muestra claves admin activas · muestra claves admin **guardadas en el nodo** · borra la copia persistida | **Solo DM de Administrador** |
-| **`reboot`** | Reinicio suave remoto (el acuse de recibo ACK sale antes de reiniciar) | **Solo DM de Administrador** |
-| **`factory_reset`** | Reseteo a valores de fábrica (genera identidad nueva, pero restaura las claves del administrador) | **Solo DM de Administrador** |
-| **`full_reset`** | Reseteo completo de configuración (conserva la identidad del nodo, emparejamientos y claves admin) | **Solo DM de Administrador** |
-| **`wipe`** | Purga total de emergencia (borra todo; el nodo queda accesible solo con la clave de rescate del proyecto) | **Solo DM de Administrador** |
+| **`ping` · `status` · `bat` · `power`** | Métricas rápidas: latencia · salud de memoria y versión `NAVA V4` · % OCV · energía ADC + INA219 | **Canal Abierto / Privado / DM** |
+| **`env` · `channel` · `noise`** | Telemetría sensores I2C · ocupación de canal airtime % · piso de ruido LoRa en dBm | **Canal Abierto / Privado / DM** |
+| **`peers` · `rxlog` · `afc` · `reset_reason`** | Vecinos directos · últimos 5 paquetes recibidos · deriva TCXO Hz · motivo del reinicio (RESETREAS) | **Broadcast con `!ID` / Privado / DM** |
+| **`stats` · `log [n]` · `route` · `trace`** | Auditoría de extremos (temperatura, batería, tráfico RX/TX/Enrutados) · buffer RAM · traceroute | **Broadcast con `!ID` / Privado / DM** |
+| **`ch_ls` · `ch_set` · `ch_del` · `ch_url`** | Gestión de canales secundarios (slots 2-7) · configuración con clave Base64 · exportación URL | **Canal Privado / DM** |
+| **`set_cli_chan` · `navadmin_mute` · `ch_reset`** | Redirección de CLI a canal privado · silenciamiento de Navadmin · reset de canales a fábrica | **Canal Privado / DM** |
+| **`set_ok_to_mqtt` · `ch_mqtt`** | Autorización global MQTT de la flota · conmutación granular de pasarela por canal | **Canal Privado (Lote) / DM** |
+| **`set_pos_tx` · `set_nodeinfo_tx` · `set_telem_tx`** | Control de difusión periódica de posición (72h/off) · NodeInfo de flota · cadencia telemetría | **Canal Privado (Lote) / DM** |
+| **`ign add/del/clear/ls`** | Lista negra persistente contra nodos saboteadores/spam (descarte inmediato en enrutador) | **Canal Privado (Lote) / DM** |
+| **`set_beacon` · `mute` · `test_tx` · `db_purge`** | Intervalo balizas · silenciado temporal de reenvío · ráfaga de prueba RF · purga de memoria RAM | **Canal Privado (Lote) / DM** |
+| **`set_pos` · `pos_clear` · `set_name` · `set_pin`** | Coordenadas fijas persistentes · borrado de posición fija · nombres del nodo · PIN BLE fijo | **Individual (`!ID`) / DM** |
+| **`set_chem` · `set_vbat` · `set_vwake`** | Cambio de química de batería (`lipo/nimh/sodium/lifepo4`) · umbral de corte mV · despertar LPCOMP | **Canal Privado / DM** |
+| **`set_txpower` · `set_hops` · `set_role` · `set_tz`** | Potencia de transmisión LoRa · límite de saltos · cambio de rol semi-permanente · zona horaria | **Canal Privado / DM** |
+| **`storm` · `txoff` · `txon` · `ble` · `sleepmsg`** | Hibernación por tormenta · control de transmisión LoRa · Bluetooth on/off · avisos solares | **Canal Privado / DM** |
+| **`fav add/rm/ls/auto`** | Gestión de favoritos con bypass 0-Hop y auto-favoriteo de routers vecinos directos | **Individual (`!ID`) / DM** |
+| **`admin_ls` · `keys_ls` · `keys_clear`** | Consulta de claves admin activas · claves persistidas en disco · borrado de claves persistidas | **Solo DM de Administrador** |
+| **`reboot` · `factory_reset` · `full_reset` · `wipe`** | Reinicio suave · reset de fábrica · reset completo sin perder claves PKI · purga nuclear | **Solo DM de Administrador** |
+
 
 * **Canal Abierto (`Navadmin`)**: Permite únicamente consultas de lectura y diagnóstico público.
 * **Mensaje Directo Privado (DM)**: Requiere enviar el mensaje de forma privada desde un dispositivo cuya clave pública esté autorizada como Administrador en el repetidor.
@@ -350,7 +339,7 @@ The repeater broadcasts its health in real-time over the Navadmin channel:
 2. **`[Vivo]`** ($3.30\text{V} - 3.40\text{ V}$): Battery cutoff boundary (Level 1) $\rightarrow$ Announces *"sigo vivo, al limite de carga"* and operates for 160s. If voltage doesn't rise, it returns to sleep.
 3. **`[Critico]`** ($< 3.30\text{ V}$): Critical capacity reserve (Level 2) $\rightarrow$ Announces *"bateria en capacidad critica, operando 160s"* and goes cleanly to sleep at **0.4 mA**, allowing operators to monitor multi-day solar recovery ramps.
 4. **`[Sueno]`**: Battery cutoff $\rightarrow$ Sends a goodbye notice with exact ADC voltage and CPU temperature, then powers down the SX1262 LoRa radio via SPI.
-5. **`[Boot]`**: Deferred 2-minute diagnostic notice after cold boots $\rightarrow$ Reports the exact hardware reset cause (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) and the `NAVA V3` tag. The 2-min delay prevents mesh loop floods.
+5. **`[Boot]`**: Deferred 2-minute diagnostic notice after cold boots $\rightarrow$ Reports the exact hardware reset cause (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) and the `NAVA V4` tag. The 2-min delay prevents mesh loop floods.
 
 ## The 12 builds
 
@@ -371,42 +360,31 @@ it when pairing). Propia builds use the operator's own PIN.
 
 ### NavaCLI: manage everything from your phone, no PC needed
 
-A single text message (DM to the repeater) drives the whole node: **no cable, no PC, no normal
-admin interface**. Checking status, tuning energy, rebooting or rescuing a node — one message
-does it all. With the **MeshNavarra** app you do it **without typing**: commands are
-predefined messages.
+A single text message (DM to the repeater or over a private fleet channel) drives the whole node: **no cable, no PC, no normal admin interface**. Checking status, tuning energy, rebooting, configuring channels or managing the entire fleet in bulk — one message does it all. With the **MeshNavarra** app you do it **without typing**: commands are predefined messages.
 
-| Command | What it does | Access |
+| Command | What it does | Access Level |
 | :--- | :--- | :--- |
-| **`help [cmd]`** | Command catalog and detailed help for any command (`/nava <cmd> ?`) | **Open Channel / DM** |
-| **`ping`** | Latency, battery level, uptime, and noise floor | **Open Channel / DM** |
-| **`status`** | Global node health: free RAM heap, Auto/Manual favorites, channels, and `NAVA V3` tag | **Open Channel / DM** |
-| **`env`** | Battery voltage, RAM heap, CPU temperature, and connected I2C sensors (BME280, etc.) | **Open Channel / DM** |
-| **`bat`** | Battery diagnostics: configured chemistry, exact voltage in mV, and % OCV estimation | **Open Channel / DM** |
-| **`channel` · `peers` · `rxlog`** | Channel utilization (% ChUtil) · direct neighbor nodes · packet reception history | **Open Channel / DM** |
-| **`afc` · `noise` · `reset_reason`** | TCXO oscillator drift · RF noise floor · hardware cause of the last reset | **Open Channel / DM** |
-| **`route !ID` · `trace !ID`** | Link quality and route to a node · active traceroute | **Open Channel / DM** |
-| **`set_chem [chemistry]`** | Switch battery chemistry (`lipo/nimh/sodium/lifepo4`) and adapt cutoffs persistently | **Authorized Admin DM Only** |
-| **`set_vbat [mV]` · `set_vwake [1-5]`** | Set low-battery cutoff threshold · solar wake level (LPCOMP) | **Authorized Admin DM Only** |
-| **`power`** | Real-time power metrics (voltage, charge/discharge mA, and mW with INA219/260) | **Authorized Admin DM Only** |
-| **`set_txpower [dBm]` · `set_hops [1-7]`** | Set LoRa transmit power · hop limit | **Authorized Admin DM Only** |
-| **`set_role [client/mute/router]`** | Change role **semi-permanently** (survives configuration resets) | **Authorized Admin DM Only** |
-| **`set_name` · `set_mqtt` · `set_tz` · `ble`** | Set node name · MQTT server · timezone · enable/disable Bluetooth | **Authorized Admin DM Only** |
-| **`txoff` / `txon`** | Temporarily disable or enable radio transmissions | **Authorized Admin DM Only** |
-| **`sleepmsg [on/off]`** | Enable/disable automatic solar cycle notices (`[Sueño]`, `[Vivo]`, `[Critico]`, `[Listo]`, `[Boot]`) | **Authorized Admin DM Only** |
-| **`fav add/rm/ls` · `fav auto`** | Manage manual favorites (0-Hop bypass) and toggle auto-favoriting of neighbor routers | **Authorized Admin DM Only** |
-| **`ign add/rm/ls`** | Block / unblock problematic nodes (*blocklist*) | **Authorized Admin DM Only** |
-| **`db_purge` · `db_clear`** | Cleanup and maintenance of the RAM node database | **Authorized Admin DM Only** |
-| **`storm [1-720]`** | Storm Mode: timed hibernation (radio off for X hours to conserve battery during storms) | **Authorized Admin DM Only** |
-| **`msg "..."` · `bell` · `pos` · `nodeinfo` · `sendtel`** | Broadcast message · sound alarm · force position broadcast · node beacon · telemetry | **Authorized Admin DM Only** |
-| **`admin_ls` · `keys_ls` · `keys_clear`** | View active admin keys · view **persisted keys stored on the node** · clear persisted keys | **Authorized Admin DM Only** |
-| **`reboot`** | Remote soft reboot (ACK is transmitted before rebooting) | **Authorized Admin DM Only** |
-| **`factory_reset`** | Factory configuration reset (generates fresh node identity while preserving user admin keys) | **Authorized Admin DM Only** |
-| **`full_reset`** | Full configuration reset (preserves existing node identity, Bluetooth bonds, and admin keys) | **Authorized Admin DM Only** |
-| **`wipe`** | Emergency total wipe (clears all settings; node remains recoverable only via project rescue key) | **Authorized Admin DM Only** |
+| **`ping` · `status` · `bat` · `power`** | Fast metrics: latency · RAM health & `NAVA V4` version · % OCV · ADC + INA219 energy | **Open Channel / Private / DM** |
+| **`env` · `channel` · `noise`** | I2C sensor telemetry · airtime % occupation · LoRa noise floor in dBm | **Open Channel / Private / DM** |
+| **`peers` · `rxlog` · `afc` · `reset_reason`** | Direct neighbors · last 5 received packets · TCXO drift Hz · reset cause (RESETREAS) | **Broadcast with `!ID` / Private / DM** |
+| **`stats` · `log [n]` · `route` · `trace`** | Extreme metrics audit (temperature, battery, RX/TX/Routed packets) · RAM log · traceroute | **Broadcast with `!ID` / Private / DM** |
+| **`ch_ls` · `ch_set` · `ch_del` · `ch_url`** | Secondary channel management (slots 2-7) · Base64 key setup · Meshtastic QR URL export | **Private Channel / DM** |
+| **`set_cli_chan` · `navadmin_mute` · `ch_reset`** | Redirect CLI to private channel · mute public Navadmin · factory channel reset | **Private Channel / DM** |
+| **`set_ok_to_mqtt` · `ch_mqtt`** | Fleet global MQTT authorization · granular per-channel uplink/downlink gateway toggle | **Private Channel (Batch) / DM** |
+| **`set_pos_tx` · `set_nodeinfo_tx` · `set_telem_tx`** | Control periodic position broadcast (72h/off) · fleet NodeInfo · telemetry rate | **Private Channel (Batch) / DM** |
+| **`ign add/del/clear/ls`** | Persistent blacklist against troll/spam nodes (immediate packet drop at router level) | **Private Channel (Batch) / DM** |
+| **`set_beacon` · `mute` · `test_tx` · `db_purge`** | Beacon rate · temporary repeater mute · RF test burst · RAM database purge | **Private Channel (Batch) / DM** |
+| **`set_pos` · `pos_clear` · `set_name` · `set_pin`** | Fixed geographic coordinates · clear fixed position · node names · fixed BLE PIN | **Individual (`!ID`) / DM** |
+| **`set_chem` · `set_vbat` · `set_vwake`** | Switch battery chemistry (`lipo/nimh/sodium/lifepo4`) · cutoff mV · LPCOMP wake level | **Private Channel / DM** |
+| **`set_txpower` · `set_hops` · `set_role` · `set_tz`** | LoRa TX power · hop limit · semi-permanent role change · POSIX timezone | **Private Channel / DM** |
+| **`storm` · `txoff` · `txon` · `ble` · `sleepmsg`** | Storm hibernation · LoRa TX control · Bluetooth on/off · solar cycle mesh notices | **Private Channel / DM** |
+| **`fav add/rm/ls/auto`** | Manage favorites with 0-Hop bypass and auto-favoriting direct router neighbors | **Individual (`!ID`) / DM** |
+| **`admin_ls` · `keys_ls` · `keys_clear`** | View active admin keys · view **persisted keys on disk** · clear persisted keys | **Authorized Admin DM Only** |
+| **`reboot` · `factory_reset` · `full_reset` · `wipe`** | Remote soft reboot · factory reset · full reset preserving PKI keys · nuclear wipe | **Authorized Admin DM Only** |
 
 * **Open Channel (`Navadmin`)**: Allows read-only status and diagnostic queries.
-* **Direct Message (DM)**: Critical configuration commands require sending a private message from a device authorized as an Administrator on the repeater.
+* **Private Fleet Channel (Slots 2..7)**: Allows batch network management across the entire mesh.
+* **Direct Message (DM)**: Critical and individual configuration commands require a cryptographically signed DM from an authorized administrator.
 * **Help Anytime**: Send `/nava help` to view available commands for your firmware, or `/nava <command> ?` for specific parameter help.
 
 ### NavaTastic + MeshNavarra: built to work together
