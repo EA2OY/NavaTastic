@@ -68,7 +68,7 @@ la app **MeshNavarra** se hace **sin escribir**: los comandos van como mensajes 
 | `set_role [client/mute/router]` | Rol **semi-permanente** (sobrevive a factory reset) | DM |
 | `set_name` · `set_mqtt` · `set_tz` · `ble` | Nombre · MQTT · zona horaria · Bluetooth | DM |
 | `txoff` / `txon` | Apagar / encender la transmisión | DM |
-| `sleepmsg [on|off]` | Activa/desactiva los avisos [Sueño]/[Vivo]/[Listo]/[Boot] | DM |
+| `sleepmsg [on|off]` | Activa/desactiva los avisos [Sueño]/[Vivo]/[Critico]/[Listo]/[Boot] | DM |
 | `fav add/rm/ls` · `fav auto` | Favoritos (bypass de saltos) y auto-favoriteo | DM |
 | `ign add/rm/ls` | Bloqueo y desbloqueo de nodos | DM |
 | `db_purge` · `db_clear` | Limpieza de la base de nodos | DM |
@@ -160,14 +160,14 @@ firmware puede tener... "un poquito de sueño".*
 
 ## Descargas (firmware compilado)
 
-Última versión: **NavaTastic Eclipse V3 (4.3.2, 16/08/2026)** — etiqueta `NAVA V3` en `status`/[Boot],
-avisos de sueño/despertar con causa, 8 lecturas de batería baja (~160s) unificadas, resets
+Última versión: **NavaTastic Eclipse V3 (4.3.2 — fw 2.7.26.f12f833, 17/08/2026)** — etiqueta `NAVA V3` en `status`/[Boot],
+avisos de ciclo solar de 5 estados con diagnóstico de causa, 8 lecturas de batería baja (~160s) antes del reposo a 0.4 mA, resets
 remotos `/nava full_reset` (conserva claves PKI) y `/nava wipe` (purga total, par PKI nuevo),
 y **claves admin del usuario persistidas** (sobreviven a factory/full reset; regla "slot 0 =
-estado previo del usuario"; `keys_ls`/`keys_clear`; banco 7/7).
+estado previo del usuario"; `keys_ls`/`keys_clear`).
 
 **Descarga los binarios desde [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
-(panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 2 manuales PDF. NIMH = mismos binarios
+(panel de la derecha — *Assets*): 12 UF2 + 12 OTA + 4 documentos y manuales PDF. NIMH = mismos binarios
 que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables en
 [`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
 `UF2`/`OTA`).
@@ -188,7 +188,7 @@ que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables
   el canal Navadmin (los avisos y la consulta por canal abierto dependen de él).
 - **Copia de seguridad de claves**: el flasheo por sí solo **conserva** los `/prefs` del nodo
   (claves, canales, nombre). **Las claves admin del usuario también sobreviven a los resets de
-  fábrica** (F20): se guardan en el nodo y vuelven solas tras un factory/full reset. Lo que sí
+  fábrica** gracias al sistema de almacenamiento persistente seguro de NavaTastic: se guardan en el nodo y vuelven solas tras un factory/full reset. Lo que sí
   cambia con `factory_reset` es el **par PKI del nodo** (los demás nodos tendrán que reaprender
   su clave para el DM cifrado), y `wipe`/`nrf erase` lo purgan todo (identidad nueva + solo la
   clave de rescate del proyecto). Exporta la configuración desde la app antes de un `wipe`/`nrf
@@ -233,7 +233,7 @@ que restaurar: tras un **fallo completo** (`wipe`/`nrf erase`, corrupción de la
 un reset de fábrica en un nodo que **nunca desautorizó la de fábrica** — quien guarda su clave
 privada (el operador del proyecto) puede **volver a entrar por DM, restaurar el nodo y dejarlo de
 nuevo con la clave de su dueño**. Sin ella, un nodo reseteado en altura quedaría huérfano e
-inalcanzable. Por eso el firmware también la re-inyecta si el slot 0 queda vacío. **Nota (F20)**:
+inalcanzable. Por eso el firmware también la re-inyecta si el slot 0 queda vacío. **Nota de seguridad**:
 si el dueño puso SU clave en el slot 0, tras un factory/full reset el nodo vuelve con SU clave
 (desautorización persistente, sin ventana de secuestro) — la de rescate solo volvería a entrar
 tras un `wipe`, o si el dueño la re-autoriza poniéndola en el slot 0.
@@ -316,22 +316,37 @@ Si alguien, de manera **estrictamente voluntaria**, desea tener un detalle o inv
 
 # NavaTastic (English)
 
-Firmware **NavaTastic** — a [Meshtastic](https://meshtastic.org) v2.7.26 fork (base `54e0d8d`)
+Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://meshtastic.org) v2.7.26 fork (base `54e0d8d`)
 for **solar-powered infrastructure repeaters** on the **SFNarrow** LoRa preset (EU_868,
 national preset used in Spain). A single repository produces **12 different firmwares**
 (6 boards/radios × 2 branches: Routers / Clients).
 
-## What NavaTastic adds on top of Meshtastic
+---
 
-| Area | What it does |
-|---|---|
-| **Solar resilience** | Boot brownout protection, LPCOMP wake-up with hysteresis, storm hibernation, battery chemistries (`lipo/nimh/sodium/lifepo4` per board), configurable cutoff and wake voltage |
-| **Battery cycle notices** | `[Sueno]` / `[Vivo]` / `[Listo]` / `[Boot]` messages on the Navadmin channel: the node announces before sleeping (~1 mA), when waking up on solar/external reset, and every reboot **with its cause** (watchdog, reset pin, soft, brownout...) |
-| **NavaCLI `/nava`** | ~45 remote administration commands: telemetry, energy, favorites, blocklist, semi-permanent role, maintenance. Critical actions require PKI-encrypted DM; the Navadmin channel is read-only |
-| **Flash protection** | Filtered node database writes, auto-favoriting of direct routers, hybrid eviction, no transmit-history writes |
-| **Security** | Persistent admin accreditation across reboots, admin-key auto-recovery, orphan-favorite limit |
-| **Persistent admin keys** | The user's admin keys are stored on the node and **come back on their own after a factory/full reset** (`keys_ls`/`keys_clear`); after a complete failure (`wipe`/`nrf erase`) the project rescue key is re-injected |
-| **Semi-permanent role** | `set_role` persists in `/resilience.bin` and **survives factory reset** |
+## 🏔️ Why NavaTastic for Mountain Repeaters
+
+A solar repeater on an isolated mountain peak cannot afford to fail. If it freezes due to a low-voltage condition, wears out its internal flash memory, or loses its settings after a reset, it requires a long hike to repair it physically.
+
+NavaTastic directly eliminates the 4 major failure modes of standard firmware:
+
+| Issue in Standard Firmware | NavaTastic Exclusive Solution |
+| :--- | :--- |
+| **Sunrise Lockup (*Brownout*)**: When a battery drains overnight, the slow morning solar voltage ramp can trap the microcontroller in an unstable lockup loop that only clears by physically disconnecting the battery. | **5-State Solar Resilience Engine**: Hardware powers off completely (**0.4 mA**) and only wakes up when the hardware analog comparator (**LPCOMP**) detects true battery recovery ($\ge 3.77\text{ V}$). |
+| **Flash Memory Wear & Failure**: Standard firmware constantly writes to internal flash memory for every transit packet and node heard, burning out flash cells in a matter of months. | **Zero Flash-Wear (`NodeDB RAM-Only`)**: The entire node database lives in RAM. Internal flash is protected, ensuring years of continuous operation without file system corruption. |
+| **Mandatory On-Site Cable Maintenance**: Changing channels, roles, power, or inspecting diagnostics requires being next to the node via Bluetooth or carrying a laptop with USB. | **Full Remote Mesh Administration (`NavaCLI`)**: Over 45 commands executable over the air via PKI-encrypted Direct Messages or single-tap shortcuts in **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)**. |
+| **Orphaned Nodes on Reset**: If a mountain node resets its configuration, admin keys and rescue channels are wiped, leaving it unreachable. | **Cryptographic Shielding & Persistence**: Admin keys and the dedicated Navadmin rescue channel survive configuration resets and full power cuts. |
+
+---
+
+## ☀️ The 5 Solar Cycle States (Automatic Mesh Notices)
+
+The repeater broadcasts its health in real-time over the Navadmin channel:
+
+1. **`[Listo]`** ($\ge 3.77\text{ V}$): Solar recovery complete $\rightarrow$ Announces *"despierto, cargando, listo para trabajar"* and resumes normal uninterrupted service.
+2. **`[Vivo]`** ($3.30\text{V} - 3.40\text{ V}$): Battery cutoff boundary (Level 1) $\rightarrow$ Announces *"sigo vivo, al limite de carga"* and operates for 160s. If voltage doesn't rise, it returns to sleep.
+3. **`[Critico]`** ($< 3.30\text{ V}$): Critical capacity reserve (Level 2) $\rightarrow$ Announces *"bateria en capacidad critica, operando 160s"* and goes cleanly to sleep at **0.4 mA**, allowing operators to monitor multi-day solar recovery ramps.
+4. **`[Sueno]`**: Battery cutoff $\rightarrow$ Sends a goodbye notice with exact ADC voltage and CPU temperature, then powers down the SX1262 LoRa radio via SPI.
+5. **`[Boot]`**: Deferred 2-minute diagnostic notice after cold boots $\rightarrow$ Reports the exact hardware reset cause (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) and the `NAVA V3` tag. The 2-min delay prevents mesh loop floods.
 
 ## The 12 builds
 
@@ -372,7 +387,7 @@ predefined messages.
 | `set_role [client/mute/router]` | **Semi-permanent** role (survives factory reset) | DM |
 | `set_name` · `set_mqtt` · `set_tz` · `ble` | Name · MQTT · timezone · Bluetooth | DM |
 | `txoff` / `txon` | Disable / enable transmission | DM |
-| `sleepmsg [on|off]` | Enable/disable the [Sueno]/[Vivo]/[Listo]/[Boot] notices | DM |
+| `sleepmsg [on|off]` | Enable/disable the [Sueno]/[Vivo]/[Critico]/[Listo]/[Boot] notices | DM |
 | `fav add/rm/ls` · `fav auto` | Favorites (hop bypass) and auto-favoriting | DM |
 | `ign add/rm/ls` | Block / unblock nodes | DM |
 | `db_purge` · `db_clear` | Node database cleanup | DM |
@@ -444,16 +459,15 @@ To **compile with a different default chemistry**: add
 repairable: it just takes a little aptitude. And remember: when an extra feature gets
 added, the firmware might get... "a little sleepy".*
 
-## Downloads (prebuilt firmware)
+## Downloads (compiled firmware)
 
-Latest release: **NavaTastic Eclipse V3 (4.3.2, 16/08/2026)** — `NAVA V3` tag in `status`/[Boot], sleep/wake
-notices with reset cause, unified 8 low-battery readings (~160 s), remote resets `/nava full_reset`
-(keeps PKI keys) and `/nava wipe` (total purge, new PKI pair), and **user admin keys persisted**
-(survive factory/full reset; "slot 0 = the user's previous state" rule; `keys_ls`/`keys_clear`;
-bench 7/7).
+Latest release: **NavaTastic Eclipse V3 (4.3.2 — fw 2.7.26.f12f833, 17/08/2026)** — `NAVA V3` tag in `status`/[Boot],
+5-state solar resilience notices with hardware reset causes, unified 8 low-battery readings (~160s) before 0.4 mA sleep, remote
+resets `/nava full_reset` (preserves PKI keys) and `/nava wipe` (total purge, fresh PKI pair),
+and **persisted user admin keys** (survive factory/full reset; "slot 0 = previous user state" rule; `keys_ls`/`keys_clear`).
 
 **Download the binaries from [Releases](https://github.com/EA2OY/NavaTastic/releases/latest)**
-(right-hand panel — *Assets*): 12 UF2 + 12 OTA + 2 PDF manuals. NIMH = same binaries as LIPO
+(right-hand panel — *Assets*): 12 UF2 + 12 OTA + 4 PDF documents and manuals. NIMH = same binaries as LIPO
 (Faketec and XiaoKitI2c only). The same files are browsable under
 [`distribucion/`](distribucion/) (`Rama 2 Routers` / `Rama 1 Clientes` × `LIPO`/`NIMH` ×
 `UF2`/`OTA`).
