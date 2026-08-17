@@ -119,14 +119,14 @@ Todos estos comandos se ejecutarían **exclusivamente por Mensaje Directo Privad
 
 ### 🛰️ C. Funciones Avanzadas de Infraestructura de Montaña (Extras Útiles)
 ```text
-9. /nava set_pos <latitud> <longitud> <altitud>
-   -> Fija o corrige las coordenadas GPS estaticas en repetidores de cumbre que no disponen de modulo GPS fisico, posicionandolos en los mapas de cobertura web.
+10. /nava set_pos <latitud> <longitud> <altitud>
+    -> Fija o corrige las coordenadas GPS estaticas en repetidores de cumbre que no disponen de modulo GPS fisico, posicionandolos en los mapas de cobertura web.
 
-10. /nava set_beacon <minutos>
-   -> Ajusta el intervalo de emision de la baliza de NodeInfo/Posicion (ej. cada 180 min en cumbres aisladas para ahorrar bateria y no saturar el aire, o cada 30 min en eventos).
+11. /nava set_beacon <minutos>
+    -> Ajusta el intervalo de emision de la baliza de NodeInfo/Posicion (ej. cada 180 min en cumbres aisladas para ahorrar bateria y no saturar el aire, o cada 30 min en eventos).
 
-11. /nava mute [minutos]
-   -> Silenciado temporal de retransmision LoRa (el repetidor no retransmite paquetes ajenos durante X minutos para auditar la cobertura de repetidores vecinos, recuperando el servicio automaticamente).
+12. /nava mute [minutos]
+    -> Silenciado temporal de retransmision LoRa (el repetidor no retransmite paquetes ajenos durante X minutos para auditar la cobertura de repetidores vecinos, recuperando el servicio automaticamente).
 ```
 
 ---
