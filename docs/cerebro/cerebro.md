@@ -35,13 +35,14 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
 | [09_general_vs_propia.md](./09_general_vs_propia.md) | Normas de diferenciación de la rama **General** vs **Propia**: ÚNICA diferencia = claves admin (General: 1 sola = Master Node; Propia: 2). Canales/PSK sin cambios. Plan de ejecución en lote |
 | [10_hardcodeos_nodo.md](./10_hardcodeos_nodo.md) | **Mapa de hardcodeos del nodo**: dónde vive cada valor (radio/canal, rol, claves admin, energía/batería, resets). Cambiar un valor = editar SOLO ese archivo y recompilar las variantes afectadas |
 | [11_rama1_plan.md](./11_rama1_plan.md) | **Rama 1 Clientes EJECUTADA (12/08)**: normas R1 vs R2 (rol CLIENT + rol semi-permanente en resilience.bin; resto idéntico a R2), decisiones pendientes, compilación MAX_PATH y distribución al Desktop |
-| [12_auditoria_navatastic.md](./12_auditoria_navatastic.md) | **Plan Maestro y Auditoría Automatizada (16/08)**: Doble auditoría en banco de radio real (NavaTastic V3 + MeshNavarra Utility), 22/22 pruebas superadas (100% PASS). Informe: [INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) |
+| [12_auditoria_navatastic.md](./12_auditoria_navatastic.md) | **Plan Maestro y Auditoría Automatizada (17/08)**: Doble auditoría en banco de radio real (NavaTastic V3 + MeshNavarra Utility), 26/26 pruebas superadas (100% PASS). Guía Maestra de Auditoría y [Informe Consolidado](../INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md) |
 
 ---
 
 ## 3. REGISTRO DE ESTADO (LOG)
 
 ### Decisiones de diseño clave
+- **Resiliencia Solar Canónica y Estado [Crítico] (2026-08-17, fw 2.7.26.f12f833)**: Eliminadas todas las llamadas directas prematuras a `cpuDeepSleep()` en `main.cpp` bajo 3.30V que dejaban la radio SX1262 encendida (5-10 mA). Implementado el pre-check en 2 niveles (`[Vivo]` en Nivel 1 y `[Critico]` en Nivel 2) con ventana obligatoria de 160s (8 lecturas) y apagado canónico por `doDeepSleep()` (radio dormida por SPI $\rightarrow$ **0.4 mA**). Disparo LPCOMP validado en fuente a **3.77 V** (ADC reportó 3771 mV, 0.02% error).
 - **PORQUÉ de la resiliencia energética (2026-08-11, operador)**: brownout de ascenso solar documentado (Nordic nRF52, también ESP32): batería sobredescargada → nodo apagado → el sol hace ascender la tensión → estado inestable del MCU que lo **bloquea** (ni reset; solo corte limpio). NavTastic mitiga con `waitUntilPowerLevelSafe()` (espera VDD ≥ umbral+histéresis antes de init), POFCON, pre-check y LPCOMP con histéresis. Ver `04_energia_bateria.md`.
 - **RAM vs Flash**: Rama 2 usa `USERPREFS_NODEDB_RAM_ONLY` + guardado selectivo (solo favoritos/ignorados/admins) para no desgastar Flash.
 - **Admin por bitfield**: `NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK (0x08)` — solo PKI validada marca admin, nunca NodeInfo en claro.

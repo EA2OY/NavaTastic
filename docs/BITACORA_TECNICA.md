@@ -969,3 +969,25 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Branding**: `cartel_navatastic_github.jpg` y `flyer_navatastic_eclipse_v3_hd.jpg` movidos a `branding/`. `README.md` actualizado (`src="branding/cartel_navatastic_github.jpg"`).
 - **Herramientas**: `HerramientasPropiasIA/` renombrada a `herramientas/`. `herramientas/generar_pdf.ps1` actualizado (ruta flyer a `branding/` y `$Excluir` ampliado con los `.md` de desarrollo). Verificado: 2 PDFs generados con 0 errores.
 - **Raíz limpia**: solo `README.md`, `LICENSE`, `platformio.ini`, `version.properties`, `userPrefs.jsonc`, `AGENTS.md`, scripts `.ps1` y carpetas de código/perfiles. Backups `.bak-20260816-1423`.
+
+### SESIÓN 17/08/2026 — RESILIENCIA SOLAR COMPLETA, AUDITORÍA 100% PASS, FIX CANÓNICO Y ESTADO [CRÍTICO] (fw 2.7.26.f12f833)
+- **Análisis de Causa Raíz de la Versión Previa**:
+  - *Síntoma en versiones anteriores*: Cuando el nodo arrancaba o sufría un reset externo (ej. por ATtiny13A o botón) con batería baja por debajo de `lowBattSleepMv - 100` ($< 3.30\text{V}$ en Faketec/SX1262 o $< 3.40\text{V}$ en E22P), el código en `src/main.cpp` ejecutaba directamente `cpuDeepSleep(portMAX_DELAY)` para omitir el envío de los avisos `[Vivo]`.
+  - *Causa Raíz*: Esta llamada a `cpuDeepSleep()` directo se producía antes de que Meshtastic inicializara el bus SPI y los drivers de la radio. Por consiguiente, el transceptor LoRa SX1262 nunca recibía el comando de apagado SPI y permanecía encendido en modo escucha consumiendo entre 5 mA y 10 mA, con el LED bloqueado.
+- **Solución Implementada y Diferencias en la Nueva Versión (`2.7.26.f12f833`)**:
+  1. *Eliminación de llamadas directas*: Se eliminaron de raíz todas las llamadas directas a `cpuDeepSleep()` prematuras en `main.cpp`.
+  2. *Bifurcación en 2 Niveles de Pre-Check*:
+     - **Nivel 1** ($[\text{corte}-100\text{mV}, \text{corte})$): Emite `[Vivo]` (`sigo vivo, al limite de carga`).
+     - **Nivel 2** ($< \text{corte}-100\text{mV}$): Emite **`[Critico]`** (`bateria en capacidad critica, operando 160s`).
+  3. *Garantía de Apagado Canónico*: En ambos casos, el nodo inicializa Meshtastic, anuncia su telemetría real por el Canal 1 Navadmin y opera durante 8 lecturas consecutivas de batería (~160s) en `Power.cpp`. Si el voltaje no sube, `Power.cpp` ejecuta el apagado canónico `doDeepSleep()`, enviando la orden SPI a la radio SX1262 y apagando todos los periféricos $\rightarrow$ **Consumo estricto de 0.4 mA en System OFF**.
+  4. *Validación en Fuente de Laboratorio*:
+     - Emisión `[Critico]` a 3.24 V capturada ✅.
+     - Ventana de 139 s completada y `[Sueño]` emitido a 3.24 V ✅.
+     - Consumo verificado: **0.4 mA** (Faketec) / **1.5 mA** (E22P con booster 5V) ✅.
+     - Rampa solar y disparo de comparador LPCOMP a **3.77 V** reales con ADC midiendo **3771 mV** (error 0.02%) y emisión de `[Listo]` ✅.
+- **Documentación, Trazabilidad y Certificación**:
+  - Creada la `GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md` (y su PDF oficial).
+  - Actualizado el `README.md` con lenguaje natural y las ventajas competitivas para repetidores de montaña.
+  - Publicado en GitHub (`https://github.com/EA2OY/NavaTastic.git`, rama `main`).
+  - Incrustación del hash `fw 2.7.26.f12f833` en `/nava status` y en el aviso `[Boot]`.
+
