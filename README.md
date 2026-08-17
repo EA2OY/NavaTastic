@@ -12,7 +12,7 @@
 > 🏆 **Generación NavaTastic Eclipse V4 (17/08/2026)**:  
 > NavaTastic 4.3.3 V4 incorpora **Consola Privada de Gestión de Flota en Lote**, **Blindaje Anti-Tormentas en Canal Público**, **Lista Negra Global Persistente**, **Control Granular de Telemetría/Posición** y **16 Comandos Avanzados**.  
 > 🛡️ **[Informe de Auditoría V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** · 📋 **[Leer Auditoría en GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)**  
-> 📄 **[Descargar Manual de Comandos (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** · 📖 **[Leer Manual en GitHub](docs/Manual_NavaTastic.md)** · 📘 **[Guía de Uso (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)**
+> 📄 **[Descargar Manual de Comandos (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** · 📖 **[Leer Manual en GitHub](docs/Manual_NavaTastic.md)** · 📘 **[Guía de Uso (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic.md))
 
 ---
 
@@ -207,7 +207,7 @@ que LIPO (solo aplican Faketec y XiaoKitI2c). Los mismos ficheros son navegables
 ### Manuales y Documentación Técnica (PDF descargable y lectura online)
 
 - **[Manual de administración remota NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) — Comandos `/nava`, 4 Pilares de Resiliencia y configuración.
-- **[Manual de uso del firmware (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic_4.2.md)) — Montaje, requisitos de hardware y protocolo de rescate.
+- **[Manual de uso del firmware (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic.md)) — Montaje, requisitos de hardware y protocolo de rescate.
 - **[Informe Técnico de Auditoría Ultra-Exhaustiva V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** ([Leer en GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)) — Certificación 100% PASS (56/56 pruebas en hardware real).
 
 ## Flashear
@@ -361,7 +361,7 @@ national preset used in Spain). A single repository produces **12 different firm
 > 🏆 **NavaTastic Eclipse V4 Generation (Release 4.3.3)**:  
 > Features **Batch Fleet Management Console**, **Public Channel Anti-Storm Shielding**, **Persistent Global Blacklisting**, and **16 Advanced Commands**.  
 > 🛡️ **[V4 Technical Audit Report (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** · 📋 **[Read Audit on GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)**  
-> 📄 **[Download Command Manual (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** · 📖 **[Read Manual in GitHub](docs/Manual_NavaTastic.md)** · 📘 **[Usage Guide (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)**
+> 📄 **[Download Command Manual (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** · 📖 **[Read Manual in GitHub](docs/Manual_NavaTastic.md)** · 📘 **[Usage Guide (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic.md))
 
 ---
 
@@ -549,7 +549,7 @@ private fleet console for batch administration, anti-storm shielding on Navadmin
 ### Manuals and Technical Documentation (PDF download and online reading)
 
 - **[Remote administration manual NavaTastic (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_NavaTastic.md))
-- **[Firmware user manual (PDF)](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.3/Manual_uso_NavaTastic_4.2.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic_4.2.md))
+- **[Firmware user manual (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic.md))
 - **[V4 Technical Audit Report (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** ([Read on GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)) — 100% PASS Certification (56/56 hardware bench tests).
 
 ## Flashing
