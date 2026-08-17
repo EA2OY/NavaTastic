@@ -306,6 +306,7 @@ REGLAS Y TRAMPAS VIGENTES:
       * **Estudio Exhaustivo de Dependencias**: Auditados `Channels.cpp`, `CryptoEngine.cpp`, `NavaCLIModule.cpp/.h`, `Router.cpp`, `MQTT.cpp`, `Power.cpp` y `main.cpp`.
       * **Garantía de Cero Regresiones**: Mandato estricto de integridad documentado. Regla de oro de **CERO DESGASTE DE FLASH (RAM-Only)** para `stats` y `log`.
       * **Migración Atómica**: Diseñada la estructura `ResiliencePrefs` V4 (`NAV4` / `0x4E415634`) para retrocompatibilidad total sin pérdida de claves ni roles.
+      * **Snapshot Completo de Rollback**: Generado `_archivo\SNAPSHOT_COMPLETO_PRE_F21_20260817_0423.zip` (11.39 MB) con el árbol completo de código C++, variantes, profiles y herramientas para reversión instantánea 100% segura.
 
 ```
 ================================================================================
