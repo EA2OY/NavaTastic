@@ -301,28 +301,37 @@ REGLAS Y TRAMPAS VIGENTES:
       * **Documentación & Certificación**: Creada `GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md`, informe consolidado de auditoría, 4 PDFs compilados y `README.md` naturalizado y simétrico en ES/EN.
       * **Compilación y Publicación**: 12/12 variantes compiladas con **`fw 2.7.26.f12f833`**; 28 assets publicados en GitHub Release `v4.3.2` y rama `main` actualizada.
 
+- [x] **DISEÑO Y ESTUDIO DE VIABILIDAD DEL FRENTE F21 (17/08)**:
+      * **Plan de Trabajo F21**: Documentado en [docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md](docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md).
+      * **Estudio Exhaustivo de Dependencias**: Auditados `Channels.cpp`, `CryptoEngine.cpp`, `NavaCLIModule.cpp/.h`, `Router.cpp`, `MQTT.cpp`, `Power.cpp` y `main.cpp`.
+      * **Garantía de Cero Regresiones**: Mandato estricto de integridad documentado. Regla de oro de **CERO DESGASTE DE FLASH (RAM-Only)** para `stats` y `log`.
+      * **Migración Atómica**: Diseñada la estructura `ResiliencePrefs` V4 (`NAV4` / `0x4E415634`) para retrocompatibilidad total sin pérdida de claves ni roles.
+
 ```
 ================================================================================
-PROMPT DE RETOMA / HANDOVER PARA AGENTE (SESIÓN 17/08/2026 POST-V3 AUDITORÍA)
+PROMPT DE RETOMA / HANDOVER PARA AGENTE (SESIÓN 17/08/2026 CIERRE -> EJECUCIÓN F21)
 ================================================================================
-Contexto rápido: repositorio unificado NavaTastic (12 firmwares desde un solo
-código). Base Meshtastic 2.7.26. Release activo: "NavaTastic Eclipse V3"
-(4.3.2 — fw 2.7.26.f12f833) con 28 assets en GitHub (12 UF2 + 12 OTA + 4 PDFs).
+Contexto rápido: repositorio unificado NavaTastic (12 firmwares, base Meshtastic 2.7.26).
+Release actual: "NavaTastic Eclipse V3" (4.3.2 — fw 2.7.26.f12f833).
 
-ESTADO ACTUAL:
-1. Resiliencia Solar de 5 Estados: [Listo] (>=3.77V), [Vivo] (Nivel 1), [Critico] (Nivel 2),
-   [Sueño] (Deep Sleep 0.4 mA) y [Boot] (diagnóstico diferido 2 min con RESETREAS).
-2. Doble Auditoría 100% PASS: 26/26 casos de prueba superados en radio real.
-3. Repositorio limpio y sincronizado en GitHub (https://github.com/EA2OY/NavaTastic).
-4. Herramientas disponibles: `build.ps1`, `distribuir.ps1`, `generar_pdf.ps1`,
-   `subir_assets_release.ps1` y `verificar_paridad.ps1`.
+OBJETIVO DE LA NUEVA SESIÓN:
+Implementar el FRENTE F21 (Canales Privados, Redirección de NavaCLI y Gestión Remota)
+siguiendo estrictamente el documento:
+docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md
+
+MANDATO DE INTEGRIDAD (NO SER VAGO / CERO REGRESIONES):
+1. Revisar todas las dependencias cruzadas antes de modificar código.
+2. NO romper el canal de rescate (Slot 1 Navadmin AQ==) ni los DMs de administración.
+3. CERO DESGASTE DE FLASH: `stats` y `log` deben ser 100% volátiles en memoria RAM.
+4. Migración segura de /resilience.bin: pasar a NAV4 (0x4E415634) adoptando los campos previos.
+5. Mantener la suite de auditoría en 26/26 PASS y compilar/verificar los 12 envs.
 
 LEER EN ESTE ORDEN:
 1. docs\Guia_para_agente_sobre_NavaTastic.md (§0 reglas operativas).
-2. docs\BITACORA_TECNICA.md (fallos, fixes y sesión 17/08).
-3. docs\PLAN_DE_TRABAJO.md (este documento).
-4. docs\cerebro\cerebro.md (índice global, subnotas 01-12).
-5. docs\GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md (guía de laboratorio).
+2. docs\PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md (diseño completo y comandos 1-16 de F21).
+3. docs\BITACORA_TECNICA.md (historial técnico y recetas de paridad).
+4. docs\PLAN_DE_TRABAJO.md (este documento).
+5. docs\cerebro\cerebro.md (índice global).
 ================================================================================
 ```
 

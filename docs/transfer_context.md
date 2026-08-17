@@ -205,6 +205,11 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
 
 ## 8. Historial de Auditoría (Resumen)
 
+*   **Ronda 2026-08-17 (Diseño y Estudio de Viabilidad Frente F21 — Canales Privados y Gestión Remota)**:
+  - **Plan de Trabajo F21**: Documentado en [docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md](PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md) con 16 comandos remotos (slots 2-7, `set_cli_chan`, `navadmin_mute`, `ch_mqtt`, `set_ok_to_mqtt`, `set_pos`, `set_pin`, y `stats`/`log` en RAM).
+  - **Auditoría de No-Regresión**: Estudio exhaustivo de dependencias en `Channels.cpp`, `CryptoEngine.cpp`, `NavaCLIModule.cpp/.h`, `Router.cpp` y `MQTT.cpp`.
+  - **Regla Cero Desgaste de Flash**: `stats` y `log` operan 100% en memoria RAM (cero escrituras a flash).
+  - **Migración Atómica a V4**: Diseñado el paso a `NAVS_RESILIENCE_VERSION` `0x4E415634` ("NAV4") para conservar todos los parámetros previos sin roturas.
 *   **Ronda 2026-08-17 (Doble Auditoría 100% PASS + Resiliencia Solar Canónica + [Critico] + Guía Maestra)**:
   - **Doble Auditoría End-to-End**: 26 de 26 pruebas superadas (100% PASS) en banco físico real con Faketec Slave (`!43ca4c27`) y Master (`!8289015a`) + Xiaomi Mi 10 (ADB WiFi `RemoteControlReceiver`).
   - **Fix Canónico de Ciclo Solar**: Eliminadas llamadas a `cpuDeepSleep()` directo antes del init de radio (que dejaban la radio SX1262 a 5-10 mA). Implementado pre-check en 2 niveles: `[Vivo]` (Nivel 1: $[\text{corte}-100\text{mV}, \text{corte})$) y `[Critico]` (Nivel 2: $< \text{corte}-100\text{mV}$). Ambos operan 160s (8 lecturas) y duermen limpiamente con `doDeepSleep()` por bus SPI (**0.4 mA** en Faketec / **1.5 mA** en E22P).

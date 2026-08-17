@@ -987,7 +987,14 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
      - Rampa solar y disparo de comparador LPCOMP a **3.77 V** reales con ADC midiendo **3771 mV** (error 0.02%) y emisión de `[Listo]` ✅.
 - **Documentación, Trazabilidad y Certificación**:
   - Creada la `GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md` (y su PDF oficial).
-  - Actualizado el `README.md` con lenguaje natural y las ventajas competitivas para repetidores de montaña.
-  - Publicado en GitHub (`https://github.com/EA2OY/NavaTastic.git`, rama `main`).
+  - Actualizado el `README.md` con lenguaje natural y las ventajas competitivas para repetidores de montaña (5 pilares, auto-favoritos 0-hop, sin siglas crudas PKI).
+  - Publicado en GitHub (`https://github.com/EA2OY/NavaTastic.git`, rama `main`) con 28 assets en Release v4.3.2.
   - Incrustación del hash `fw 2.7.26.f12f833` en `/nava status` y en el aviso `[Boot]`.
+- **Diseño del Frente F21 (Canales Privados, Redirección de NavaCLI y Gestión Remota Avanzada)**:
+  - Creado `docs/PLAN_CANAL_PRIVADO_Y_REDIRECCION_NAVACLI.md` con el catálogo de 16 comandos remotos.
+  - Análisis exhaustivo de dependencias (`Channels.cpp`, `CryptoEngine.cpp`, `NavaCLIModule.cpp/.h`, `Router.cpp`, `MQTT.cpp`).
+  - Regla de oro de **Cero Desgaste de Flash (RAM-Only)** para `stats` y `log`.
+  - Estructura `ResiliencePrefs` V4 (`NAV4` / `0x4E415634`) con rutina de migración atómica diseñada.
+  - Mandato estricto de integridad documentado para la ejecución en la siguiente sesión.
+
 
