@@ -205,6 +205,12 @@ Ficheros que toca y comandos añadidos (ver documento 2 para el código de integ
 
 ## 8. Historial de Auditoría (Resumen)
 
+*   **Ronda 2026-08-17 (Doble Auditoría 100% PASS + Resiliencia Solar Canónica + [Critico] + Guía Maestra)**:
+  - **Doble Auditoría End-to-End**: 26 de 26 pruebas superadas (100% PASS) en banco físico real con Faketec Slave (`!43ca4c27`) y Master (`!8289015a`) + Xiaomi Mi 10 (ADB WiFi `RemoteControlReceiver`).
+  - **Fix Canónico de Ciclo Solar**: Eliminadas llamadas a `cpuDeepSleep()` directo antes del init de radio (que dejaban la radio SX1262 a 5-10 mA). Implementado pre-check en 2 niveles: `[Vivo]` (Nivel 1: $[\text{corte}-100\text{mV}, \text{corte})$) y `[Critico]` (Nivel 2: $< \text{corte}-100\text{mV}$). Ambos operan 160s (8 lecturas) y duermen limpiamente con `doDeepSleep()` por bus SPI (**0.4 mA** en Faketec / **1.5 mA** en E22P).
+  - **Validación en Fuente de Laboratorio**: Capturado `[Critico]` a 3.24 V $\rightarrow$ 139s $\rightarrow$ `[Sueño]` a 0.4 mA $\rightarrow$ Despertar por comparador LPCOMP a **3.77 V** reales (`ADC 3771 mV`, 0.02% error) y emisión de `[Listo]`.
+  - **Documentación & Certificación**: Creada `docs/GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md`, `INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md`, los 4 PDFs oficiales y el `README.md` naturalizado sin jerga interna ni menciones a duty cycle.
+  - **Publicación y Assets**: 12/12 variantes compiladas con hash **`fw 2.7.26.f12f833`**; 28 assets publicados en GitHub Release `v4.3.2` y rama `main` actualizada.
 *   **Ronda 2026-08-16 (retoma post-V3: builds Propia R2IP #1 + F20 aclarado en banco)**:
   - **Builds Propia R2IP #1**: 4 envs compilados con las claves del operador y PIN propio
     vía variables de entorno en memoria (nada en disco): `navarrico_promicro_e22p_r2ip`,

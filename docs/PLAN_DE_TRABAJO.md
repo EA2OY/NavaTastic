@@ -293,11 +293,37 @@ REGLAS Y TRAMPAS VIGENTES:
       20260816 (HEAD 55db4d4f5).zip` + cerebro 35ª parte + handover §5.5 + PROMPT DE RETOMA
       reescrito. Estado: V3 cerrada y publicada; pendientes para la próxima sesión: banco
       Seed/T114, F16b/d/e, F17, rotación token (L26), Telegram, siguientes releases.
-- [x] **REORGANIZACIÓN Y LIMPIEZA DEL REPOSITORIO (TIDY UP, 16/08)**:
-      Raíz despejada. Documentación interna trasladada a `docs/` (`Guia_para_agente_sobre_NavaTastic.md`,
-      `BITACORA_TECNICA.md`, `PLAN_DE_TRABAJO.md`, `PORTING_NUEVO_FORK.md`). Carteles movidos a `branding/`.
-      Herramientas renombradas a `herramientas/` (`generar_pdf.ps1` con exclusiones ampliadas). `AGENTS.md`
-      en la raíz apuntando a `docs/`. Backups `.bak-20260816-1423`. Verificado: PDFs 2/2 y scripts 100% operativos.
+- [x] **DOBLE AUDITORÍA CONSOLIDADA & RESILIENCIA SOLAR COMPLETA (17/08)**:
+      * **Auditoría End-to-End**: 26/26 pruebas superadas (100% PASS) en banco real con Faketec Slave (`!43ca4c27`) y Faketec Master (`!8289015a`) + Xiaomi Mi 10 (ADB WiFi `RemoteControlReceiver`).
+      * **Fix Canónico de Resiliencia**: Eliminadas llamadas a `cpuDeepSleep()` directo antes del init de radio. Creado el estado **`[Critico]`** (Nivel 2: $< 3.30\text{V}$) junto a **`[Vivo]`** (Nivel 1), garantizando 160s (8 lecturas) y apagado por SPI a **0.4 mA** (o 1.5 mA con booster E22P).
+      * **Validación en Fuente Regulable**: Capturado `[Critico]` a 3.24 V $\rightarrow$ 139s $\rightarrow$ `[Sueño]` a 0.4 mA $\rightarrow$ Despertar por comparador LPCOMP a **3.77 V** reales (`ADC 3771 mV`, error 0.02%) y emisión de `[Listo]`.
+      * **Documentación & Certificación**: Creada `GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md`, informe consolidado de auditoría, 4 PDFs compilados y `README.md` naturalizado y simétrico en ES/EN.
+      * **Compilación y Publicación**: 12/12 variantes compiladas con **`fw 2.7.26.f12f833`**; 28 assets publicados en GitHub Release `v4.3.2` y rama `main` actualizada.
+
+```
+================================================================================
+PROMPT DE RETOMA / HANDOVER PARA AGENTE (SESIÓN 17/08/2026 POST-V3 AUDITORÍA)
+================================================================================
+Contexto rápido: repositorio unificado NavaTastic (12 firmwares desde un solo
+código). Base Meshtastic 2.7.26. Release activo: "NavaTastic Eclipse V3"
+(4.3.2 — fw 2.7.26.f12f833) con 28 assets en GitHub (12 UF2 + 12 OTA + 4 PDFs).
+
+ESTADO ACTUAL:
+1. Resiliencia Solar de 5 Estados: [Listo] (>=3.77V), [Vivo] (Nivel 1), [Critico] (Nivel 2),
+   [Sueño] (Deep Sleep 0.4 mA) y [Boot] (diagnóstico diferido 2 min con RESETREAS).
+2. Doble Auditoría 100% PASS: 26/26 casos de prueba superados en radio real.
+3. Repositorio limpio y sincronizado en GitHub (https://github.com/EA2OY/NavaTastic).
+4. Herramientas disponibles: `build.ps1`, `distribuir.ps1`, `generar_pdf.ps1`,
+   `subir_assets_release.ps1` y `verificar_paridad.ps1`.
+
+LEER EN ESTE ORDEN:
+1. docs\Guia_para_agente_sobre_NavaTastic.md (§0 reglas operativas).
+2. docs\BITACORA_TECNICA.md (fallos, fixes y sesión 17/08).
+3. docs\PLAN_DE_TRABAJO.md (este documento).
+4. docs\cerebro\cerebro.md (índice global, subnotas 01-12).
+5. docs\GUIA_MAESTRA_PROCEDIMIENTO_AUDITORIA_NAVATASTIC.md (guía de laboratorio).
+================================================================================
+```
 
 
 ## Datos de referencia
