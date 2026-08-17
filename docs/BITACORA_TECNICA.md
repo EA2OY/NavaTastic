@@ -1082,5 +1082,20 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   - Matriz de 12 variantes compilada con **SUCCESS** (`build.ps1` -> 12/12).
   - 32 binarios UF2/OTA generados y distribuidos a `distribucion\` (`distribuir.ps1 -Todo`).
 
-
-
+### SESIÓN 17/08/2026 — PUBLICACIÓN OFICIAL GITHUB RELEASE V4.3.3 Y SANEAMIENTO DE ASSETS PÚBLICOS
+- **Publicación Release v4.3.3 (`EA2OY/NavaTastic`)**:
+  - Creada Release `v4.3.3` (ID `371753206`, tag `v4.3.3`) en GitHub vinculada a `main`.
+  - **Clarificación de Nombres de Binarios**: Eliminada la ambigüedad de siglas internas (`R1IG`/`R2IG`) para el usuario final. Los 24 assets de firmware se publican con etiquetas directas y comprensibles:
+    - `[ROUTER Repetidor Fijo]` (para repetidores solares y cumbres).
+    - `[CLIENTE convertible a ROUTER]` (para nodos personales, vehículos o casas).
+  - **Saneamiento de Documentación en Release**: Subidos únicamente los 3 documentos oficiales clave:
+    1. `Manual_NavaTastic.Comandos.pdf`
+    2. `Manual_uso_NavaTastic.Instalacion.y.Resiliencia.pdf`
+    3. `INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf`
+- **Saneamiento de la Rama Pública `main` en GitHub**:
+  - Publicada mediante rama huérfana limpia `github-public` (un solo commit sin historial de desarrollo interno).
+  - Carpeta `docs/` en GitHub filtrada para exponer exclusivamente: `README.md`, `Manual_NavaTastic.md`, `Manual_uso_NavaTastic_4.2.md`, `Compilar_NavaTastic.md` e `INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.md`.
+  - Excluidos del árbol público todos los ficheros de contexto interno y cerebros de agentes (`docs/cerebro/`, `BITACORA_TECNICA.md`, `PLAN_DE_TRABAJO.md`, `PORTING_NUEVO_FORK.md`, etc.).
+  - **Protección de Memoria Local**: La rama local `master` mantiene al 100% todos los archivos técnicos, bitácoras y memorias vivas.
+- **Documentación del Escudo Anti-Tormentas NodeInfo**:
+  - Incorporada la explicación del escudo anti-tormentas (`currentGeneration = radioGeneration; // want_response=false`) en las tablas comparativas de `README.md` (ES y EN) y en las notas oficiales del Release.

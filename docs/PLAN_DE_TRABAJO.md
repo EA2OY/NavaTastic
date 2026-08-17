@@ -317,9 +317,15 @@ REGLAS Y TRAMPAS VIGENTES:
       * **Generación NAVA V4**: Versión incrementada en firmware (`NAVATASTIC_BUILD "V4"` y `NAVS_RESILIENCE_VERSION = 0x4E415635`).
       * **Compilación y Distribución 12/12 SUCCESS**: 12 entornos compilados limpiamente y 32 binarios generados en `distribucion\`.
 
+- [x] **PUBLICACIÓN GITHUB RELEASE V4.3.3 Y SANEAMIENTO PÚBLICO (17/08)**:
+      * **Release v4.3.3 Publicada**: Creada en `EA2OY/NavaTastic` (ID `371753206`) con 27 assets optimizados.
+      * **Nombres de Binarios Clarificados**: 24 firmwares etiquetados con `[ROUTER Repetidor Fijo]` y `[CLIENTE convertible a ROUTER]`.
+      * **Documentación Oficial en Release**: Subidos `Manual_NavaTastic.Comandos.pdf`, `Manual_uso_NavaTastic.Instalacion.y.Resiliencia.pdf` e `INFORME_DOBLE_AUDITORIA_NAVATASTIC_Y_MESHNAVARRA.pdf`.
+      * **Saneamiento de `main` en GitHub**: Rama huérfana limpia exponiendo exclusivamente documentación pública de usuario (`README.md`, manuales e informe de auditoría), protegiendo la memoria técnica interna en `master` local.
+
 ```
 ================================================================================
-PROMPT DE APERTURA / HANDOVER PARA NUEVA SESIÓN (ESTADO POST-F22 / NAVA V4)
+PROMPT DE APERTURA / HANDOVER PARA NUEVA SESIÓN (ESTADO POST-RELEASE V4.3.3)
 ================================================================================
 Eres el agente responsable de continuar el proyecto NavaTastic.
 Repositorio único de trabajo: C:\NavaTastic Codigo completo (rama master).
@@ -334,11 +340,12 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
 5. docs\Manual_NavaTastic.md (catálogo completo de comandos /nava vigentes).
 
 🎯 ESTADO ACTUAL DEL PROYECTO:
-- GENERACIÓN NAVA V4 COMPLETADA, COMPILADA (12/12 SUCCESS) Y DISTRIBUIDA.
-- Blindaje anti-tormentas en Navadmin y Consola Privada de Flota operativos.
-- Persistencia V5 (NAV5) con lista negra ignorados y control de difusión.
-- Manuales actualizados y 5 PDFs listos.
-- Binarios distribuidos en distribucion\ (32 ficheros UF2/OTA).
+- GENERACIÓN NAVA V4 (4.3.3) PUBLICADA EN GITHUB RELEASE v4.3.3 Y RAMA MAIN SANEADA.
+- 12/12 variantes compiladas con éxito y distribuidas.
+- Blindaje anti-tormentas en Navadmin, Consola Privada de Flota y Escudo NodeInfo operativos.
+- Persistencia V5 (NAV5) con lista negra ignorados y control granular de telemetría/difusión.
+- Nombres de binarios en Release clarificados: [ROUTER Repetidor Fijo] y [CLIENTE convertible a ROUTER].
+- Memoria viva en master local 100% íntegra y protegida.
 ================================================================================
 ```
 
