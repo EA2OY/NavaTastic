@@ -102,8 +102,8 @@ Todos estos comandos se ejecutarían **exclusivamente por Mensaje Directo Privad
    -> Orden de rescate: restaura la configuracion de fabrica de canales (Slot 1 Navadmin activo y NavaCLI asignado al Slot 1).
 ```
 
-### 🌐 B. Control de Compuerta MQTT por Canal (Uplink / Downlink)
-> **Utilidad**: Permite subir la telemetría del repetidor a internet vía MQTT (`uplink_enabled`) sin saturar el canal de radio LoRa con mensajes entrantes desde internet (`downlink_enabled`), o aislar canales operativos.
+### 🌐 B. Control de Compuerta y Visibilidad MQTT (Uplink / Downlink / OkToMQTT)
+> **Utilidad**: Permite subir la telemetría del repetidor a internet vía MQTT (`uplink_enabled`) sin saturar el canal de radio LoRa con mensajes entrantes desde internet (`downlink_enabled`), o autorizar a pasarelas ajenas a subir nuestros paquetes.
 
 ```text
 8. /nava ch_mqtt <slot 0-7> [up | down | both | off]
@@ -111,6 +111,10 @@ Todos estos comandos se ejecutarían **exclusivamente por Mensaje Directo Privad
    -> 'down': Solo bajada (los mensajes de internet se retransmiten a la radio).
    -> 'both': Subida y bajada bidireccional activas.
    -> 'off': Canal totalmente aislado de la pasarela MQTT.
+
+9. /nava set_ok_to_mqtt [on | off]
+   -> 'on': Marca el bit 'OK_TO_MQTT' en todos los paquetes emitidos por este repetidor, autorizando a pasarelas/gateways de la red a subirlos a internet para que el nodo aparezca en mapas web de cobertura (ej. meshmap / loranavarra).
+   -> 'off': Desactiva el permiso de subida por terceros (mantiene la actividad del repetidor confinada 100% en radio local).
 ```
 
 ### 🛰️ C. Funciones Avanzadas de Infraestructura de Montaña (Extras Útiles)
