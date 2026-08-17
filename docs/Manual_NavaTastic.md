@@ -174,6 +174,21 @@ El nodo anuncia por su canal CLI asignado (`prefs.cliChannelSlot`, por defecto C
 
 ---
 
+## ⚠️ 12. Coexistencia y Diferencias con la App Oficial de Meshtastic
+
+NavaTastic incorpora un motor de resiliencia (`/resilience.bin`) diseñado para evitar que un repetidor solar de montaña quede aislado, huérfano o averiado por degradación de flash. Esto introduce comportamientos intencionados que difieren de la App oficial:
+
+| Función / Interruptor | Comportamiento en App Oficial | Comportamiento en NavaTastic | Razón de Seguridad / Resiliencia | Solución / Manejo Canónico |
+| :--- | :--- | :--- | :--- | :--- |
+| **Interruptor Bluetooth (BLE)** | Al apagar el switch se guarda en flash. | Al reiniciar, el firmware **vuelve a encender BLE** si no se usó `/nava`. | **Protección Anti-Huérfano**: Evita que un toque accidental en el móvil deje el repetidor incomunicado sin Bluetooth en la cumbre. | Para apagarlo de forma permanente: enviar por DM `/nava ble off` (guarda `prefs.ble_disabled = 1`). |
+| **Canal 1 (Navadmin)** | La App permite borrarlo o editarlo. | **Inamovible y protegido**: Rechaza `/nava ch_del 1` y restaura PSK `AQ==`. | **Canal de Rescate Vital**: Garantiza que el nodo siempre emita avisos de ciclo solar, telemetría y diagnósticos. | Para silenciarlo en abierto: `/nava navadmin_mute on` o mover la consola con `/nava set_cli_chan <2-7>`. |
+| **Claves Admin tras Reset** | Un Factory Reset borra todas las claves. | **Persistencia Criptográfica**: Las claves de usuario y rescate se restauran solas. | **Mantenimiento Remoto Seguro**: Evita perder el control administrativo tras un reset de configuración. | Consultar con `/nava admin_ls` o purgar copia persistida con `/nava keys_clear`. |
+| **Rol de Hardware** | Un reset vuelve al rol del binario original. | **Rol Semi-Permanente**: El rol modificado persiste tras Factory Reset. | **Supervivencia de Malla**: Evita que un router reconvertido vuelva a cliente tras una tormenta eléctrica. | Conmutar con `/nava set_role router` o `/nava set_role client`. |
+| **Base de Datos de Nodos** | La App espera que los nodos se guarden en flash. | **100% RAM-Only**: Nodos de paso viven en RAM y no se escriben en disco. | **Cero Desgaste de Flash**: Multiplica por 10 la vida útil del microcontrolador al no quemar las celdas flash. | Los favoritos manuales y automáticos se respaldan en `/resilience.bin`. |
+| **Cadencia de Balizas en Routers** | Suele emitir cada 15 a 30 minutos. | Fijada por defecto a **72 horas** en routers de infraestructura. | **Anti-Saturación LoRa**: Protege el canal de spam de posición innecesario en repetidores fijos. | Ajustar intervalos de flota con `/nava set_pos_tx` y `/nava set_nodeinfo_tx`. |
+
+---
+
 ## 🎯 Sintaxis de Direccionamiento de Lote (Prefijos)
 
 1. **Por ID**: `/nava !a7c43b2f ping` (solo responde ese nodo).
@@ -200,3 +215,11 @@ El nodo anuncia por su canal CLI asignado (`prefs.cliChannelSlot`, por defecto C
 6. **Maintenance & Resets**: `db_purge`, `db_clear`, `reboot`, `factory_reset`, `full_reset`, `wipe`.
 7. **Power & Solar Resilience**: `set_chem`, `set_vbat`, `set_vwake`, `storm [hours]`, `txoff`, `txon`, `ble [on|off]`, `sleepmsg [on|off]`.
 8. **Utilities & Admin Keys**: `bell`, `admin_ls`, `keys_ls`, `keys_clear`, `power`, `msg "[TEXT]"`, `pos`, `nodeinfo`, `sendtel`.
+
+## ⚠️ Coexistence & Differences with Official Meshtastic App
+
+- **Bluetooth BLE Switch**: Disabling BLE from the official app will be overridden upon reboot to prevent orphaned mountain repeaters. To permanently disable BLE, send DM command `/nava ble off`.
+- **Channel 1 (Navadmin)**: Locked and protected with default PSK `AQ==` (`0x01`). Cannot be deleted via app to guarantee a persistent remote rescue channel. Mute with `/nava navadmin_mute on` or relocate CLI with `/nava set_cli_chan <slot>`.
+- **Admin Keys Persistence**: Admin keys survive factory resets via `/resilience.bin` backup.
+- **Semi-Permanent Role**: Role changes (`set_role router/client`) persist across factory resets.
+- **Zero Flash Wear (RAM-Only NodeDB)**: Node discovery database lives in RAM to protect flash cells from burnout. Favorite nodes are backed up in `/resilience.bin`.

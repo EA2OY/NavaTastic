@@ -147,7 +147,22 @@ Si el nodo sufre una corrupción de memoria, un fallo de escritura o un reinicio
 
 ---
 
-## 6. Laboratorio: Banco de Pruebas Técnico
+## 6. Coexistencia y Diferencias con la App Oficial de Meshtastic
+
+NavaTastic incorpora un motor de resiliencia (`/resilience.bin`) diseñado para garantizar la supervivencia de repetidores solares de montaña. Esto genera comportamientos intencionados que difieren de la App oficial:
+
+| Parámetro / Interruptor | Comportamiento en App Oficial | Comportamiento en NavaTastic | Razón de Seguridad y Resiliencia | Manejo Canónico en NavaTastic |
+| :--- | :--- | :--- | :--- | :--- |
+| **Interruptor Bluetooth (BLE)** | Al apagar el switch se guarda en flash. | Al reiniciar, el firmware **vuelve a encender BLE** si no se usó `/nava`. | **Protección Anti-Huérfano**: Evita que un toque accidental en la pantalla del móvil deje el repetidor incomunicado sin Bluetooth en la montaña. | Para apagarlo de forma permanente: enviar por DM `/nava ble off` (guarda `prefs.ble_disabled = 1`). |
+| **Canal 1 (Navadmin)** | La App permite borrarlo o editarlo. | **Inamovible y protegido**: Rechaza `/nava ch_del 1` y restaura PSK `AQ==`. | **Canal de Rescate Vital**: Garantiza que el nodo siempre emita avisos de ciclo solar, telemetría y diagnósticos. | Para silenciarlo en abierto: `/nava navadmin_mute on` o mover la consola con `/nava set_cli_chan <2-7>`. |
+| **Claves Admin tras Reset** | Un Factory Reset borra todas las claves. | **Persistencia Criptográfica**: Las claves de usuario y rescate se restauran solas. | **Mantenimiento Remoto Seguro**: Evita perder el control administrativo tras un reset de configuración. | Consultar con `/nava admin_ls` o purgar copia persistida con `/nava keys_clear`. |
+| **Rol de Hardware** | Un reset vuelve al rol del binario original. | **Rol Semi-Permanente**: El rol modificado persiste tras Factory Reset. | **Supervivencia de Malla**: Evita que un router reconvertido vuelva a cliente tras una tormenta eléctrica. | Conmutar con `/nava set_role router` o `/nava set_role client`. |
+| **Base de Datos de Nodos** | La App espera que los nodos se guarden en flash. | **100% RAM-Only**: Nodos de paso viven en RAM y no se escriben en disco. | **Cero Desgaste de Flash**: Multiplica por 10 la vida útil del microcontrolador al no quemar las celdas flash. | Los favoritos manuales y automáticos se respaldan en `/resilience.bin`. |
+| **Cadencia de Balizas en Routers** | Suele emitir cada 15 a 30 minutos. | Fijada por defecto a **72 horas** en routers de infraestructura. | **Anti-Saturación LoRa**: Protege el canal de spam de posición innecesario en repetidores fijos. | Ajustar intervalos de flota con `/nava set_pos_tx` y `/nava set_nodeinfo_tx`. |
+
+---
+
+## 7. Laboratorio: Banco de Pruebas Técnico
 
 Antes de desplegar el nodo en una ubicación remota, es obligatorio validar el comportamiento de las salvaguardas en un entorno controlado:
 
@@ -164,7 +179,7 @@ Antes de desplegar el nodo en una ubicación remota, es obligatorio validar el c
 
 ---
 
-## 7. Protocolo de Rescate Remoto (Paso a Paso)
+## 8. Protocolo de Rescate Remoto (Paso a Paso)
 
 Si un nodo remoto de la malla sufre un fallo crítico y vuelve al estado de fábrica, mantendrá su identificador único de Meshtastic (`idxxxxx`) pero operará bajo los parámetros genéricos introducidos por defecto (EU868, ShortFast Narrow, clave pública de rescate preconfigurada).
 
@@ -211,7 +226,7 @@ x9wN6W0TuoY/gtVKM/+lysx8Rewb5CAdZ9YfzIVRAFU=
 
 ---
 
-## 8. Administración Remota (Resumen)
+## 9. Administración Remota (Resumen)
 
 La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIModule`) de forma **100% silenciosa y headless**, por dos vías:
 
@@ -232,7 +247,7 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 
 ---
 
-## 9. Changelog de Versiones
+## 10. Changelog de Versiones
 
 | Versión | Descripción |
 | :--- | :--- |
@@ -395,7 +410,20 @@ the node isolated and unreachable, these defaults are hardcoded:
 > **🔴 Power & antenna note**: the power limit avoids spurs/harmonics. **The antenna must be
 > tuned/resonant at 869 MHz** to avoid damaging the radios.
 
-## 6. Laboratory: technical test bench
+## 6. Coexistence & Differences with the Official Meshtastic App
+
+NavaTastic incorporates a resilience engine (`/resilience.bin`) designed to ensure the survival of solar mountain repeaters. This results in intentional behaviors that differ from standard Meshtastic firmware:
+
+| Feature / Setting | Official App Behavior | NavaTastic Behavior | Safety & Resilience Rationale | Canonical NavaTastic Solution |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bluetooth Switch (BLE)** | Disabling BLE saves `false` to flash. | Upon reboot, firmware **re-enables BLE** if `/nava` was not used. | **Anti-Orphan Protection**: Prevents accidental mobile taps from leaving a mountain repeater unreachable. | To disable permanently: send DM `/nava ble off` (writes `prefs.ble_disabled = 1`). |
+| **Channel 1 (Navadmin)** | App allows renaming, editing or deleting. | **Locked and protected**: Rejects deletion and restores PSK `AQ==`. | **Vital Rescue Backbone**: Guarantees telemetry, solar notices and remote rescue availability. | To mute in open air: `/nava navadmin_mute on` or relocate CLI with `/nava set_cli_chan <2-7>`. |
+| **Admin Keys on Reset** | A Factory Reset wipes all admin keys. | **Cryptographic Persistence**: User & rescue admin keys restore automatically. | **Safe Remote Maintenance**: Prevents losing administrative access after a config reset. | Inspect with `/nava admin_ls` or purge persisted copy with `/nava keys_clear`. |
+| **Hardware Role** | A reset reverts to the compile-time binary role. | **Semi-Permanent Role**: Reconfigured roles persist across factory resets. | **Mesh Backbone Survival**: Prevents a converted router from reverting to client after a lightning reset. | Switch roles with `/nava set_role router` or `/nava set_role client`. |
+| **Node Discovery Database** | Official app expects nodes stored in flash. | **100% RAM-Only**: Transit nodes live in RAM and never write to flash. | **Zero Flash Wear**: Multiplies hardware lifespan tenfold by preventing flash memory burnout. | Manual and auto favorites are backed up in `/resilience.bin`. |
+| **Router Beacon Interval** | Usually broadcasts every 15 to 30 mins. | Set to **72 hours** by default on infrastructure routers. | **LoRa Airtime Throttling**: Keeps mesh channels clean of unnecessary position spam. | Adjust fleet intervals with `/nava set_pos_tx` and `/nava set_nodeinfo_tx`. |
+
+## 7. Laboratory: technical test bench
 
 Before deploying to a remote location, validate the safeguards in a controlled environment:
 
@@ -414,7 +442,7 @@ Before deploying to a remote location, validate the safeguards in a controlled e
 4. **Recovery test**: raise the supply voltage. Verify that past **~3.71 V** the node
    "resurrects" automatically, initializes modules and transmits beacons at normal power.
 
-## 7. Remote rescue protocol (step by step)
+## 8. Remote rescue protocol (step by step)
 
 If a remote node suffers a critical failure and returns to factory state, it keeps its unique
 Meshtastic ID (`idxxxxx`) but operates under the generic default parameters (EU868, ShortFast
@@ -451,34 +479,25 @@ Press **save/send**: the correct public key regenerates by itself.
 x9wN6W0TuoY/gtVKM/+lysx8Rewb5CAdZ9YfzIVRAFU=
 ```
 
-(If the private key does not stick on save, do it again — a known Meshtastic app bug.)
+(If the private key does not stay saved, do it again — it is a known Meshtastic app bug.)
 
-### Step 2: Interconnecting on the mesh
+### Step 2: Mesh Interconnection
 
-1. Once the rescue configuration is loaded on the control node, power it on / let it reach the
-   radio spectrum. **DO NOT LET IT SEND ANY OF ITS OWN BEACONS TO THE NETWORK BEFORE THIS MOMENT!**
-2. **The key conflict**: if the control node had already identified itself on the network before
-   restoring the backup, it exchanged standard keys with the remote node. Applying the backup
-   afterwards makes the stored keys mismatch and remote administration access is denied.
-3. **Conflict resolution**: if you suspect the nodes already "saw" each other with wrong keys,
-   manually purge the remote node from your user app's device list and wait for a completely
-   clean, fresh beacon from the fallen node. This forces mutual recognition under the shared
-   rescue public key. The purge also happens naturally on the remote node as it "recycles" old
-   nodes (limited to **80 nodes** in memory).
+1. Once the rescue configuration is loaded into the control node, turn it on or allow it to
+   transmit. **DO NOT ALLOW IT TO EMIT ANY OF ITS OWN BEACONS BEFORE THIS!**
+2. **Key conflict**: If the control node turned on before restoring the backup, it exchanged
+   standard keys with the remote node, causing key mismatches.
+3. **Resolving the conflict**: If they already saw each other with wrong keys, purge the remote
+   node from your device list and wait for a fresh beacon.
 
-### Step 3: Remote reconfiguration
+### Step 3: Remote Reconfiguration
 
-1. Once both devices recognize each other through the injected public key, access the **Remote
-   Management** interface from your control node.
-2. Restore the specific configuration the node originally had (private channels, custom
-   transmission rates, geolocation, etc.).
-3. **ADC verification**: during reconfiguration, check that the ADC (Analog-Digital Converter)
-   parameter is set to the correct value for your hardware (e.g. `2.0`). A wrong value makes the
-   node misread the real cell voltage and the anti-brownout safeguard could fail or trigger late.
-4. Apply the changes remotely. The remote node assimilates the data and rejoins the mesh with its
-   usual functions and names.
+1. Once both nodes recognize each other via the injected public key, access **Remote Management**.
+2. Restore the specific original configuration (private channels, transmission rates, GPS, etc.).
+3. **ADC verification**: check that the ADC parameter is set correctly (e.g. `2.0`).
+4. Apply changes remotely.
 
-## 8. Remote administration (summary)
+## 9. Remote administration (summary)
 
 Remote administration runs with **`/nava`** commands (module `NavaCLIModule`), **100% silent and
 headless**, through two channels:
@@ -509,7 +528,7 @@ headless**, through two channels:
   the current config) or `/nava wipe` (total purge). After `wipe`/`nrf erase` only the project
   key remains (guaranteed rescue channel).
 
-## 9. Version changelog
+## 10. Version changelog
 
 | Version | Description |
 | :--- | :--- |
