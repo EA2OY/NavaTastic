@@ -59,6 +59,7 @@ userPrefs.jsonc.mcp-session-bak
 
 # NAVARICO: artefactos y morralla local (no subir a GitHub)
 _archivo/
+OldCompFiles/
 distribucion/
 Compilados/
 profiles/*R1IP*.jsonc
