@@ -1139,9 +1139,18 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Guía Rápida de Instalación en 5 Pasos en `README.md`**:
   - Incorporada en portada (bilingüe ES/EN) con diagrama de flujo Mermaid y llamada de atención para no omitir el *Factory Reset (Paso 4)* y el canal *Navadmin* con PSK `AQ==`.
 - **Renombrado Canónico de `Manual_uso_NavaTastic.md`**:
-  - Eliminado el sufijo `_4.2` en `docs/Manual_uso_NavaTastic_4.2.md` $\rightarrow$ `docs/Manual_uso_NavaTastic.md` y recompilado `docs/pdf/Manual_uso_NavaTastic.pdf`.
+  - Eliminado el sufijo `_4.2` en `docs/Manual_uso_NavaTastic_4.2.md` $\rightarrow$ `docs/Manual_uso_NavaTastic.md` y recompilado `docs/pdf/Manual_uso_NavaTastic.pdf` (2.49 MB).
+- **Capítulo de Coexistencia con la App Oficial de Meshtastic**:
+  - Incorporada sección técnica en `docs/Manual_NavaTastic.md` (§12) y `docs/Manual_uso_NavaTastic.md` (§6) explicando el comportamiento intencionado del motor de resiliencia frente a la App móvil oficial (restauración de BLE para evitar nodos huérfanos, protección de Slot 1 Navadmin, admin_keys, rol semipermanente, RAM-Only NodeDB y cadencias 72h).
+- **Desbloqueo de PDFs en Git (Solución 404 en GitHub)**:
+  - Eliminada la regla `docs/pdf/` de `.gitignore`. Todos los PDFs generados con Pandoc/XeLaTeX quedan integrados directamente en el repositorio y accesibles con código HTTP 200 directo desde la portada.
+- **Flasheo de Faketec USB y Restablecimiento de Frecuencia SFN**:
+  - Flasheada la placa Faketec SX1262 (`COM17`) con el firmware `navarrico_faketec_sx1262_r2ig` (Rama 2 Routers LIPO) y reconfigurada a la frecuencia oficial española de ShortFast Narrow (**869.618 MHz / 22 dBm**), saliendo del modo aislamiento de laboratorio (869.545 MHz / 1 dBm).
+- **Auditoría de Sanitización Criptográfica**:
+  - Verificada la purga de claves personales al 100% (cero coincidencias regex en todo el árbol), garantizando el uso exclusivo de claves dummy de 44 caracteres.
 - **Sincronización en Producción en GitHub**:
   - Publicado el árbol saneado a `https://github.com/EA2OY/NavaTastic` (`main`) mediante rama huérfana limpia `github-public`.
+
 
 
 
