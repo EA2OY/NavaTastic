@@ -44,6 +44,7 @@ graph LR
 ### 2️⃣ Paso 2: Flashea el Firmware NavaTastic
 * **Vía Cable USB (.UF2)**: Conecta la placa al PC, haz **doble pulsación rápida en el botón RESET** para que aparezca la unidad de disco USB (`NICENANO` o similar) y arrastra el archivo `.uf2` correspondiente a tu placa.
 * **Vía Actualización OTA (.zip)**: Si ya estás conectado por Bluetooth, actualiza desde la App oficial de Meshtastic seleccionando el `.zip` OTA.
+* **Emparejamiento Bluetooth**: El PIN de conexión por defecto es **`654321`** (modo `FIXED_PIN`).
 
 ### 3️⃣ Paso 3: Respalda tu Clave Privada *(Opcional)*
 * Si deseas **mantener la misma identidad de nodo y tus conversaciones previas**, copia tu clave privada (`private_key`) desde la App antes del reseteo para restaurarla después. Si es un nodo nuevo, salta este paso y el firmware generará una identidad limpia Curve25519.
@@ -57,7 +58,8 @@ graph LR
 * Para gestionar el repetidor por radio desde tu móvil o mando de campo, crea en tu App de Meshtastic un canal secundario con estos parámetros:
   * **Nombre del canal**: `Navadmin` (respetando mayúsculas/minúsculas).
   * **Clave (PSK)**: `AQ==` (clave por defecto de Meshtastic `{ 0x01 }` / Default).
-* ¡Listo! Ahora abre el canal `Navadmin` y envía `/nava ping` o abre **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)** para controlar tu repetidor con un toque.
+* ¡Listo! Ahora abre el canal `Navadmin` y envía `/nava ping` o abre la app oficial **[MeshNavarra](https://github.com/EA2OY/MeshNavarra)** para controlar tu repetidor con un solo toque.
+* ⚠️ **Aviso de Seguridad y Memoria Persistente**: Por la propia arquitectura de blindaje y resiliencia de NavaTastic (`/resilience.bin`), ciertos ajustes críticos (como el rol de repetidor, el apagado de Bluetooth, la telemetría y las balizas de 72h) **solo se pueden modificar de forma permanente mediante comandos `/nava` o desde la aplicación [MeshNavarra](https://github.com/EA2OY/MeshNavarra)** *(ver tabla de salvaguardas abajo)*.
 
 ---
 
@@ -126,6 +128,45 @@ la tabla de arriba se maneja **con un par de toques, sin escribir nada**. Para s
 **pleno partido** al repetidor solar — consultar su estado, ajustar la energía, reiniciar o
 rescatar nodos de toda la flota desde el móvil, sin PC — úsalos juntos: NavaTastic pone la
 potencia en el nodo; MeshNavarra pone la comodidad en tu mano.
+
+---
+
+## ⚠️ Coexistencia y Salvaguardas frente a la App Oficial de Meshtastic
+
+El motor de **Resiliencia y Persistencia Atómica (`/resilience.bin`)** es la auténtica joya de la corona de NavaTastic: permite que un repetidor solar instalado en una cumbre aislada sobreviva a tormentas, cortes de batería y reseteos accidentales sin desconfigurarse jamás.
+
+Para evitar que un usuario o la propia aplicación móvil oficial de Meshtastic desconfigure involuntariamente un nodo de infraestructura fija (por ejemplo, bajando las balizas de 72h a 15 minutos o apagando el Bluetooth por error dejando el nodo huérfano), **el motor de resiliencia actúa como un cortafuegos protector en cada arranque**.
+
+Aunque esto requiere una breve curva de aprendizaje, esta salvaguarda **multiplica exponencialmente la tasa de éxito y supervivencia del nodo en montaña**, evitando visitas físicas a la cumbre para reparar configuraciones corruptas.
+
+### ❌ Ajustes desde la App Oficial que se REVIERTEN al reiniciar
+*(Para que persistan, deben configurarse mediante comandos `/nava` o con la app **[MeshNavarra](https://github.com/EA2OY/MeshNavarra)**)*
+
+| Ajuste en la App Oficial | Qué ocurre tras reiniciar | Por qué NavaTastic lo protege | Comando `/nava` equivalente |
+| :--- | :--- | :--- | :--- |
+| **Rol del Dispositivo** *(Client, Router...)* | **Vuelve al rol anterior** de resiliencia | Evita la degradación accidental de repetidores de infraestructura | **`/nava set_role <rol>`** |
+| **Interruptor Bluetooth** *(Apagar BLE)* | **Vuelve a encenderse** | **Seguro anti-huérfano**: evita que el repetidor quede incomunicado en la cima | **`/nava ble off`** *(apagado consciente)* |
+| **Intervalo de Telemetría** | **Vuelve a 15 min (900s)** | Previene consumos energéticos y saturación del canal LoRa | **`/nava set_telem_tx <seg>`** |
+| **Intervalo de Difusión de Posición** | **Vuelve a 72 horas (259.200s)** | **Protección Anti-Storm**: evita emitir posiciones continuas en montaña | **`/nava set_pos_tx <seg>`** |
+| **Intervalo de NodeInfo** | **Vuelve a 72 horas (259.200s)** | **Protección Anti-Storm**: evita avalanchas de respuestas de red | **`/nava set_nodeinfo_tx <seg>`** |
+| **Posición Fija GPS** *(Lat/Lon/Alt)* | **Vuelve a las coordenadas de resiliencia** | Protege las coordenadas fijadas por el operador de rescate | **`/nava set_pos <lat> <lon> [alt]`** |
+| **PIN Fijo de Bluetooth** | **Vuelve al PIN protegido (654321)** | Evita bloqueos de emparejamiento con el equipo de rescate | **`/nava set_pin <pin>`** |
+| **Borrar Canal 1 (*Navadmin*)** | **Se restaura automáticamente** | **Inamovilidad de Slot 1**: garantiza la vía de administración de emergencia | *Inmutable por diseño* |
+| **Interruptor "OK to MQTT"** | **Vuelve al estado de resiliencia** | Protege la política de pasarela de la flota | **`/nava set_ok_to_mqtt on\|off`** |
+
+---
+
+### ✅ Ajustes desde la App Oficial que SÍ PERSISTEN normalmente
+*(Se guardan directamente en las particiones estándar y funcionan 100% desde la App oficial)*
+
+* 🔑 **Claves de Administración (`admin_keys`)**: Añadir o eliminar claves públicas de administradores autorizados.
+* 🏷️ **Nombre del Nodo**: Modificación del *Long Name* y *Short Name*.
+* 📻 **Canales Secundarios de Usuario (Slots 2 al 7)**: Creación, edición y borrado de canales de charla y grupos.
+* 📡 **Parámetros Físicos de Radio LoRa**: Frecuencia (`override_frequency`), potencia (`tx_power`), ancho de banda y factor de dispersión.
+* 🦘 **Límite de Saltos (*Hop Limit*)**: Configuración de saltos de retransmisión.
+* 💬 **Mensajes Predefinidos (*Canned Messages*)** y módulos externos (sensores I2C, puerto serie).
+
+---
 
 ## Requisito de hardware: divisor ADC 1M+1M (factor 2.0)
 
@@ -387,6 +428,7 @@ graph LR
 ### 2️⃣ Step 2: Flash NavaTastic Firmware
 * **Via USB (.UF2)**: Connect to PC, **double-tap the RESET button** to enter DFU bootloader mode (shows as a USB drive like `NICENANO`), and drag & drop the appropriate `.uf2` file.
 * **Via OTA (.zip)**: If already connected over Bluetooth, use the Meshtastic App OTA update feature with the corresponding `.zip` file.
+* **Bluetooth Pairing**: Default connection PIN is **`654321`** (`FIXED_PIN` mode).
 
 ### 3️⃣ Step 3: Backup Private Key *(Optional)*
 * If you want to **keep the same node identity and existing direct messages**, copy your private key before resetting. If setting up a fresh node, skip this step and let NavaTastic generate a clean Curve25519 keypair.
@@ -400,7 +442,8 @@ graph LR
 * To manage your repeater remotely over the air, create a secondary channel on your mobile/controller app with:
   * **Channel Name**: `Navadmin` (case-sensitive).
   * **Pre-shared Key (PSK)**: `AQ==` (standard Meshtastic default key `{ 0x01 }`).
-* You are all set! Send `/nava ping` in Navadmin or connect **[MeshNavarra Utility](https://github.com/EA2OY/MeshNavarra-Utility)** to manage your solar repeater with a single tap.
+* You are all set! Send `/nava ping` in Navadmin or connect the official **[MeshNavarra](https://github.com/EA2OY/MeshNavarra)** application to manage your repeater with a single tap.
+* ⚠️ **Persistent Memory & Security Notice**: Due to NavaTastic's hardened resilience architecture (`/resilience.bin`), critical infrastructure parameters (such as device role, permanent BLE shutdown, telemetry rates, and 72-hour anti-storm broadcast intervals) **can only be permanently modified via `/nava` text commands or the [MeshNavarra](https://github.com/EA2OY/MeshNavarra) app** *(see safeguards table below)*.
 
 ---
 
@@ -485,6 +528,45 @@ the whole table above is handled **with a couple of taps, no typing**. To get th
 value** out of the solar repeater — check status, tune energy, reboot or rescue nodes across
 the fleet from your phone, no PC — use them together: NavaTastic puts the power in the node;
 MeshNavarra puts the convenience in your hand.
+
+---
+
+## ⚠️ Coexistence and Safeguards against the Official Meshtastic App
+
+The **Atomic Resilience & Persistence Engine (`/resilience.bin`)** is the crown jewel of NavaTastic: it ensures that an unattended solar repeater installed on an isolated mountain peak survives storms, severe power drops, and accidental resets without ever losing its core configuration.
+
+To prevent an operator or the standard mobile app from accidentally downgrading a fixed mountain repeater (e.g. dropping 72h broadcast intervals down to 15 minutes or turning off Bluetooth leaving the node permanently orphaned on a peak), **the resilience engine acts as a protective firewall on every reboot**.
+
+While this introduces a small learning curve, it **dramatically increases the real-world survival rate and reliability of mountain nodes**, preventing arduous physical hikes to fix corrupted settings.
+
+### ❌ Settings in the Official App that REVERT on Reboot
+*(To make them permanent, they must be set via `/nava` commands or using the **[MeshNavarra](https://github.com/EA2OY/MeshNavarra)** app)*
+
+| Setting in Official App | What Happens on Reboot | Why NavaTastic Protects It | Equivalent `/nava` Command |
+| :--- | :--- | :--- | :--- |
+| **Device Role** *(Client, Router...)* | **Reverts to previous role** | Prevents accidental downgrade of critical router infrastructure | **`/nava set_role <role>`** |
+| **Bluetooth Toggle** *(Turn BLE Off)* | **Reverts to ENABLED** | **Anti-orphan safeguard**: prevents losing physical local access to the node | **`/nava ble off`** *(deliberate turnoff)* |
+| **Telemetry Interval** | **Reverts to 15 min (900s)** | Prevents battery drain and unnecessary LoRa channel usage | **`/nava set_telem_tx <secs>`** |
+| **Position Broadcast Interval** | **Reverts to 72 hours (259200s)** | **Anti-Storm Shield**: prevents frequent position spam in mountain nodes | **`/nava set_pos_tx <secs>`** |
+| **NodeInfo Broadcast Interval** | **Reverts to 72 hours (259200s)** | **Anti-Storm Shield**: prevents network-wide reply storms | **`/nava set_nodeinfo_tx <secs>`** |
+| **Fixed GPS Position** | **Reverts to resilience coordinates** | Protects fixed rescue coordinates set by the network operator | **`/nava set_pos <lat> <lon> [alt]`** |
+| **Bluetooth Fixed PIN** | **Reverts to protected PIN (654321)** | Prevents pairing lockouts with field rescue devices | **`/nava set_pin <pin>`** |
+| **Delete Channel 1 (*Navadmin*)** | **Automatically restored** | **Slot 1 Immutability**: guarantees the emergency remote admin channel | *Immutable by design* |
+| **"OK to MQTT" Toggle** | **Reverts to resilience state** | Protects fleet-wide gateway policies | **`/nava set_ok_to_mqtt on\|off`** |
+
+---
+
+### ✅ Settings in the Official App that DO PERSIST Normally
+*(Stored directly in standard partitions and fully functional from the official App)*
+
+* 🔑 **Admin Keys (`admin_keys`)**: Adding or removing authorized administrator public keys.
+* 🏷️ **Node Names**: Updating *Long Name* and *Short Name*.
+* 📻 **Secondary User Channels (Slots 2 to 7)**: Adding, editing, and deleting general chat channels.
+* 📡 **LoRa Radio Parameters**: Frequency (`override_frequency`), power (`tx_power`), bandwidth, and spreading factor.
+* 🦘 **Hop Limit**: Setting mesh retransmission hop limit.
+* 💬 **Canned Messages** and external modules (I2C sensors, serial).
+
+---
 
 ## Hardware requirement: ADC divider 1M+1M (ratio 2.0)
 
