@@ -358,6 +358,20 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
 
 ```
 
+- [ ] **MEJORA FUTURA: MOTOR DE RETARDOS ADAPTATIVOS (HOP-AWARE TIMING) Y DESACOPLE ASÍNCRONO DE TRACEROUTE PARA MALLAS DE ALTA LATENCIA (+20s / 35s RTT)**:
+      * **Problema Identificado**: En mallas densas o de 3 a 5 saltos (latencias de +20s ida y ~35s RTT en SFNarrow), el jitter determinista actual en Navadmin (`getNodeNum() % 6000`) y la emisión inmediata (0 ms) en DM colisionan con los ecos de retransmisión (*TX Blindness* de repetidores). En `traceroute`, la sonda `RouteDiscovery` y el texto de acuse compiten simultáneamente.
+      * **Solución Mix para Navadmin (Canal 1 / Difusión 1-a-Muchos)**:
+        1. **True Random Jitter**: Sustituir el cálculo determinista por una ventana aleatoria real pura: `5000 ms + random(0, 8000 ms)` (dispersión de 5 a 13 segundos).
+        2. **Filtro de Carga en Abierto**: Respuestas multi-línea pesadas en Navadmin exigen direccionamiento `!ID` para prevenir que 10 nodos respondan con 30 fragmentos a la vez.
+      * **Solución Mix para Mensajes Directos (DM Privado Cifrado / Tráfico 1-a-1)**:
+        1. **Hop-Aware Adaptive Jitter**: Retardo proporcional a los saltos recorridos por el paquete entrante (`hops = hop_start - hop_limit`):
+           - 0 saltos (Laboratorio / Enlace directo): **300 a 600 ms** (respuesta instantánea sin demoras).
+           - 1 salto (1 repetidor intermedio): **1.500 a 2.500 ms**.
+           - $\ge 2$ saltos (Malla profunda / Montaña): **3.500 a 5.000 ms** (da tiempo a extinguir los ecos en valles laterales).
+        2. **Desacople Secuencial de `traceroute`**: Enviar primero el texto `OK: TRACEROUTE INICIADO`, temporizar una pausa de silencio de **8 a 10 segundos**, y disparar `traceRouteModule->startTraceRoute()` solo cuando el texto ya haya avanzado 2 saltos en la red.
+        3. **Ventana de Gracia Pre-Reboot Proporcional**: En órdenes remotas a $\ge 2$ saltos (`reboot`, `factory_reset`, `storm`), extender el retardo antes de reiniciar la CPU a **6 a 8 segundos** tras el vaciado de cola, garantizando que el repetidor vecino capture el paquete de despedida antes del reinicio.
+        4. **Espaciado de Fragmentos Multi-Línea**: Mantener un intervalo de **10 a 12 segundos** entre fragmentos en la cola `responseQueue`.
+
 - [ ] **MEJORA FUTURA MESHNAVARRA UTILITY (RECORDATORIO OPERADOR)**:
       * Actualizar el catálogo de botones predefinidos en la interfaz táctil de la app Android MeshNavarra Utility para incluir accesos directos a los nuevos comandos de NavaTastic V4 (`set_cli_chan`, `ign`, `set_ok_to_mqtt`, `stats`, `log`, `pos_clear`, etc.), permitiendo lanzar órdenes en lote a la flota con un solo toque desde el móvil.
 
