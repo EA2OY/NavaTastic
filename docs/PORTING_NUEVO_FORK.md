@@ -104,6 +104,8 @@ línea citados son del repo unificado (referencia, no son sagrados).
 | Bypass de hop limit | Routers favoritos/directos se retransmiten sin restar hop | `Router.cpp` | E2 auto-fav; queda inactivo con rol CLIENT (R1) |
 | Historial sin Flash | `TransmitHistory::saveToDisk()` → `return true;` | `TransmitHistory.cpp` | — |
 | Límite de huérfanos | Máx 10 favoritos remotos sobre nodos nunca oídos | `AdminModule.cpp` | — |
+| HopScaling RAM-only (2.8.0) | En 2.8.0 anular `hopScalingState.bin` (escritura horaria a flash) | `HopScalingModule.cpp` | En 2.7.26 no existe |
+| WarmNodeStore RAM-only (2.8.0) | En 2.8.0 forzar `USERPREFS_WARMSTORE_RAM_ONLY` (evita anillo flash 12 KB en mallas >120 nodos) | `WarmStore` / perfil | En 2.7.26 no existe |
 
 ### BLOQUE S — Seguridad y administración remota
 | Mejora | Comportamiento | Ficheros | Depende de |

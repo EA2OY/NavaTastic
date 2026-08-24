@@ -29,3 +29,9 @@ F20 añade DOS escrituras, ambas condicionales (misma filosofía anti-desgaste):
 
 ## Flujo fix 2026-08-10 (updateUser)
 Ver nota `02_claves_admin.md`: NodeInfo con clave nueva == admin_key → aceptar + re-favoritear. Sin esto, la DB conserva clave errónea y el DM PKI no descifra.
+
+## Novedades y Peligros de Flash en Futuras Versiones (Meshtastic 2.8.0)
+Para futuras migraciones / forks sobre Meshtastic 2.8.0, vigilar e implementar obligatoriamente:
+1. **`HopScalingModule` (`hopScalingState.bin`)**: Escribe un histograma horario en Flash (24 escrituras/día). Debe mantenerse en RAM-only permanente anulando sus llamadas a disco.
+2. **`WarmNodeStore` (`warm.dat` / anillo flash de 12 KB en nRF52)**: Caché escalonado de nodos expulsados que escribe en Flash en mallas de >120 nodos (como Navarra con >250). Debe forzarse a RAM-only mediante `USERPREFS_WARMSTORE_RAM_ONLY`.
+
