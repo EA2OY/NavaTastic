@@ -370,7 +370,22 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
            - $\ge 2$ saltos (Malla profunda / Montaña): **3.500 a 5.000 ms** (da tiempo a extinguir los ecos en valles laterales).
         2. **Desacople Secuencial de `traceroute`**: Enviar primero el texto `OK: TRACEROUTE INICIADO`, temporizar una pausa de silencio de **8 a 10 segundos**, y disparar `traceRouteModule->startTraceRoute()` solo cuando el texto ya haya avanzado 2 saltos en la red.
         3. **Ventana de Gracia Pre-Reboot Armada Post-Envío**: En órdenes con acción diferida (`reboot`, `factory_reset`, `full_reset`, `wipe`, `storm`, `txoff`, `keys_clear`), el temporizador de ejecución (`rebootTime`, `stormTime`) **NO se fija al recibir el comando**, sino que se arma dinámicamente en `runOnce()` en el instante en que `responseQueue.empty()` se cumple (tras entregar el ACK a la cola de radio `txQueue`), otorgando **6 a 8 segundos de margen post-envío** para que el paquete termine de modularse y el repetidor vecino lo capture antes del reinicio de la CPU.
-        4. **Espaciado de Fragmentos Multi-Línea**: Mantener un intervalo de **10 a 12 segundos** entre fragmentos en la cola de texto `responseQueue`.
+- [ ] **MEJORA FUTURA: PERSISTENCIA BLINDADA DE PRESET LORA (ESTÁNDAR/CUSTOM) Y CANAL 0 EN RESILIENCE.BIN CON GESTIÓN DUAL (NAVACLI + APP OFICIAL)**:
+      * **Objetivo y Arquitectura Desacoplada**: Permitir que el preset LoRa (tanto estándar como custom, incluyendo el slot de frecuencia) y el Canal 0 primario sobrevivan a reinicios y resets de fábrica en `/resilience.bin`, manteniendo una estricta separación e independencia entre la Capa Física (Radio) y la Capa Lógica (Canal 0) para permitir migraciones remotas seguras en 2 pasos vía túnel PKI directo.
+      * **Campos en `struct NavaResiliencePrefs`**:
+        1. **Bloque A (Capa Física LoRa)**: `use_preset` (0=Custom, 1=Estándar), `modem_preset` (0..9 enum), `bandwidth` (31, 62, 125, 200, 250, 500), `spread_factor` (SF 5 a 12 nativo SX1262), `coding_rate` (4..8), `channel_num` (**Slot de frecuencia**, ej. Slot 4 en SFNarrow o Slot 1 en MediumFast), `override_frequency` (**863.0000 a 873.3000 MHz** para banda EU868 y filtro E22P), y `tx_power` (1..22 dBm).
+        2. **Bloque B (Capa Lógica Canal 0 Primario)**: `name` (1 a 11 caracteres) y `psk` (1B `0x01` para `AQ==` o 16B/32B AES).
+        3. **Bloque C (Canal de Rescate Slot 1)**: Canal `Navadmin` inmutable protegido en Slot 1.
+      * **Gestión Dual y Sincronización Segura**:
+        - **Vía App Oficial (AdminMessage / Protobuf)**: Puentes de sincronización en `AdminModule.cpp` (`syncLoraConfigFromConfig()` y `syncChannel0FromConfig()`) con filtro estricto de rangos (*Sanity Whitelist*). Si el admin modifica la radio o el canal 0 desde la App, se valida y persiste automáticamente en `/resilience.bin`.
+        - **Vía NavaCLI DM (Mensajes de Texto Directos)**:
+          * `/nava set_preset <nombre>`: Aplica preset estándar (`long_fast`, `medium_fast`, `short_fast`, etc.), resetea `override_frequency = 0` y asigna su slot por defecto.
+          * `/nava set_lora <bw> <sf> <cr> <freq_mhz> <slot> [txpower]`: Configuración integral de preset Custom (ej: `/nava set_lora 62 7 5 869.618 4 22` para SFNarrow España).
+          * `/nava set_freq <freq_mhz> [slot]`: Ajuste atómico de frecuencia física y número de slot.
+          * `/nava ch_set 0 <nombre> <psk_b64>`: Configuración persistente de nombre y clave PSK del Canal 0.
+      * **Válvula de Fallback y Actualización de `/nava help`**:
+        - Fallback automático al preset de fábrica (`SFNarrow / EU_868`) si `RadioLibInterface` falla en inicializar el módem con los datos de resiliencia.
+        - Actualización completa de `/nava help` y de los textos de ayuda contextual (`/nava set_preset ?`, `/nava set_lora ?`, `/nava set_freq ?`).
 
 - [ ] **MEJORA FUTURA MESHNAVARRA UTILITY (RECORDATORIO OPERADOR)**:
       * Actualizar el catálogo de botones predefinidos en la interfaz táctil de la app Android MeshNavarra Utility para incluir accesos directos a los nuevos comandos de NavaTastic V4 (`set_cli_chan`, `ign`, `set_ok_to_mqtt`, `stats`, `log`, `pos_clear`, etc.), permitiendo lanzar órdenes en lote a la flota con un solo toque desde el móvil.
