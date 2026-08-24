@@ -383,6 +383,9 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
           * `/nava set_lora <bw> <sf> <cr> <freq_mhz> <slot> [txpower]`: Configuración integral de preset Custom (ej: `/nava set_lora 62 7 5 869.618 4 22` para SFNarrow España).
           * `/nava set_freq <freq_mhz> [slot]`: Ajuste atómico de frecuencia física y número de slot.
           * `/nava ch_set 0 <nombre> <psk_b64>`: Configuración persistente de nombre y clave PSK del Canal 0.
+      * **Reconfiguración RF Diferida con Feedback en Frecuencia Antigua**:
+        - Al solicitar un cambio de preset LoRa o frecuencia (vía NavaCLI o App), el nodo **emite primero el ACK de confirmación en la frecuencia y modulación antigua** (`OK: PRESET LORA -> [NOMBRE] EN [FREQ]MHz. APLICANDO EN 6s...`).
+        - La reconfiguración del hardware SX1262 se difiere **6 a 8 segundos post-envío** mediante el bucle `runOnce()` (flag `loraChangeScheduled`), garantizando que el operador reciba el acuse de recibo en su pantalla antes de que el repetidor salte a la nueva frecuencia física.
       * **Válvula de Fallback y Actualización de `/nava help`**:
         - Fallback automático al preset de fábrica (`SFNarrow / EU_868`) si `RadioLibInterface` falla en inicializar el módem con los datos de resiliencia.
         - Actualización completa de `/nava help` y de los textos de ayuda contextual (`/nava set_preset ?`, `/nava set_lora ?`, `/nava set_freq ?`).
