@@ -369,8 +369,8 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
            - 1 salto (1 repetidor intermedio): **1.500 a 2.500 ms**.
            - $\ge 2$ saltos (Malla profunda / Montaña): **3.500 a 5.000 ms** (da tiempo a extinguir los ecos en valles laterales).
         2. **Desacople Secuencial de `traceroute`**: Enviar primero el texto `OK: TRACEROUTE INICIADO`, temporizar una pausa de silencio de **8 a 10 segundos**, y disparar `traceRouteModule->startTraceRoute()` solo cuando el texto ya haya avanzado 2 saltos en la red.
-        3. **Ventana de Gracia Pre-Reboot Proporcional**: En órdenes remotas a $\ge 2$ saltos (`reboot`, `factory_reset`, `storm`), extender el retardo antes de reiniciar la CPU a **6 a 8 segundos** tras el vaciado de cola, garantizando que el repetidor vecino capture el paquete de despedida antes del reinicio.
-        4. **Espaciado de Fragmentos Multi-Línea**: Mantener un intervalo de **10 a 12 segundos** entre fragmentos en la cola `responseQueue`.
+        3. **Ventana de Gracia Pre-Reboot Armada Post-Envío**: En órdenes con acción diferida (`reboot`, `factory_reset`, `full_reset`, `wipe`, `storm`, `txoff`, `keys_clear`), el temporizador de ejecución (`rebootTime`, `stormTime`) **NO se fija al recibir el comando**, sino que se arma dinámicamente en `runOnce()` en el instante en que `responseQueue.empty()` se cumple (tras entregar el ACK a la cola de radio `txQueue`), otorgando **6 a 8 segundos de margen post-envío** para que el paquete termine de modularse y el repetidor vecino lo capture antes del reinicio de la CPU.
+        4. **Espaciado de Fragmentos Multi-Línea**: Mantener un intervalo de **10 a 12 segundos** entre fragmentos en la cola de texto `responseQueue`.
 
 - [ ] **MEJORA FUTURA MESHNAVARRA UTILITY (RECORDATORIO OPERADOR)**:
       * Actualizar el catálogo de botones predefinidos en la interfaz táctil de la app Android MeshNavarra Utility para incluir accesos directos a los nuevos comandos de NavaTastic V4 (`set_cli_chan`, `ign`, `set_ok_to_mqtt`, `stats`, `log`, `pos_clear`, etc.), permitiendo lanzar órdenes en lote a la flota con un solo toque desde el móvil.
