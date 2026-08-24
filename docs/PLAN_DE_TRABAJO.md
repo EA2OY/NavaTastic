@@ -385,7 +385,7 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
           * `/nava ch_set 0 <nombre> <psk_b64>`: Configuración persistente de nombre y clave PSK del Canal 0.
       * **Reconfiguración RF Diferida con Feedback en Frecuencia Antigua**:
         - Al solicitar un cambio de preset LoRa o frecuencia (vía NavaCLI o App), el nodo **emite primero el ACK de confirmación en la frecuencia y modulación antigua** (`OK: PRESET LORA -> [NOMBRE] EN [FREQ]MHz. APLICANDO EN 6s...`).
-        - La reconfiguración del hardware SX1262 se difiere **6 a 8 segundos post-envío** mediante el bucle `runOnce()` (flag `loraChangeScheduled`), garantizando que el operador reciba el acuse de recibo en su pantalla antes de que el repetidor salte a la nueva frecuencia física.
+        - La reconfiguración del hardware SX1262 se ejecuta mediante un **Soft Reset limpio (`rebootAtMsec`) diferido 6 a 8 segundos post-envío** en `runOnce()` (flag `loraChangeScheduled`), garantizando que el operador reciba el acuse de recibo en su pantalla antes del reinicio y que la radio SX1262 se inicialice desde cero con calibración completa en el nuevo preset.
       * **Válvula de Fallback y Actualización de `/nava help`**:
         - Fallback automático al preset de fábrica (`SFNarrow / EU_868`) si `RadioLibInterface` falla en inicializar el módem con los datos de resiliencia.
         - Actualización completa de `/nava help` y de los textos de ayuda contextual (`/nava set_preset ?`, `/nava set_lora ?`, `/nava set_freq ?`).
