@@ -185,6 +185,7 @@ SX1262). El firmware soporta **4 químicas** y se cambian **sin recompilar** con
 - **[Manual de administración remota NavaTastic V5 (PDF)](docs/pdf/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) — Comandos `/nava`, 4 Pilares de Resiliencia y configuración.
 - **[Manual de uso del firmware V5 (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic.md)) — Montaje, requisitos de hardware y protocolo de rescate.
 - **[Informe Técnico de Auditoría Ultra-Exhaustiva V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** ([Leer en GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)) — Certificación 100% PASS (56/56 pruebas en hardware real).
+- **[Documento Maestro de Arquitectura y Diferencias vs Upstream](docs/DIFERENCIAS_VS_UPSTREAM.md)** — Inventario anatómico de todas las modificaciones y subsistemas exclusivos sobre Meshtastic 2.7.26.
 
 ## Flashear
 
@@ -330,6 +331,7 @@ graph LR
 - **[Remote Administration Manual V5 (PDF)](docs/pdf/Manual_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_NavaTastic.md))
 - **[Firmware User Manual V5 (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic.md))
 - **[Technical Audit Report V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** ([Read on GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)) — 100% PASS Certification (56/56 hardware bench tests).
+- **[Master Architecture & Upstream Differences Document](docs/DIFERENCIAS_VS_UPSTREAM.md)** — Comprehensive anatomical breakdown of all modifications and exclusive subsystems over Meshtastic 2.7.26.
 
 ## Acknowledgments
 
