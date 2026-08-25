@@ -390,6 +390,33 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
         - Fallback automático al preset de fábrica (`SFNarrow / EU_868`) si `RadioLibInterface` falla en inicializar el módem con los datos de resiliencia.
         - Actualización completa de `/nava help` y de los textos de ayuda contextual (`/nava set_preset ?`, `/nava set_lora ?`, `/nava set_freq ?`).
 
+- [ ] **MEJORA FUTURA: PROTOCOLO "BOTÓN DEL PÁNICO" (EVACUACIÓN DE EMERGENCIA DE MALLA A PRESET ALTERNATIVO CON SINCRONIZACIÓN MONOTÓNICA RELATIVA)**:
+      * **Objetivo y Contexto de Crisis**: Mecanismo de contingencia táctico para evacuar de forma simultánea y coordinada a toda una red provincial de repetidores de montaña desde un preset colapsado (por interferencia intencionada *jamming*, saturación extrema de *chutil* o rotura de canal) hacia un preset limpio (ej. `MediumFast`), garantizando que la orden alcance hasta el último rincón de la cordillera sin desincronizar la red.
+      * **Operativa Integral en 5 Fases**:
+        1. **Fase 0 (Activación Criptográfica Inviolable)**:
+           - El Administrador lanza en el canal *Navadmin* (o DM privado): `/nava panic <preset|lora_params> [minutos=10] [rollback_mins=0]`.
+           - El comando va firmado con la clave privada del administrador (validado contra `admin_key[0..2]`). Nodos descartan en silencio cualquier intento no autorizado.
+        2. **Fase 1 (Feedback Inmediato Nivel 1 al Operador)**:
+           - El repetidor directo en visión responde en <300 ms con acuse de texto: `OK: ALERTA ROJA. EVACUACION A [PRESET] EN [MIN] MINUTOS.`, dando confirmación instantánea al mando.
+        3. **Fase 2 (Difusión Epidémica y Sincronización Monotónica Relativa, Minutos 0 a 9)**:
+           - **Purga Inmediata de Colas**: Al validar la orden, el nodo ejecuta `txQueue.clear()`, eliminando de golpe chats o telemetrías viejas atascadas.
+           - **Superpoderes de Evacuación**: `override_duty_cycle = true` (anula restricciones europeas del 1% para emitir a fuego) y prioridad `Priority_EMERGENCY`.
+           - **Potencia TX Protegida**: Se respeta estrictamente la potencia configurada en el nodo (sin forzar subidas para evitar *brownouts* de batería en invierno en módulos E22P).
+           - **Modo Túnel (Discriminación de Tráfico)**: El router suspende el reenvío de tráfico ordinario de terceros (chats, telemetría) y dedica el 100% de la radio exclusivamente a la evacuación.
+           - **Paquete Binario Ultracorto (~24 Bytes / 200 ms airtime)**: Con CAD agresivo contra portadoras continuas de ruido.
+           - **Disparo Continuo con Jitter (25 a 45 segundos)**: Cada repetidor emite ~15 a 20 pulsos con desincronización aleatoria para maximizar la probabilidad de penetración en ruido ($P = 1 - (1-p)^N$).
+           - **Sincronización por Cuarzo Monotónico (`millis()`)**: Cero dependencia de GPS, relojes UTC o año 1970. Cada nodo descuenta el tiempo transcurrido en el campo `remaining_seconds` antes de retransmitir. Todos los timers de hardware de la cordillera llegan a cero en el mismo segundo.
+           - **Aviso Local por BLE**: Inyección automática de mensaje de chat local en la App oficial (`[NAVATASTIC]: ALERTA DE EVACUACION A [PRESET] EN X MINUTOS`).
+           - **Grabación en Memoria Blindada**: Los datos de destino se guardan de inmediato en `/resilience.bin`.
+        4. **Fase 3 (Ventana de Silencio Preparatoria, Minuto 9 a 10 / Últimos 60s)**:
+           - A falta de 60 segundos, todos los repetidores cesan emisiones, vacían buffers de radio y entran en silencio absoluto para evitar cortes a mitad de transmisión.
+        5. **Fase 4 (Salto Simultáneo por Soft Reset en T=10:00)**:
+           - Todos los microcontroladores ejecutan `NVIC_SystemReset()` en el mismo milisegundo.
+           - Al arrancar: `loadResiliencePrefs()` carga el nuevo preset y `RadioLibInterface::setup()` inicializa y calibra el chip SX1262 en la nueva frecuencia.
+        6. **Fase 5 (Consolidación y Modos de Retorno)**:
+           - **Modo Firme (Por defecto)**: Salto definitivo y permanente en `/resilience.bin` (cero riesgo de partición de red o *split-brain*).
+           - **Modo Prueba con Rollback**: Si el admin fijó minutos de retorno (ej. 120m), los nodos esperan consolidación en la nueva frecuencia mediante el comando en cascada `/nava panic_ok` en *Navadmin*. Solo si pasan los 120m en silencio absoluto de administradores, se ejecuta un reinicio total de hardware para regresar a la frecuencia segura de fábrica (`SFNarrow`).
+
 - [ ] **MEJORA FUTURA MESHNAVARRA UTILITY (RECORDATORIO OPERADOR)**:
       * Actualizar el catálogo de botones predefinidos en la interfaz táctil de la app Android MeshNavarra Utility para incluir accesos directos a los nuevos comandos de NavaTastic V4 (`set_cli_chan`, `ign`, `set_ok_to_mqtt`, `stats`, `log`, `pos_clear`, etc.), permitiendo lanzar órdenes en lote a la flota con un solo toque desde el móvil.
 
