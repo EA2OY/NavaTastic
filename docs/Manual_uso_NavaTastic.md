@@ -251,7 +251,43 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 
 ---
 
-## 10. Changelog de Versiones
+## 10. Protocolo de Evacuación de Emergencia y Migración de Malla (Botón del Pánico V5)
+
+El **Protocolo del Botón del Pánico** permite a un operador autorizado realizar una migración masiva, simultánea y coordinada de toda una cordillera de repetidores solares hacia un nuevo preset módem o frecuencia LoRa sin necesidad de desplazarse físicamente a las cumbres.
+
+### 10.1 ¿Cuándo y por qué utilizarlo?
+- **Saturación crítica o interferencias**: Si la frecuencia actual sufre interferencias severas, ruido elevado o congestión.
+- **Migración acordada de flota**: Cuando la red comunitaria decide cambiar de velocidad/modulación (ej. de *ShortFast Narrow* a *MediumFast*).
+- **Evacuación de emergencia**: Para mover todos los repetidores a un canal seguro de forma coordinada.
+
+### 10.2 Procedimiento Paso a Paso
+
+1. **Declaración del Pánico y Propagación**:  
+   El administrador envía el comando indicando el preset destino, los minutos de cuenta atrás para el aviso y los minutos de prueba de seguridad:  
+   `/nava panic <preset|sfnarrow> [minutos=10] [rollback_mins=0]`  
+   - *Ejemplo de migración con red de seguridad*: `/nava panic medium_fast 15 120` (15 min de propagación y 120 min de prueba).  
+   - *Ejemplo de retorno definitivo a SFNarrow*: `/nava panic sfnarrow 10 0` (10 min de propagación, salto definitivo).
+2. **Propagación en Malla y Modo Túnel**:  
+   Los nodos emiten pulsos periódicos binarios `PANC` de 24 bytes con prioridad `ALERT` y *bypass* temporal de duty cycle en RAM. Todos los routers activan el **Modo Túnel**, descartando el tráfico de paso ordinario no urgente para mantener el canal despejado.
+3. **Ventana de Silencio ($T-60\text{s}$)**:  
+   Durante los últimos 60 segundos antes del salto, toda la flota entra en silencio absoluto de radio para evitar colisiones RF en el segundo del cambio.
+4. **Salto Simultáneo y Reinicio ($T=0$)**:  
+   En el segundo 0 exacto, todos los nodos graban la nueva configuración en `/resilience.bin` y ejecutan un reinicio automático, levantando la radio en la nueva modulación.
+5. **Fase de Prueba y Consolidación (`/nava panic_ok`)**:  
+   - El administrador sintoniza su dispositivo móvil o nodo de control en el nuevo preset.
+   - Envía el comando **`/nava panic_ok`** por el **Canal de Administración / Flota**.
+   - Al recibirlo, la orden se retransmite por la malla y **todos los repetidores cancelan la cuenta atrás de retorno, consolidando el nuevo preset de forma permanente en `resilience.bin`**.
+6. **Auto-Rescate de Seguridad (Rollback Automático)**:  
+   - Si transcurren los minutos de prueba pactados (ej. 120 min) sin que el administrador pueda enviar `/nava panic_ok` (por falta de cobertura o preset incompatible), los repetidores borran la configuración de `/resilience.bin`, ejecutan un restablecimiento a valores de fábrica seguros (**SFNarrow / EU_868**) y reinician, recuperando la red original.
+
+### 10.3 Comportamiento ante Resets de Hardware (Watchdog / ATtiny13A)
+Si un repetidor sufre un reinicio por hardware o pulso de watchdog externo durante la fase de prueba:
+- El nodo vuelve a arrancar inmediatamente en el nuevo preset gracias a `/resilience.bin`.
+- El temporizador de seguridad se renueva desde el arranque, garantizando la ventana de tiempo completa al administrador para confirmar con `/nava panic_ok`.
+
+---
+
+## 11. Changelog de Versiones
 
 | Versión | Descripción |
 | :--- | :--- |
@@ -264,7 +300,9 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 | **4.3** | Cambio de denominación a **NavaTastic** e integrado el **control remoto del nodo por comandos sin necesidad de PC**: se administra por radio (canal Navadmin para consultas y mensajes directos cifrados para los cambios), con protecciones frente a usos indebidos. El nodo ya mantenía el auto-favoriteo de routers directos y la base de nodos en **memoria RAM** (la Flash dejó de escribirse constantemente). |
 | **4.3.1 — "NavaTastic Eclipse"** (12/08/2026) ⭐ primera distribución a colegas | Muchos comandos nuevos (`fav auto`, ayuda y consultas por radio, respuestas fragmentadas legibles, gestión de energía y diagnóstico). La **cola de mensajes y los datos descartables dejaron de escribirse en Flash**: pasaron a memoria RAM, protegiendo la vida útil del nodo. |
 | **4.3.2 — "NavaTastic Eclipse V3"** (15-16/08/2026) | **Reajustados los tiempos de sueño profundo/despertar** para que no afecten a la radio ni se produzcan lecturas erróneas, y **el nodo avisa por radio de su estado al dormirse/despertarse** (con la causa en cada arranque). **Reforzada la resiliencia ante fallos**: claves de admin persistidas tras factory reset (`keys_ls`/`keys_clear`, `full_reset`/`wipe`). |
-| **4.3.3 — "NavaTastic F21 / V4"** (17/08/2026, versión actual) | **Gestión Remota Avanzada de Canales e Infraestructura (F21)**: soporte completo para creación, borrado, listado y URL de canales secundarios (`ch_set`, `ch_del`, `ch_ls`, `ch_url`, `ch_reset`). **Redirección de NavaCLI** y silenciamiento opcional de Navadmin (`set_cli_chan`, `navadmin_mute`). **Control MQTT por canal** (`ch_mqtt`, `set_ok_to_mqtt`), **coordenadas fijas** (`set_pos`), **baliza ajustable** (`set_beacon`), **PIN Bluetooth** (`set_pin`), **modo silencioso temporal** (`mute`), **diagnósticos y log en RAM** (`stats`, `log`, `test_tx`). Persistencia atómica `/resilience.bin` V4 (`NAV4`). |
+| **4.3.3 — "NavaTastic F21 / V4"** (17/08/2026) | **Gestión Remota Avanzada de Canales e Infraestructura (F21)**: soporte completo para creación, borrado, listado y URL de canales secundarios (`ch_set`, `ch_del`, `ch_ls`, `ch_url`, `ch_reset`). **Redirección de NavaCLI** y silenciamiento opcional de Navadmin (`set_cli_chan`, `navadmin_mute`). **Control MQTT por canal** (`ch_mqtt`, `set_ok_to_mqtt`), **coordenadas fijas** (`set_pos`), **baliza ajustable** (`set_beacon`), **PIN Bluetooth** (`set_pin`), **modo silencioso temporal** (`mute`), **diagnósticos y log en RAM** (`stats`, `log`, `test_tx`). Persistencia atómica `/resilience.bin` V4 (`NAV4`). |
+| **4.3.4 — "NavaTastic V5"** (25/08/2026, versión actual) | **Sincronización Bidireccional de App Oficial, Hop-Aware Timing y Resiliencia NAV6**: Sincronización continua de los 12 ajustes cotidianos hacia `/resilience.bin` V6 (`NAV6`). Hop-Aware timing adaptativo (300ms a 3.5s) y desacople de traceroute (8s). Persistencia física LoRa y Canal 0 Primario (`set_preset`, `set_lora`, `set_freq`, `ch_set 0`). Nombre persistente a fuego en flash (`set_name` y `flush`). Cadencia por defecto de telemetría a 12 horas (43200s). Protocolo Botón del Pánico (`panic`, `panic_ok`). Corrección al 100% de los 4 bugs de desincronización (Rol, Nombre, Posición, DM). Ampliación de auto-favoritos a 32 nodos directos. |
+
 
 ---
 
@@ -532,7 +570,43 @@ headless**, through two channels:
   the current config) or `/nava wipe` (total purge). After `wipe`/`nrf erase` only the project
   key remains (guaranteed rescue channel).
 
-## 10. Version changelog
+## 10. Emergency Evacuation & Mesh Migration Procedure (Panic Button V5)
+
+The **Panic Button Protocol** enables an authorized operator to execute a mass, coordinated, and simultaneous migration of an entire mountain range of solar repeaters to a new LoRa preset or rescue frequency without physical access to the mountain summits.
+
+### 10.1 When and Why to Use It
+- **Critical channel congestion or severe interference**: If the current frequency experiences persistent jamming or noise.
+- **Scheduled fleet migration**: When the mesh community decides to transition to a new modulation (e.g. from *ShortFast Narrow* to *MediumFast*).
+- **Emergency evacuation**: To evacuate all mountain repeaters to a clean channel in a coordinated manner.
+
+### 10.2 Step-by-Step Procedure
+
+1. **Panic Trigger**:  
+   The admin sends the command specifying target preset, propagation countdown minutes, and trial rollback minutes:  
+   `/nava panic <preset|sfnarrow> [minutos=10] [rollback_mins=0]`  
+   - *Example with safety net*: `/nava panic medium_fast 15 120` (15 min countdown, 120 min trial).  
+   - *Example permanent return to SFNarrow*: `/nava panic sfnarrow 10 0` (10 min countdown, immediate permanent consolidation).
+2. **Mesh Propagation & Tunnel Mode**:  
+   Nodes emit periodic 24-byte binary `PANC` pulses with `ALERT` priority and RAM duty-cycle bypass. All routers enter **Tunnel Mode**, dropping non-urgent third-party traffic to ensure a clear channel.
+3. **Silence Window ($T-60\text{s}$)**:  
+   During the final 60 seconds before the jump, all nodes silence transmissions to avoid RF collisions at the moment of the jump.
+4. **Simultaneous Jump & Reboot ($T=0$)**:  
+   At second 0, nodes write the new configuration to `/resilience.bin` and reboot into the new modulation.
+5. **Trial Phase & Consolidation (`/nava panic_ok`)**:  
+   - Admin tunes local control node/phone to the new preset.
+   - Admin sends **`/nava panic_ok`** on the **Fleet / Admin Channel**.
+   - All repeaters receive the broadcast, cancel the rollback timer, and consolidate the new preset permanently in `resilience.bin`.
+6. **Automatic Safety Rollback (Self-Rescue)**:  
+   - If the trial expires (e.g. 120 min) without receiving `/nava panic_ok`, repeaters automatically erase the custom preset from `resilience.bin`, reset to factory rescue settings (**SFNarrow / EU_868**), and reboot back to the original safe channel.
+
+### 10.3 Hardware Watchdogs (ATtiny13A)
+If a repeater experiences a watchdog hardware reset during the trial phase:
+- It reboots immediately back into the target preset from `/resilience.bin`.
+- The trial timer is renewed from boot, providing the full safety window for the admin to confirm with `/nava panic_ok`.
+
+---
+
+## 11. Version changelog
 
 | Version | Description |
 | :--- | :--- |
@@ -545,4 +619,5 @@ headless**, through two channels:
 | **4.3** | Renamed **NavaTastic** and integrated **remote control of the node by commands, no PC needed**: it is administered over the radio (Navadmin channel for queries, encrypted direct messages for changes), with protections against misuse. The node already had direct-router auto-favoriting and the node database in **RAM** (Flash no longer written constantly). |
 | **4.3.1 — "NavaTastic Eclipse"** (12/08/2026) ⭐ first distribution to colleagues | Many new commands (`fav auto`, on-air help and queries, readable fragmented replies, energy and diagnostic management). The **message queue and disposable data stopped being written to Flash**: moved to RAM, protecting the node's lifespan. |
 | **4.3.2 — "NavaTastic Eclipse V3"** (15-16/08/2026) | **Deep-sleep/wake timings readjusted** so they do not affect the radio nor produce erroneous readings, and **the node announces its state over the radio when it sleeps/wakes** (with the reset cause on every boot). Strengthened resilience: admin keys survive factory reset (`keys_ls`/`keys_clear`, `full_reset`/`wipe`). |
-| **4.3.3 — "NavaTastic F21 / V4"** (17/08/2026, current) | **Advanced Remote Channels & Infrastructure Management (F21)**: Full secondary channel management (`ch_set`, `ch_del`, `ch_ls`, `ch_url`, `ch_reset`), CLI listener and notice redirection (`set_cli_chan`, `navadmin_mute`), MQTT controls (`ch_mqtt`, `set_ok_to_mqtt`), static coordinates (`set_pos`), adjustable beacon interval (`set_beacon`), Bluetooth PIN (`set_pin`), temporary RF mute (`mute`), RAM-only diagnostics and logs (`stats`, `log`, `test_tx`). Atomic `/resilience.bin` V4 (`NAV4`) persistence. |
+| **4.3.3 — "NavaTastic F21 / V4"** (17/08/2026) | **Advanced Remote Channels & Infrastructure Management (F21)**: Full secondary channel management (`ch_set`, `ch_del`, `ch_ls`, `ch_url`, `ch_reset`), CLI listener and notice redirection (`set_cli_chan`, `navadmin_mute`), MQTT controls (`ch_mqtt`, `set_ok_to_mqtt`), static coordinates (`set_pos`), adjustable beacon interval (`set_beacon`), Bluetooth PIN (`set_pin`), temporary RF mute (`mute`), RAM-only diagnostics and logs (`stats`, `log`, `test_tx`). Atomic `/resilience.bin` V4 (`NAV4`) persistence. |
+| **4.3.4 — "NavaTastic V5"** (25/08/2026, current) | **App Bidirectional Sync, Hop-Aware Timing & NAV6 Resilience**: Continuous two-way synchronization of 12 everyday settings to `/resilience.bin` V6 (`NAV6`). Hop-Aware adaptive timing (300ms to 3.5s) and decoupled traceroute (8s). LoRa PHY and Primary Channel 0 persistence (`set_preset`, `set_lora`, `set_freq`, `ch_set 0`). Hardcoded persistent node naming in flash (`set_name` and `flush`). Default 12-hour telemetry cadence (43200s). Panic Button Protocol (`panic`, `panic_ok`). 100% resolution of the 4 desync bugs (Role, Name, Position, DM). Auto-favorites capacity expanded to 32 direct nodes. |

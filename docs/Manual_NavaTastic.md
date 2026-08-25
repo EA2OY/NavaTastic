@@ -70,8 +70,32 @@ Documento oficial del proyecto NavaTastic. Manual de operación de los comandos 
 - **`/nava set_freq <freq_mhz> [slot]`** — Ajusta atómicamente la frecuencia central de emisión y su slot asociado.
 
 ### 2.2 Protocolo "Botón del Pánico" (Evacuación de Emergencia V5)
-- **`/nava panic <preset|sfnarrow> [minutos=10] [rollback_mins=0]`** — Dispara la evacuación simultánea de toda la cordillera hacia un preset/frecuencia limpio. Emite pulsos binarios ultracortos `PANC` de 24B con prioridad `ALERT` y bypass de duty cycle, activa el modo túnel en routers, entra en silencio en $T-60\text{s}$ y salta a $T=0$.
-- **`/nava panic_ok`** — Cancela la cuenta atrás de retorno/rollback y consolida definitivamente la nueva frecuencia en `/resilience.bin`.
+
+El **Protocolo del Botón del Pánico** permite realizar una migración masiva, simultánea y coordinada de toda una cordillera de repetidores hacia una nueva modulación LoRa o frecuencia de escape sin necesidad de subir físicamente a las cumbres.
+
+- **`/nava panic <preset|sfnarrow> [minutos=10] [rollback_mins=0]`** — Dispara la secuencia de evacuación en cascada:
+  - `<preset|sfnarrow>`: Preset módem objetivo (ej. `medium_fast`, `long_fast`, `sfnarrow`, etc.).
+  - `[minutos]` (Opcional, por defecto `10`): Tiempo de cuenta atrás para que la orden se propague por toda la cordillera antes de saltar. Durante este tiempo:
+    - Se emiten pulsos periódicos binarios `PANC` de 24B con prioridad `ALERT` y bypass temporal de *duty cycle* en RAM.
+    - Se activa el **Modo Túnel** en todos los routers, descartando tráfico ordinario ajeno para garantizar un canal 100% limpio.
+    - Se establece una **ventana de silencio absoluto** en los últimos 60 segundos ($T-60\text{s}$) para evitar colisiones RF en el momento crítico.
+  - `[rollback_mins]` (Opcional, por defecto `0`): Periodo de prueba de seguridad tras el salto:
+    - **Modo Definitivo (`0`)**: Al llegar a $T=0$, el nodo guarda el nuevo preset en `/resilience.bin`, reinicia y consolida el cambio permanentemente **sin marcha atrás**.
+    - **Modo Prueba con Red de Seguridad (`>0`, ej. `120`)**: Al llegar a $T=0$, el nodo salta al nuevo preset pero activa un temporizador de prueba. Si transcurren los minutos fijados sin que el administrador envíe `/nava panic_ok`, el repetidor asume que la malla quedó incomunicada y **ejecuta un auto-rescate**, borrando el preset y volviendo solo a los valores de fábrica (**SFNarrow / EU_868**).
+
+- **`/nava panic_ok`** — Cancela la cuenta atrás de retorno/rollback y **consolida definitivamente** el nuevo preset en `/resilience.bin`.
+  - *Recomendación*: Emitir `/nava panic_ok` por el **Canal de Administración / Flota** una vez sintonizado el móvil en el nuevo preset para que la orden se propague por la malla y consolide todos los repetidores simultáneamente.
+
+#### 📝 Ejemplos Operativos del Botón del Pánico:
+- **Prueba de migración con red de seguridad (2 horas)**:
+  `/nava panic medium_fast 15 120`  
+  *(15 minutos de aviso a la flota, salto a MediumFast y 120 minutos de espera para `/nava panic_ok` antes del auto-rescate)*.
+- **Retorno masivo definitivo a SFNarrow (Sin rollback)**:
+  `/nava panic sfnarrow 10 0`  
+  *(10 minutos de cuenta atrás y consolidación permanente en SFNarrow en $T=0$)*.
+- **Comportamiento ante Watchdogs / ATtiny13A**:
+  Si un watchdog externo reinicia el nodo durante el periodo de prueba, el firmware arranca directamente en el nuevo preset y renueva el tiempo de espera de confirmación, manteniendo siempre la capacidad de respuesta.
+
 
 ### 2.3 Canales Lógicos (Primario y Secundarios)
 - **`/nava ch_ls`** — Lista los 8 slots de canales (0-7), indicando rol (`PRI`, `SEC`, `DIS`), marca de canal CLI activo (`*`), nombre, tipo de clave (`AES128`, `AES256`, `#1`, `DEF_PRI`) y compuerta MQTT (`U/D`, `U`, `D`, `-`).
