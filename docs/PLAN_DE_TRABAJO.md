@@ -391,10 +391,15 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
 
 - [x] **NAVATASTIC V5 (v4.3.4) — CADENCIA POR DEFECTO DE TELEMETRÍA (12 HORAS) Y SINCRONIZACIÓN (25/08)**:
       * **Valores por Defecto Hardcodeados**: Todos los módulos de telemetría (batería, energía, clima/ambiente, calidad de aire, salud) parten ahora por defecto de un intervalo de **12 horas** (`43200` segundos / `720` min), minimizando la saturación de airtime en la red LoRa comunitaria.
-      * **Sincronización Bidireccional Total**: Modificar la cadencia desde la App Oficial o con `/nava set_telem_tx [minutos|on|off]` sincroniza automáticamente `/resilience.bin` y todos los submódulos de telemetría en tiempo real.
+- [x] **NAVATASTIC V5 (v4.3.4) — REDACCIÓN ACCESIBLE DE MANUALES, RECOPILACIÓN PDF Y FORK AUDITABLE EN GITHUB (25/08)**:
+      * **Manuales Sin Tecnicismos**: Simplificado el capítulo del Botón del Pánico (§2.2 en `Manual_NavaTastic.md` y §10 en `Manual_uso_NavaTastic.md` en español e inglés) eliminando estructuras internas de memoria/código C++ y enfocándolo al 100% en el operador de radio (qué hace, cómo se escribe, ejemplos prácticos y red de auto-rescate a SFNarrow).
+      * **Generación de PDFs Oficiales**: Compilados los 7 PDFs en `docs/pdf/` con Pandoc y XeLaTeX con 0 errores.
+      * **README.md Estilizado y Limpio**: Retirada la tabla redundante de 12 filas de sincronización de la App del README (ahora en el Manual de Uso) para dejar una portada ágil, visual y atractiva.
+      * **Publicación como Fork Auditable sobre Upstream `54e0d8d`**: Rama pública `main` en GitHub (`EA2OY/NavaTastic`) basada directamente en el commit oficial de Meshtastic 2.7.26 (`54e0d8d0a`) con un único commit limpio encima, permitiendo auditoría instantánea en 1 clic del diff de los 104 archivos (+15.402 líneas) sin exponer historial local privado.
 
 - [ ] **MEJORA FUTURA MESHNAVARRA UTILITY (RECORDATORIO OPERADOR)**:
       * Actualizar el catálogo de botones predefinidos en la interfaz táctil de la app Android MeshNavarra Utility para incluir accesos directos a los nuevos comandos de NavaTastic V5 (`set_preset`, `set_lora`, `set_freq`, `panic`, `panic_ok`, `set_cli_chan`, `ign`, `set_ok_to_mqtt`, `stats`, `log`, `pos_clear`, etc.), permitiendo lanzar órdenes en lote a la flota con un solo toque desde el móvil.
+
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)

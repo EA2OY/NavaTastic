@@ -1202,4 +1202,14 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
     2. Guardar siempre los scripts `.ps1` y documentos `.md` en UTF-8 limpio.
     3. Al crear o modificar Releases de GitHub, usar serialización UTF-8 explícita (`[System.Text.Encoding]::UTF8.GetBytes(...)` o scripts Python con codificación UTF-8).
     4. Release `v4.3.4` en GitHub actualizada y saneada al 100% en UTF-8 nativo.
+- **L36 — Publicación en GitHub como Fork Auditable (Squash sobre Upstream `54e0d8d`)**:
+  - **Problema**: Publicar una rama huérfana (`--orphan`) desvincula el grafo de GitHub respecto al repositorio oficial de Meshtastic, mostrando +180.000 líneas añadidas en 2.500 archivos y haciendo imposible para la comunidad auditar los cambios en la interfaz web.
+  - **Solución**:
+    1. Partir del commit oficial de Meshtastic 2.7.26: `git checkout -b github-public 54e0d8d`.
+    2. Aplicar el árbol de `master`: `git read-tree -u -m master`.
+    3. Purgar `.github/workflows/*.yml` y forzar adición de `distribucion/` y `docs/pdf/`.
+    4. Crear un único commit consolidado (*squash*) y forzar push a `main`: `git push -f navatastic github-public:main`.
+    5. Volver a `master` y regenerar distribuibles: `git checkout -f master; .\distribuir.ps1 -Todo`.
+    6. **Resultado**: La web de GitHub muestra el historial oficial y, arriba del todo, el commit de NavaTastic con solo los 104 archivos reales (+15.402 líneas) para auditoría en 1 clic.
+
 

@@ -827,6 +827,21 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     4. **Bug 4 (Mensajería Directa en Routers)**: Desactivación de `is_unmessagable = false` en `NodeDB::installRoleDefaults(ROUTER)`, `loadResiliencePrefs` y `set_role` garantizando administración y DMs siempre operativos.
     5. **Hardcodeo Persistente de Nombre de Nodo y Flush**: Al fijar el nombre con `/nava set_name "[Largo]" "[Corto]"` se guarda en `custom_long_name` y `custom_short_name` dentro de `/resilience.bin` V6 (`NAV6`), sobreviviendo a cualquier reset de fábrica. Para volver al modo natural de la App, el subcomando `/nava set_name flush` borra el hardcodeo de resiliencia.
     6. **Cadencia por Defecto de Telemetría (12h)**: Modificada la cadencia por defecto hardcodeada de todos los tipos de telemetría (batería, energía, clima, calidad de aire, salud) a 12 horas (`43200s`), minimizando el uso de canal y sincronizando bidireccionalmente entre la App Oficial y `/resilience.bin`.
+- **Estado Consolidado (25/08/2026, Manuales Accesibles, README Estilizado y Fork Auditable en GitHub)**:
+  - **Manuales 100% Accesibles para Usuarios**:
+    - Simplificada la redacción del Botón del Pánico (§2.2 en `Manual_NavaTastic.md` y §10 en `Manual_uso_NavaTastic.md` en español e inglés).
+    - Eliminado cualquier tecnicismo de bajo nivel (bytes, structs, bypass de RAM).
+    - Enfoque 100% práctico: qué hace, cómo se escribe, ejemplos reales y avisos de seguridad (auto-rescate a SFNarrow y comportamiento ante resets de hardware).
+  - **Portada `README.md` Optimizada**:
+    - Retiradas tablas redundantes de la fase de desarrollo (App Sync de 12 filas y detalles de laboratorio) que ya están en el Manual de Uso.
+    - Estructura limpia de alto impacto: 5 pasos visuales, 6 ventajas clave, avisos de ciclo solar, comandos rápidos, descargas directas de los 12 builds y enlaces a PDFs oficiales.
+  - **Publicación Pública como Fork Auditable (Squash sobre upstream `54e0d8d`)**:
+    - La rama pública `main` en GitHub (`https://github.com/EA2OY/NavaTastic`) se basa directamente en el commit oficial de Meshtastic 2.7.26 (`54e0d8d0a`) con un único commit limpio encima.
+    - Permite auditoría instantánea en 1 clic en la interfaz web de GitHub (la pestaña "Files changed" muestra única y exclusivamente los 104 archivos modificados / +15.402 líneas de NavaTastic), resolviendo la petición de la comunidad de Telegram sin exponer el historial local.
+  - **Compilación de PDFs Oficiales**: Los 7 documentos PDF de `docs/pdf/` compilados con Pandoc y XeLaTeX (0 errores).
+  - **Documento Maestro de Arquitectura**: Creado `docs/DIFERENCIAS_VS_UPSTREAM.md` para desarrolladores y auditores técnicos.
+  - **Repositorio 100% Limpio y Sincronizado**: `master` local con árbol de trabajo limpio y distribuibles listos.
+
 
 
 
