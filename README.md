@@ -121,52 +121,6 @@ Con un simple mensaje de texto (DM al repetidor o en canal privado de flota) man
 
 ---
 
-## 🔄 Sincronización Bidireccional Transparente con la App Oficial
-
-En **NavaTastic V5**, la interacción entre la App Oficial de Meshtastic (Android / iOS) y el motor de resiliencia `/resilience.bin` V6 (`NAV6`) es **100% transparente**. Ya no tienes que preocuparte por qué parámetros se revierten:
-
-| Ajuste en la App Oficial | Comportamiento en NavaTastic V5 |
-| :--- | :--- |
-| **Nombre del Nodo (App vs NavaCLI)** | En la App modifica el nombre natural. Con `/nava set_name` se **hardcodea en `/resilience.bin`** (sobrevive a resets). Para volver al modo natural: `/nava set_name flush`. |
-| **Rol del Dispositivo** *(Client, Router...)* | **Sincronizado automáticamente en `/resilience.bin`**. Persiste a reinicios y Factory Reset. |
-| **Interruptor "OK to MQTT"** | **Sincronizado automáticamente**. Tu elección en la App se conserva de forma permanente. |
-| **Intervalos de Telemetría, NodeInfo y Posición** | **Sincronizados en resiliencia**. Guardado condicional estricto (0 escrituras parásitas si no cambia). |
-| **Posición Fija GPS** *(Lat/Lon/Alt)* | **Persistida en disco y emitida inmediatamente** a la malla y a pasarelas MeshMap. |
-| **Canales 0 al 7 (Primario y Secundarios)** | **Respaldados en `/resilience.bin`**. Tus claves y canales sobreviven a caídas de energía. |
-| **Preset LoRa y Frecuencia** | **Validados y persistidos** en el bloque de radio física para reinicios limpios. |
-| **PIN Fijo Bluetooth** | **Sincronizado en `/resilience.bin`**. Evita bloqueos de emparejamiento. |
-| **Canal 1 (*Navadmin*)** | **Protegido e inamovible**. Garantiza siempre la vía de rescate y telemetría de ciclo solar. |
-
----
-
-## Requisito de hardware: divisor ADC 1M+1M (factor 2.0)
-
-Para que la medición de batería y la protección de bajo voltaje funcionen, las placas
-**NRF52 (Promicro/Faketec/Albatastic/Xiaowa)** deben medir la batería con un **divisor de dos
-resistencias de 1 MΩ** (factor 2.0).
-
-> **¿Tu placa lleva un divisor distinto?** Puedes ajustarlo antes de compilar en
-> `variants/nrf52840/diy/nrf52_promicro_diy_tcxo/variant.h` (macro `ADC_MULTIPLIER`, valor
-> `VBAT_DIVIDER_COMP`). **Aviso importante**: ese mismo divisor alimenta el comparador
-> **LPCOMP**, que decide el **despertar del modo de resiliencia por batería baja** — los niveles
-> de `set_vwake` están calibrados para divisor 2.0; con otro divisor el nodo despertará a una
-> tensión distinta.
-
-## Químicas de batería
-
-Los 12 builds compilados usan **LiPo/Li-Ion por defecto** (corte 3500 mV en E22P / 3400 mV en
-SX1262). El firmware soporta **4 químicas** y se cambian **sin recompilar** con el comando
-`/nava set_chem` (por DM cifrado, persiste en el nodo):
-
-| Química | Corte | Despertar LPCOMP | Notas |
-|---|---|---|---|
-| **LiPo / Li-Ion** | 3500 mV | ~3.7 V | Default de los builds |
-| **NiMH (3 celdas)** | 3400 mV | ~3.7 V | |
-| **Sodio (Na-Ion)** | 2600 mV | ~3.7 V | Carga máx ~4.0 V |
-| **LiFePO4** | 2800 mV | ~3.3 V | **Solo Promicro y Faketec** (rechazada en Seed/Xiao/T114: su LPCOMP es fijo y no despertarían por solar) |
-
----
-
 ## 📦 Los 12 builds (Descargas Directas v4.3.4)
 
 | Placa / Hardware | Radio | Rama 2: ROUTER (Repetidores Fijos) | Rama 1: CLIENTE (Convertible a Router) |
@@ -180,47 +134,19 @@ SX1262). El firmware soporta **4 químicas** y se cambian **sin recompilar** con
 
 ---
 
-### Manuales y Documentación Técnica (PDF descargable y lectura online)
+### 📚 Manuales y Documentación Técnica (PDF y Lectura Online)
 
-- **[Manual de administración remota NavaTastic V5 (PDF)](docs/pdf/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) — Comandos `/nava`, 4 Pilares de Resiliencia y configuración.
-- **[Manual de uso del firmware V5 (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic.md)) — Montaje, requisitos de hardware y protocolo de rescate.
+- **[Manual de Comandos y Administración Remota V5 (PDF)](docs/pdf/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) — Guía completa de los 50+ comandos `/nava`, sintaxis y ejemplos.
+- **[Manual de Uso del Firmware y Montaje V5 (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic.md)) — Montaje, divisor 1M+1M, químicas de batería, coexistencia con la App y Botón del Pánico.
 - **[Informe Técnico de Auditoría Ultra-Exhaustiva V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** ([Leer en GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)) — Certificación 100% PASS (56/56 pruebas en hardware real).
-- **[Documento Maestro de Arquitectura y Diferencias vs Upstream](docs/DIFERENCIAS_VS_UPSTREAM.md)** — Inventario anatómico de todas las modificaciones y subsistemas exclusivos sobre Meshtastic 2.7.26.
+- **[Documento Maestro de Arquitectura y Diferencias vs Upstream](docs/DIFERENCIAS_VS_UPSTREAM.md)** — Inventario anatómico de todas las modificaciones respecto a Meshtastic 2.7.26 oficial.
+- **[Guía de Compilación Propia y Personalizada](docs/Compilar_NavaTastic.md)** — Instrucciones paso a paso para compilar con PlatformIO.
 
-## Flashear
+## 🔒 Seguridad y Claves de Administración
 
-- **nRF52 (todas las placas)**: con el nodo en modo DFU (doble clic en reset) aparece una
-  unidad **NICENANO** $\rightarrow$ copiar el `.uf2`. Alternativa: `pio run -e <env> -t upload --upload-port COMx`.
-- **Tras flashear un nodo nuevo de fábrica**: hacer **un factory reset** para materializar
-  el canal Navadmin (los avisos y la consulta por canal abierto dependen de él).
-- **Copia de seguridad de claves**: el flasheo por sí solo **conserva** los `/prefs` del nodo
-  (claves, canales, nombre). **Las claves admin del usuario también sobreviven a los resets de
-  fábrica** gracias al sistema de almacenamiento persistente seguro de NavaTastic: se guardan en el nodo y vuelven solas tras un factory/full reset.
-- **Pruebas en banco**: el E22P es inestable en TX con USB (picos de corriente) — usar
-  **TX 1 dBm**; la detección de batería baja exige alimentar **sin USB**.
+- El canal **Navadmin** usa la clave pública por defecto de Meshtastic (`AQ==`, Slot 1): **solo admite consultas de lectura**. Los comandos de cambio exigen **Mensaje Directo Privado (DM)** firmado con tu clave de Administrador.
+- El firmware incluye una clave pública de fábrica para rescate. Puedes añadir tus propias claves de administrador desde la App (*Radio config $\rightarrow$ Security $\rightarrow$ Admin key*). Tus claves quedan blindadas en `/resilience.bin` y **sobreviven a cualquier reseteo de fábrica**.
 
-## Compilar
-
-¿Quieres compilarlo tú mismo? La guía completa — requisitos, clonado, los 12 entornos,
-flasheo y los builds **Propia** (claves propias, no almacenadas) — está en
-**[docs/Compilar_NavaTastic.md](docs/Compilar_NavaTastic.md)**.
-
-## Seguridad
-
-- El canal Navadmin usa la **PSK pública** de Meshtastic (`{0x01}`, slot 1): cualquiera puede
-  escuchar. Solo admite consultas de lectura; los comandos ejecutivos y de configuración exigen **Mensaje Directo Privado (DM)** desde un dispositivo con clave pública autorizada como Administrador.
-- Las claves admin que lleva el firmware son **públicas** (el binario nunca contiene privadas).
-
-### Gestión de claves admin
-
-El firmware sale con una clave admin **de fábrica** (la del proyecto). Para tu red:
-
-1. **Añade DOS claves de gestión remota propias** (de tus dispositivos de mando) desde la app
-   de Meshtastic $\rightarrow$ *Radio config → Security → Admin key* (el firmware admite 3 slots).
-2. **Comprueba que funcionan**: con cada mando, envía un comando `/nava` por DM — debe
-   responder (el repetidor acredita a ese mando como admin y lo guarda en disco).
-3. **Desautoriza la clave de fábrica** una vez verificadas las tuyas: pon **una de tus claves
-   en el slot 0** (sustituyendo a la de fábrica).
 
 ## Licencia
 
@@ -326,12 +252,19 @@ graph LR
 
 ---
 
-### Manuals & Technical Documentation
+### 📚 Manuals & Technical Documentation (PDF & Online)
 
-- **[Remote Administration Manual V5 (PDF)](docs/pdf/Manual_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_NavaTastic.md))
-- **[Firmware User Manual V5 (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic.md))
+- **[Remote Administration Manual V5 (PDF)](docs/pdf/Manual_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_NavaTastic.md)) — Complete 50+ `/nava` command guide, syntax, and real examples.
+- **[Firmware User Manual V5 (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Read on GitHub](docs/Manual_uso_NavaTastic.md)) — Assembly, 1M+1M divider, battery chemistry, App coexistence, and Panic Button.
 - **[Technical Audit Report V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** ([Read on GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)) — 100% PASS Certification (56/56 hardware bench tests).
-- **[Master Architecture & Upstream Differences Document](docs/DIFERENCIAS_VS_UPSTREAM.md)** — Comprehensive anatomical breakdown of all modifications and exclusive subsystems over Meshtastic 2.7.26.
+- **[Master Architecture & Upstream Differences Document](docs/DIFERENCIAS_VS_UPSTREAM.md)** — Comprehensive anatomical breakdown of all modifications over Meshtastic 2.7.26.
+- **[Custom Compilation Guide](docs/Compilar_NavaTastic.md)** — Step-by-step instructions to build firmware with PlatformIO.
+
+## 🔒 Security & Admin Keys
+
+- The **Navadmin** channel uses Meshtastic's default public key (`AQ==`, Slot 1): **read-only queries only**. Administrative state changes require an **Encrypted Direct Message (DM)** signed by an authorized Admin public key.
+- Factory firmware ships with a recovery key. You can add your own admin keys in the App (*Radio config $\rightarrow$ Security $\rightarrow$ Admin key*). Your keys are locked in `/resilience.bin` and **survive factory resets**.
+
 
 ## Acknowledgments
 
