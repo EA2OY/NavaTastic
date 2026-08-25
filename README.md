@@ -121,16 +121,26 @@ Con un simple mensaje de texto (DM al repetidor o en canal privado de flota) man
 
 ---
 
-## 📦 Los 12 builds (Descargas Directas v4.3.4)
+## 📦 Los 12 Entornos y Descargas Oficiales (Releases)
 
-| Placa / Hardware | Radio | Rama 2: ROUTER (Repetidores Fijos) | Rama 1: CLIENTE (Convertible a Router) |
-|---|---|---|---|
-| **Promicro nRF52 + E22P** | E22P (12 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Promicro.NRF52+E22P.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Promicro.NRF52+E22P.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Promicro.NRF52+E22P.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Promicro.NRF52+E22P.NavTastic.2.7.26.R1IG.zip) |
-| **Promicro / Faketec HT-RA62** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Faketec.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Faketec.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Faketec.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Faketec.NavTastic.2.7.26.R1IG.zip) |
-| **Seeed Solar Node P1** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Seed.Solar.Node.P1.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Seed.Solar.Node.P1.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Seed.Solar.Node.P1.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Seed.Solar.Node.P1.NavTastic.2.7.26.R1IG.zip) |
-| **Heltec T114** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Heltec.T114.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Heltec.T114.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Heltec.T114.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Heltec.T114.NavTastic.2.7.26.R1IG.zip) |
-| **Xiao nRF52840 Kit** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c.NavTastic.2.7.26.R1IG.zip) |
-| **Xiao nRF52840 Kit + E22P** | E22P (12 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c+E22P.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c+E22P.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c+E22P.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c+E22P.NavTastic.2.7.26.R1IG.zip) |
+Todos los binarios compilados listos para flashear (**`.uf2` por USB y `.zip` por OTA**) para baterías **LiPo** y **NiMH** están empaquetados y disponibles en la sección oficial de descargas de GitHub:
+
+<div align="center">
+
+[![Descargar Firmware NavaTastic V5](https://img.shields.io/badge/📥%20Descargar%20Binarios%20UF2%20y%20OTA-GitHub%20Releases%20v4.3.4-blue?style=for-the-badge&logo=github)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.4)
+
+</div>
+
+### 📋 Matriz de Placas y Radios Soportadas:
+
+| Placa / Hardware | Módulo Radio LoRa | Potencia | Rama 2 (Routers / Repetidores) | Rama 1 (Clientes / Portátiles) |
+|---|---|:---:|:---:|:---:|
+| **Promicro nRF52 + E22P** | Ebyte E22P (SX1262 TCXO) | 12 dBm (hasta 30 dBm) | `Promicro NRF52+E22P R2IG` | `Promicro NRF52+E22P R1IG` |
+| **Promicro / Faketec HT-RA62** | SX1262 Estándar / TCXO | 22 dBm | `Faketec R2IG` (LiPo / NiMH) | `Faketec R1IG` (LiPo / NiMH) |
+| **Seeed Solar Node P1** | SX1262 | 22 dBm | `Seed Solar Node P1 R2IG` | `Seed Solar Node P1 R1IG` |
+| **Heltec T114** | SX1262 | 22 dBm | `Heltec T114 R2IG` | `Heltec T114 R1IG` |
+| **Seeed Xiao nRF52840 Kit** | SX1262 | 22 dBm | `XiaoKitI2c R2IG` (LiPo / NiMH) | `XiaoKitI2c R1IG` (LiPo / NiMH) |
+| **Seeed Xiao Kit + E22P** | Ebyte E22P (SX1262 TCXO) | 12 dBm | `XiaoKitI2c+E22P R2IG` | `XiaoKitI2c+E22P R1IG` |
 
 ---
 
@@ -239,16 +249,26 @@ graph LR
 
 ---
 
-## 📦 The 12 builds (Direct Downloads v4.3.4)
+## 📦 The 12 Builds & Official Downloads (Releases)
 
-| Board / Hardware | Radio | Branch 2: ROUTER (Fixed Repeaters) | Branch 1: CLIENT (Convertible to Router) |
-|---|---|---|---|
-| **Promicro nRF52 + E22P** | E22P (12 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Promicro.NRF52+E22P.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Promicro.NRF52+E22P.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Promicro.NRF52+E22P.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Promicro.NRF52+E22P.NavTastic.2.7.26.R1IG.zip) |
-| **Promicro / Faketec HT-RA62** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Faketec.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Faketec.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Faketec.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Faketec.NavTastic.2.7.26.R1IG.zip) |
-| **Seeed Solar Node P1** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Seed.Solar.Node.P1.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Seed.Solar.Node.P1.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Seed.Solar.Node.P1.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Seed.Solar.Node.P1.NavTastic.2.7.26.R1IG.zip) |
-| **Heltec T114** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Heltec.T114.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Heltec.T114.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Heltec.T114.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/Heltec.T114.NavTastic.2.7.26.R1IG.zip) |
-| **Xiao nRF52840 Kit** | SX1262 (22 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c.NavTastic.2.7.26.R1IG.zip) |
-| **Xiao nRF52840 Kit + E22P** | E22P (12 dBm) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c+E22P.NavTastic.2.7.26.R2IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c+E22P.NavTastic.2.7.26.R2IG.zip) | [UF2](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c+E22P.NavTastic.2.7.26.R1IG.uf2) · [OTA](https://github.com/EA2OY/NavaTastic/releases/download/v4.3.4/XiaoKitI2c+E22P.NavTastic.2.7.26.R1IG.zip) |
+All pre-compiled flashable binaries (**`.uf2` for USB and `.zip` for OTA**) for **LiPo** and **NiMH** batteries are packaged and available in the official GitHub Releases section:
+
+<div align="center">
+
+[![Download NavaTastic V5 Firmware](https://img.shields.io/badge/📥%20Download%20UF2%20&%20OTA%20Binaries-GitHub%20Releases%20v4.3.4-blue?style=for-the-badge&logo=github)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.4)
+
+</div>
+
+### 📋 Supported Boards and Radio Matrix:
+
+| Board / Hardware | LoRa Radio Module | Power | Branch 2 (Routers / Repeaters) | Branch 1 (Clients / Handhelds) |
+|---|---|:---:|:---:|:---:|
+| **Promicro nRF52 + E22P** | Ebyte E22P (SX1262 TCXO) | 12 dBm (up to 30 dBm) | `Promicro NRF52+E22P R2IG` | `Promicro NRF52+E22P R1IG` |
+| **Promicro / Faketec HT-RA62** | SX1262 Standard / TCXO | 22 dBm | `Faketec R2IG` (LiPo / NiMH) | `Faketec R1IG` (LiPo / NiMH) |
+| **Seeed Solar Node P1** | SX1262 | 22 dBm | `Seed Solar Node P1 R2IG` | `Seed Solar Node P1 R1IG` |
+| **Heltec T114** | SX1262 | 22 dBm | `Heltec T114 R2IG` | `Heltec T114 R1IG` |
+| **Seeed Xiao nRF52840 Kit** | SX1262 | 22 dBm | `XiaoKitI2c R2IG` (LiPo / NiMH) | `XiaoKitI2c R1IG` (LiPo / NiMH) |
+| **Seeed Xiao Kit + E22P** | Ebyte E22P (SX1262 TCXO) | 12 dBm | `XiaoKitI2c+E22P R2IG` | `XiaoKitI2c+E22P R1IG` |
 
 ---
 

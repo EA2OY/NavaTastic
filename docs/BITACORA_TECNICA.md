@@ -1211,5 +1211,21 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
     4. Crear un único commit consolidado (*squash*) y forzar push a `main`: `git push -f navatastic github-public:main`.
     5. Volver a `master` y regenerar distribuibles: `git checkout -f master; .\distribuir.ps1 -Todo`.
     6. **Resultado**: La web de GitHub muestra el historial oficial y, arriba del todo, el commit de NavaTastic con solo los 104 archivos reales (+15.402 líneas) para auditoría en 1 clic.
-
-
+- **L37 — Protocolo y Checklist Obligatorio de Preparación de Nodos para Auditoría de Malla (Prevención de Bloqueo por CLIENT_MUTE y Desalineación LoRa)**:
+  - **Problema**: Al flashear nodos que provienen de pruebas o configuraciones previas, el volcado DFU no borra la partición LittleFS (`InternalFS`), preservando configuraciones antiguas que bloquean el banco:
+    1. **Bloqueo por `CLIENT_MUTE`**: En Meshtastic (`FloodingRouter.cpp:157`), si un nodo conserva `role == CLIENT_MUTE`, `isRebroadcaster()` devuelve `false` y el nodo descarta cualquier reenvío ajeno, haciendo que los traceroutes y comandos multi-hop fallen silenciosamente (`MAX_RETRANSMIT`) aunque el nodo responda a sus propios pings.
+    2. **Desalineación de Modulación LoRa**: Si un nodo tiene `use_preset = true` (`MEDIUM_FAST`) y otro `use_preset = false` (`SFNarrow`), operan en modulaciones incompatibles y no se escuchan por radio.
+  - **Protocolo Obligatorio de Preparación en 4 Pasos (Checklist)**:
+    1. **Backup Previo**: Volcar la identidad (`!ID`, claves públicas, GPS, etc.) a `_archivo/backups_nodos/`.
+    2. **Flasheo Seguro DFU**: Subir el firmware sin tocar la partición de claves (`security.proto`).
+    3. **Alineación Explícita 4-en-1**: Ejecutar en cada nodo del banco:
+       - Frecuencia: `override_frequency = 869.545` (aislada de producción).
+       - Potencia: `tx_power = -5` (mínima de banco).
+       - Modulación: `use_preset = false`, `bandwidth = 62`, `spread_factor = 7`, `coding_rate = 5` (SFNarrow).
+       - Rol: `device.role = ROUTER` para todos los repetidores/eslabones intermedios (`CLIENT` para el Master timonel).
+- **L38 — Migración Segura de Estructuras Binarias en Flash (`/resilience.bin`) y Prevención de Corrupción de Nombres**:
+  - **Problema**: Al actualizar nodos desde versiones previas (V2/V3/V4) a V5, la estructura `ResiliencePrefs` creció de ~560B a 756B para dar soporte al Bloque D (`custom_long_name[40]` y `custom_short_name[5]`). Debido a que `prefs` no se inicializaba con `memset` antes de `f.read()`, y la rutina de migración `legacy` omitió limpiar los campos de nombre, los bytes sobrantes en RAM contenían basura residual no nula. El firmware interpretaba esa basura como un nombre persistente fijado y sobreescribía el nombre legítimo del nodo en `NodeDB` con caracteres ilegibles (`?k####/?#??`).
+  - **Solución Implementada**:
+    1. **`memset` Integral Previo**: `memset(&prefs, 0, sizeof(prefs))` antes de cualquier lectura de disco, asegurando que campos nuevos siempre arranquen en cero.
+    2. **Inicialización Explícita en `if (legacy)`**: Limpieza forzada de `custom_long_name` y `custom_short_name` a ceros.
+    3. **Auto-Sanación y Validación de Integridad**: Comprobación estricta de caracteres ASCII/UTF-8 imprimibles válidos antes de aplicar cualquier nombre. Si se detectan caracteres de control o basura de flashes anteriores, se purga a vacío automáticamente y se preserva el nombre legítimo de `NodeDB`.

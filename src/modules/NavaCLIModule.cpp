@@ -63,6 +63,7 @@ NavaCLIModule::NavaCLIModule()
 }
 
 void NavaCLIModule::loadResiliencePrefs() {
+    memset(&prefs, 0, sizeof(prefs));
     if (FSCom.exists("/resilience.bin")) {
         File f = FSCom.open("/resilience.bin", FILE_O_READ);
         if (f) {
@@ -110,6 +111,9 @@ void NavaCLIModule::loadResiliencePrefs() {
                     prefs.panic_last_pulse_ms = 0;
                     prefs.panic_trial_active = 0;
                     prefs.panic_trial_deadline_ms = 0;
+
+                    memset(prefs.custom_long_name, 0, sizeof(prefs.custom_long_name));
+                    memset(prefs.custom_short_name, 0, sizeof(prefs.custom_short_name));
 
                     // Si venía de versión <=84B (pre-NAV3), adoptar claves de admin
                     if (fileSize <= 84) {
@@ -213,15 +217,36 @@ void NavaCLIModule::loadResiliencePrefs() {
                     moduleConfig.telemetry.air_quality_interval = prefs.telem_tx_secs;
                     moduleConfig.telemetry.health_update_interval = prefs.telem_tx_secs;
                 }
-                // V5: Restaurar nombre personalizado persistido si existe
+                // V5: Restaurar nombre personalizado persistido si existe y es válido
                 if (prefs.custom_long_name[0] != '\0') {
-                    strncpy(owner.long_name, prefs.custom_long_name, sizeof(owner.long_name) - 1);
-                    owner.long_name[sizeof(owner.long_name) - 1] = '\0';
-                    if (prefs.custom_short_name[0] != '\0') {
-                        strncpy(owner.short_name, prefs.custom_short_name, sizeof(owner.short_name) - 1);
-                        owner.short_name[sizeof(owner.short_name) - 1] = '\0';
+                    bool isValidCustomName = true;
+                    size_t len = strnlen(prefs.custom_long_name, sizeof(prefs.custom_long_name));
+                    if (len == 0 || len >= sizeof(prefs.custom_long_name)) {
+                        isValidCustomName = false;
+                    } else {
+                        for (size_t i = 0; i < len; i++) {
+                            unsigned char c = (unsigned char)prefs.custom_long_name[i];
+                            if (c < 0x20 || c == 0x7F) {
+                                isValidCustomName = false;
+                                break;
+                            }
+                        }
                     }
-                    nodeDB->updateUser(nodeDB->getNodeNum(), owner);
+                    if (!isValidCustomName) {
+                        memset(prefs.custom_long_name, 0, sizeof(prefs.custom_long_name));
+                        memset(prefs.custom_short_name, 0, sizeof(prefs.custom_short_name));
+                        saveResiliencePrefs();
+                    } else {
+                        strncpy(owner.long_name, prefs.custom_long_name, sizeof(owner.long_name) - 1);
+                        owner.long_name[sizeof(owner.long_name) - 1] = '\0';
+                        sanitizeUtf8(owner.long_name, sizeof(owner.long_name));
+                        if (prefs.custom_short_name[0] != '\0') {
+                            strncpy(owner.short_name, prefs.custom_short_name, sizeof(owner.short_name) - 1);
+                            owner.short_name[sizeof(owner.short_name) - 1] = '\0';
+                            sanitizeUtf8(owner.short_name, sizeof(owner.short_name));
+                        }
+                        nodeDB->updateUser(nodeDB->getNodeNum(), owner);
+                    }
                 }
                 return;
             }

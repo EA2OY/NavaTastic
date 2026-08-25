@@ -159,12 +159,47 @@ flowchart TD
 
 ---
 
-## 🏆 4. DICTAMEN FINAL DE AUDITORÍA
+## 🏆 4. DICTAMEN FINAL DE AUDITORÍA V4
 **NavaTastic V4 (4.3.3) supera el 100% de la Auditoría Ultra-Exhaustiva en Banco Físico**.
 - Cero desincronizaciones entre la capa de control NavaCLI y las estructuras Protobuf de Meshtastic.
 - Cero pérdidas de enlace tras Soft Reboot o reconfiguración de parámetros críticos.
 - Blindajes de seguridad, rescate y protección anti-tormentas en canales públicos funcionando a la perfección.
 
+---
 
+## 🔬 5. AUDITORÍA INTEGRAL EN HARDWARE REAL — NAVATASTIC V5 (v4.3.4)
 
+> **ESTADO 25/08/2026 — BANCO FÍSICO DE 3 SALTOS Y TOPOLOGÍA LINEAL FORZADA**:
+> Protocolo para certificar las novedades de la V5 (Hop-Aware timing, True Random Jitter en Navadmin, Trace asíncrono, Ventana pre-reboot de 6s, Protocolo de Pánico y Persistencia de Modulación).
 
+### 📐 Topología Lineal y Roles de la Cadena de 4 Nodos:
+$$\text{MasterNode (!dd3ff7b2 / COM24)} \quad \longleftrightarrow \quad \text{GPS (!5cfaaca9)} \quad \longleftrightarrow \quad \text{015a (!8289015a)} \quad \longleftrightarrow \quad \text{Slave (!43ca4c27)}$$
+
+| # | Nodo | ID | Hardware | Rol | Ubicación Física | Propósito en el Banco |
+|---|---|---|---|:---:|---|---|
+| **1** | **MasterNode** | `!dd3ff7b2` | ProMicro nRF52 + E22P | `ROUTER` (HopLim 4) | Mesa PC (COM24) | Emisor timonel y recolector de trazas |
+| **2** | **GPS (NetChecker T)** | `!5cfaaca9` | Faketec nRF52 + SX1262 | `ROUTER` (HopLim 3) | Pasillo (Intermedio) | Salto 1 (Aisla RF entre Mesa y Habitación) |
+| **3** | **015a** | `!8289015a` | Faketec nRF52 + SX1262 | `ROUTER` (HopLim 3) | Habitación (con antena) | Salto 2 (Enlace intermedio) |
+| **4** | **Slave** | `!43ca4c27` | Faketec nRF52 + SX1262 | `CLIENT` (HopLim 3) | Fondo habitación | Salto 3 (Nodo destino final) |
+
+> ⚠️ **NOTA CRÍTICA SOBRE ENGENDRO NODE (`!b0f2515c` / E22P + BME680)**:
+> EngendroNode fue utilizado exclusivamente para diagnosticar la coexistencia de sensores I2C (`/prefs/bsec.dat`) y el bug de nombres. **NO debe incluirse en la cadena lineal física** porque su módulo E22P (30 dBm / TCXO) tiene una penetración RF tan alta que enlazaría en 0 saltos directos con todos los nodos, destruyendo el aislamiento lineal de 3 saltos del banco.
+
+### 🛡️ Lecciones Críticas Aprendidas y Errores Solventados (NO REPETIR):
+1. **Corrupción de Nombres en Migraciones de Flash (`/resilience.bin`) — L38**:
+   - *Causa*: `ResiliencePrefs` creció a 756B en V5. Al leer archivos antiguos de menor tamaño (~560B), la memoria no inicializada con `memset` dejaba basura en `custom_long_name`. Al arrancar, el firmware creía que existía un nombre forzado y corrompía `owner.long_name`.
+   - *Fix implementado y blindado*: `memset` integral de la estructura antes de lectura, reseteo en rama `legacy`, y rutina de auto-sanación que purga caracteres de control automáticamente.
+2. **Reinicio en Bucle por Store & Forward en nRF52**:
+   - *Causa*: `store_forward.is_server = true` agota la memoria RAM en microcontroladores nRF52840, provocando Soft Watchdog reboots.
+   - *Regla*: Store & Forward Server debe permanecer `false` en todos los repetidores nRF52.
+3. **Bloqueo por `CLIENT_MUTE` y Desalineación LoRa (L37)**:
+   - *Regla*: Todos los repetidores intermedios (`GPS` y `015a`) deben tener `role = ROUTER`, y la modulación debe estar fijada explícitamente en todos los nodos a **`869.545 MHz / -5 dBm / SFNarrow`**.
+4. **Flasheo Seguro sin Reset de Fábrica**:
+   - Todo flasheo DFU preserva intactas las claves privadas y públicas (`security.proto`). Nunca ejecutar factory reset salvo instrucción expresa.
+
+### 🚀 Procedimiento Rápido de Reanudación de la Auditoría V5:
+1. Conectar **MasterNode** a `COM24`.
+2. Encender **GPS** (pasillo), **015a** (habitación) y **Slave** (fondo de la habitación) con sus baterías a `-5 dBm`.
+3. Ejecutar `python -u _archivo/trace_runner.py !43ca4c27 10` desde `MasterNode` para certificar la ruta de 3 saltos:
+   $$\text{MasterNode} \longrightarrow \text{GPS} \longrightarrow \text{015a} \longrightarrow \text{Slave}$$
+4. Iniciar la ejecución de la batería de pruebas de las funciones V5.
