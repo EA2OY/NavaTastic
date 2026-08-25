@@ -417,6 +417,25 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
            - **Modo Firme (Por defecto)**: Salto definitivo y permanente en `/resilience.bin` (cero riesgo de partición de red o *split-brain*).
            - **Modo Prueba con Rollback**: Si el admin fijó minutos de retorno (ej. 120m), los nodos esperan consolidación en la nueva frecuencia mediante el comando en cascada `/nava panic_ok` en *Navadmin*. Solo si pasan los 120m en silencio absoluto de administradores, se ejecuta un reinicio total de hardware para regresar a la frecuencia segura de fábrica (`SFNarrow`).
 
+- [ ] **MEJORA FUTURA: SINCRONIZACIÓN BIDIRECCIONAL TRANSPARENTE DE LA APP OFICIAL EN RESILIENCE.BIN (UX ZERO-FRICTION)**:
+      * **Problema Resuelto**: Eliminar la fricción de los usuarios comunes que configuran parámetros desde la App oficial de Meshtastic y ven cómo se revierten al reiniciar el nodo debido a las plantillas por defecto.
+      * **Arquitectura de Interceptores en `AdminModule.cpp`**:
+        - Cada vez que el usuario pulsa "Guardar" en la App móvil oficial, `AdminModule` intercepta la transacción de `AdminMessage`, valida los rangos (*Sanity Whitelist*) y realiza un guardado condicional estricto en `/resilience.bin` (`if changed`, 0 escrituras parásitas a Flash si el valor no cambia).
+        - **Ajustes Sincronizados al 100% desde la App Oficial**:
+          1. **Rol del Dispositivo**: `prefs.role` (evita que un `TRACKER` o `ROUTER_LATE` vuelva a cambiar al boot).
+          2. **OK to MQTT**: `prefs.ok_to_mqtt` (1=ON, 2=OFF, interceptado desde *Settings -> LoRa Config*).
+          3. **Intervalo de Telemetría**: `prefs.telem_tx_secs`.
+          4. **Intervalo de NodeInfo Broadcast**: `prefs.nodeinfo_tx_secs`.
+          5. **Intervalo de Posición GPS**: `prefs.pos_tx_secs`.
+          6. **Posición Fija Coordenadas**: `prefs.fixed_pos_lat`, `prefs.fixed_pos_lon`, `prefs.fixed_pos_alt`, `prefs.fixed_pos_enabled`.
+          7. **Canal 0 Primario**: `prefs.primary_channel_name` y `prefs.primary_channel_psk`.
+          8. **Canales Secundarios 2 al 7**: `prefs.customChannels[6]`.
+          9. **Preset LoRa y Frecuencia**: `prefs.lora_*`.
+          10. **PIN Fijo Bluetooth**: `prefs.fixed_pin`.
+          11. **Lista Negra / Ignorar Nodo**: `prefs.ignoredNodes`.
+          12. **Claves de Administrador**: `prefs.admin_keys` *(ya activo)*.
+        - **Ajustes Exclusivos de Consola `/nava`**: Química de Batería (`set_chem`), Umbrales de Voltaje (`set_vbat`/`set_vwake`), Storm RTC2 (`storm`), y Gate Fav Auto (`fav auto`).
+
 - [ ] **MEJORA FUTURA MESHNAVARRA UTILITY (RECORDATORIO OPERADOR)**:
       * Actualizar el catálogo de botones predefinidos en la interfaz táctil de la app Android MeshNavarra Utility para incluir accesos directos a los nuevos comandos de NavaTastic V4 (`set_cli_chan`, `ign`, `set_ok_to_mqtt`, `stats`, `log`, `pos_clear`, etc.), permitiendo lanzar órdenes en lote a la flota con un solo toque desde el móvil.
 
