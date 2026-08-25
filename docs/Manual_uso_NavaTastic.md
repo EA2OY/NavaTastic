@@ -251,39 +251,35 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 
 ---
 
-## 10. Protocolo de Evacuación de Emergencia y Migración de Malla (Botón del Pánico V5)
+## 10. Cómo cambiar la frecuencia de toda la malla (Botón del Pánico V5)
 
-El **Protocolo del Botón del Pánico** permite a un operador autorizado realizar una migración masiva, simultánea y coordinada de toda una cordillera de repetidores solares hacia un nuevo preset módem o frecuencia LoRa sin necesidad de desplazarse físicamente a las cumbres.
+El **Botón del Pánico** permite a un administrador mover todos los repetidores de una cordillera a una nueva frecuencia o velocidad LoRa a la vez, sin tener que desplazarse físicamente a las cumbres a reprogramarlos.
 
-### 10.1 ¿Cuándo y por qué utilizarlo?
-- **Saturación crítica o interferencias**: Si la frecuencia actual sufre interferencias severas, ruido elevado o congestión.
-- **Migración acordada de flota**: Cuando la red comunitaria decide cambiar de velocidad/modulación (ej. de *ShortFast Narrow* a *MediumFast*).
-- **Evacuación de emergencia**: Para mover todos los repetidores a un canal seguro de forma coordinada.
+### 10.1 ¿Cuándo se utiliza?
+- Si la frecuencia habitual tiene muchas interferencias o está saturada de tráfico.
+- Si el grupo o la comunidad decide cambiar la velocidad de la red (ej. de *ShortFast Narrow* a *MediumFast*).
+- Si necesitas evacuar temporalmente la flota a un canal seguro.
 
-### 10.2 Procedimiento Paso a Paso
+### 10.2 Pasos para realizar la migración
 
-1. **Declaración del Pánico y Propagación**:  
-   El administrador envía el comando indicando el preset destino, los minutos de cuenta atrás para el aviso y los minutos de prueba de seguridad:  
-   `/nava panic <preset|sfnarrow> [minutos=10] [rollback_mins=0]`  
-   - *Ejemplo de migración con red de seguridad*: `/nava panic medium_fast 15 120` (15 min de propagación y 120 min de prueba).  
-   - *Ejemplo de retorno definitivo a SFNarrow*: `/nava panic sfnarrow 10 0` (10 min de propagación, salto definitivo).
-2. **Propagación en Malla y Modo Túnel**:  
-   Los nodos emiten pulsos periódicos binarios `PANC` de 24 bytes con prioridad `ALERT` y *bypass* temporal de duty cycle en RAM. Todos los routers activan el **Modo Túnel**, descartando el tráfico de paso ordinario no urgente para mantener el canal despejado.
-3. **Ventana de Silencio ($T-60\text{s}$)**:  
-   Durante los últimos 60 segundos antes del salto, toda la flota entra en silencio absoluto de radio para evitar colisiones RF en el segundo del cambio.
-4. **Salto Simultáneo y Reinicio ($T=0$)**:  
-   En el segundo 0 exacto, todos los nodos graban la nueva configuración en `/resilience.bin` y ejecutan un reinicio automático, levantando la radio en la nueva modulación.
-5. **Fase de Prueba y Consolidación (`/nava panic_ok`)**:  
-   - El administrador sintoniza su dispositivo móvil o nodo de control en el nuevo preset.
-   - Envía el comando **`/nava panic_ok`** por el **Canal de Administración / Flota**.
-   - Al recibirlo, la orden se retransmite por la malla y **todos los repetidores cancelan la cuenta atrás de retorno, consolidando el nuevo preset de forma permanente en `resilience.bin`**.
-6. **Auto-Rescate de Seguridad (Rollback Automático)**:  
-   - Si transcurren los minutos de prueba pactados (ej. 120 min) sin que el administrador pueda enviar `/nava panic_ok` (por falta de cobertura o preset incompatible), los repetidores borran la configuración de `/resilience.bin`, ejecutan un restablecimiento a valores de fábrica seguros (**SFNarrow / EU_868**) y reinician, recuperando la red original.
+1. **Lanzar la orden**: Envías el comando indicando la frecuencia o preset destino, los minutos de aviso previo y los minutos de prueba:  
+   `/nava panic <preset> [minutos_aviso] [minutos_prueba]`  
+   - *Ejemplo con red de seguridad (Recomendado)*:  
+     `/nava panic medium_fast 15 120`  
+     *(Avisa durante 15 minutos por toda la montaña, cambia a MediumFast y te da 2 horas para probarlo)*.
+   - *Ejemplo de retorno definitivo a SFNarrow*:  
+     `/nava panic sfnarrow 10 0`  
+     *(Avisa durante 10 minutos y se queda fijado para siempre en SFNarrow)*.
+2. **Qué ocurre durante el aviso**: Los repetidores se reenvían el aviso entre ellos. Durante el último minuto antes del cambio, la red se silencia para que todos los nodos salten a la vez limpiamente y sin colisiones.
+3. **El cambio**: En el minuto pactado, todos los repetidores se reinician y arrancan en la nueva frecuencia.
+4. **Confirmar que todo va bien**:
+   - Cambias tu teléfono o nodo de control a la nueva frecuencia.
+   - Mandas el comando **`/nava panic_ok`** por el canal de administración.
+   - Todos los repetidores reciben tu confirmación y se quedan fijos en el nuevo preset para siempre.
 
-### 10.3 Comportamiento ante Resets de Hardware (Watchdog / ATtiny13A)
-Si un repetidor sufre un reinicio por hardware o pulso de watchdog externo durante la fase de prueba:
-- El nodo vuelve a arrancar inmediatamente en el nuevo preset gracias a `/resilience.bin`.
-- El temporizador de seguridad se renueva desde el arranque, garantizando la ventana de tiempo completa al administrador para confirmar con `/nava panic_ok`.
+### 10.3 ⚠️ ¿Qué pasa si algo sale mal? (Auto-Rescate de seguridad)
+- **Si el nuevo preset no tiene cobertura o te equivocas**: No te preocupes. Si pasan los minutos de prueba (ej. 2 horas) sin que mandes `/nava panic_ok`, **los repetidores cancelan el cambio y vuelven solos automáticamente a la frecuencia estándar de fábrica (SFNarrow)**. ¡Nunca perderás el control de un nodo en la montaña!
+- **Si un nodo se apaga o reinicia durante la prueba**: Al arrancar seguirá en la nueva frecuencia y reiniciará su tiempo de espera, dándote margen suficiente para mandar el `panic_ok`.
 
 ---
 
@@ -570,39 +566,35 @@ headless**, through two channels:
   the current config) or `/nava wipe` (total purge). After `wipe`/`nrf erase` only the project
   key remains (guaranteed rescue channel).
 
-## 10. Emergency Evacuation & Mesh Migration Procedure (Panic Button V5)
+## 10. How to change the frequency of the whole mesh (Panic Button V5)
 
-The **Panic Button Protocol** enables an authorized operator to execute a mass, coordinated, and simultaneous migration of an entire mountain range of solar repeaters to a new LoRa preset or rescue frequency without physical access to the mountain summits.
+The **Panic Button** allows an administrator to move all mountain repeaters to a new frequency or LoRa speed at once, without climbing any summits to reprogram them physically.
 
-### 10.1 When and Why to Use It
-- **Critical channel congestion or severe interference**: If the current frequency experiences persistent jamming or noise.
-- **Scheduled fleet migration**: When the mesh community decides to transition to a new modulation (e.g. from *ShortFast Narrow* to *MediumFast*).
-- **Emergency evacuation**: To evacuate all mountain repeaters to a clean channel in a coordinated manner.
+### 10.1 When to use it
+- If the current frequency is jammed, noisy, or overloaded with traffic.
+- If the community decides to change fleet speed (e.g. from *ShortFast Narrow* to *MediumFast*).
+- If you need to temporarily move your repeaters to a clean channel.
 
-### 10.2 Step-by-Step Procedure
+### 10.2 Step-by-step procedure
 
-1. **Panic Trigger**:  
-   The admin sends the command specifying target preset, propagation countdown minutes, and trial rollback minutes:  
-   `/nava panic <preset|sfnarrow> [minutos=10] [rollback_mins=0]`  
-   - *Example with safety net*: `/nava panic medium_fast 15 120` (15 min countdown, 120 min trial).  
-   - *Example permanent return to SFNarrow*: `/nava panic sfnarrow 10 0` (10 min countdown, immediate permanent consolidation).
-2. **Mesh Propagation & Tunnel Mode**:  
-   Nodes emit periodic 24-byte binary `PANC` pulses with `ALERT` priority and RAM duty-cycle bypass. All routers enter **Tunnel Mode**, dropping non-urgent third-party traffic to ensure a clear channel.
-3. **Silence Window ($T-60\text{s}$)**:  
-   During the final 60 seconds before the jump, all nodes silence transmissions to avoid RF collisions at the moment of the jump.
-4. **Simultaneous Jump & Reboot ($T=0$)**:  
-   At second 0, nodes write the new configuration to `/resilience.bin` and reboot into the new modulation.
-5. **Trial Phase & Consolidation (`/nava panic_ok`)**:  
-   - Admin tunes local control node/phone to the new preset.
-   - Admin sends **`/nava panic_ok`** on the **Fleet / Admin Channel**.
-   - All repeaters receive the broadcast, cancel the rollback timer, and consolidate the new preset permanently in `resilience.bin`.
-6. **Automatic Safety Rollback (Self-Rescue)**:  
-   - If the trial expires (e.g. 120 min) without receiving `/nava panic_ok`, repeaters automatically erase the custom preset from `resilience.bin`, reset to factory rescue settings (**SFNarrow / EU_868**), and reboot back to the original safe channel.
+1. **Send the command**: Specify the target preset, warning minutes, and test/trial minutes:  
+   `/nava panic <preset> [warning_mins] [test_mins]`  
+   - *Example with safety net (Recommended)*:  
+     `/nava panic medium_fast 15 120`  
+     *(Warns across the mountain for 15 minutes, switches to MediumFast, and gives you 2 hours to test it)*.  
+   - *Example permanent return to SFNarrow*:  
+     `/nava panic sfnarrow 10 0`  
+     *(Warns for 10 minutes and stays permanently on SFNarrow)*.
+2. **What happens during the warning**: Repeaters relay the warning to each other. During the last minute before the jump, the mesh silences itself so that all nodes switch cleanly without collisions.
+3. **The jump**: At the scheduled minute, all repeaters reboot and start operating on the new frequency.
+4. **Confirming that everything works**:
+   - Switch your phone or control device to the new frequency.
+   - Send the command **`/nava panic_ok`** on the admin channel.
+   - All repeaters receive your confirmation and lock in the new preset permanently.
 
-### 10.3 Hardware Watchdogs (ATtiny13A)
-If a repeater experiences a watchdog hardware reset during the trial phase:
-- It reboots immediately back into the target preset from `/resilience.bin`.
-- The trial timer is renewed from boot, providing the full safety window for the admin to confirm with `/nava panic_ok`.
+### 10.3 ⚠️ What happens if something goes wrong? (Automatic Self-Rescue)
+- **If the new preset has no coverage or you made a mistake**: Don't worry. If the test period expires (e.g. 2 hours) without receiving `/nava panic_ok`, **the repeaters will cancel the change and automatically revert on their own to the default factory rescue channel (SFNarrow)**. You will never lose control of a mountain repeater!
+- **If a node loses power or resets during the test**: It will reboot into the new frequency and reset its trial timer, giving you plenty of time to send `panic_ok`.
 
 ---
 
