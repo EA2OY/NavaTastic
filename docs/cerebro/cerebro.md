@@ -804,15 +804,32 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   - **Flasheo de Faketec y Retorno a Producción SFN**: Flasheado el nodo físico Faketec (`COM17`) con `navarrico_faketec_sx1262_r2ig` (Rama 2 Routers LIPO) y restablecida la frecuencia oficial de España de ShortFast Narrow (`869.618 MHz / 22 dBm` / canal 4), saliendo del modo aislamiento de laboratorio (`869.545 MHz / 1 dBm`).
   - **Auditoría de Sanitización Criptográfica**: Verificada al 100% la ausencia de claves personales en todo el repositorio (0 coincidencias regex), utilizando únicamente claves dummy estándar de 44 caracteres (`K8mP2x9Lv...`, `B7vN4w1Zq...`, `R3k9Qm2Wp...`).
   - **Sincronización Total en GitHub (`EA2OY/NavaTastic:main`)**: Publicado con éxito el árbol saneado mediante el flujo seguro de rama huérfana (`github-public:main`), quedando la portada, manuales, PDFs y binarios inmediatamente accesibles para la comunidad.
-- **Estado Consolidado (25/08/2026, Diseño Arquitectónico de NavaTastic V5 / v4.3.4 Finalizado)**:
-  - **Especificación Completa en `PLAN_DE_TRABAJO.md`**: Diseñados y blindados los 4 grandes pilares de la futura versión **NavaTastic V5 (v4.3.4)**:
-    1. **Hop-Aware Timing & Desacople de Traceroute**: Jitter adaptativo en DM (0.3s a 5.0s según saltos recorridos), True Random Jitter en Navadmin (5 a 13s), desacople secuencial de `traceroute` (texto ACK $\rightarrow$ 8-10s de silencio $\rightarrow$ sonda RF) y ventana de gracia pre-reboot (6-8s) armada dinámicamente en `runOnce()` tras vaciar la cola `responseQueue`.
-    2. **Persistencia LoRa (Estándar/Custom) y Canal 0 en `/resilience.bin`**: Separación de Capa Física (Preset LoRa, SF 5-12, BW 31-500, Freq 863.0-873.3 MHz, Slot, Potencia) y Capa Lógica (Canal 0 Nombre/PSK), con reconfiguración RF diferida y feedback en frecuencia antigua antes del Soft Reset.
-    3. **Protocolo "Botón del Pánico" (Evacuación de Malla)**: Evacuación coordinada provincial en 10 minutos vía pulso binario ultracorto (24B), purga de cola `txQueue.clear()`, `override_duty_cycle = true`, `Priority_EMERGENCY`, potencia protegida (sin forzar subidas para no dañar baterías en invierno), modo túnel, temporización monotónica relativa por cuarzo (`millis()`), ventana de silencio (60s) y Soft Reset simultáneo, con consolidación en destino vía `/nava panic_ok`.
-    4. **Sincronización Bidireccional Transparente de la App Oficial**: Interceptores en `AdminModule.cpp` para los 12 ajustes habituales (rol, OK to MQTT, telemetría, nodeinfo, posición fija, canales 0-7, LoRa, PIN BLE, ignorados, claves admin) con guardado condicional estricto (`if changed`, 0 escrituras parásitas).
-  - **Norma 13 de Versionado de Compilaciones**: Toda compilación de V5 generará binarios y carpetas etiquetadas (`Desktop\NavaTastic V5 4.3.4` y `*_V5_4.3.4.uf2`), garantizando que los binarios V4 previos nunca se sobreescriban ni borren.
-  - **Snapshot de Seguridad V4**: Creado el tag Git `v4.3.3-stable` como seguro de vida antes de iniciar las modificaciones de V5.
-  - **Handover Estratégico a Nueva Sesión**: Planificado el traspaso a una sesión limpia dedicada al 100% a la implementación en código C++ y compilación con PlatformIO, manteniendo esta sesión como base de auditoría y arquitectura.
+- **Estado Consolidado (25/08/2026, Implementación, Compilación y Distribución NavaTastic V5 / v4.3.4 FINALIZADA 100% SUCCESS)**:
+  - **Fase 2 de Ejecución Completada**:
+    1. **NavaCLIModule.h / NavaCLIModule.cpp**:
+       - `NAVATASTIC_BUILD "V5"`, `NAVS_RESILIENCE_VERSION 0x4E415636` (`NAV6`).
+       - Ampliación de capacidad de auto-favoritos de 16 a 32 (`autoFavIds[32]`).
+       - Estructura `NavaPanicPulse` (24 bytes empaquetados).
+       - Persistencia física de capa LoRa (`lora_use_preset`, `lora_modem_preset`, `lora_bandwidth`, `lora_spread_factor`, `lora_coding_rate`, `lora_override_frequency`, `lora_channel_num`, `lora_configured`) y Canal 0 Primario (`ch0_name`, `ch0_psk`, `ch0_psk_len`, `ch0_configured`).
+       - Hop-Aware Timing con jitter dinámico por saltos en respuestas directas y difusiones con True Random Jitter.
+       - Desacople asíncrono de Traceroute (texto encolado inmediatamente, sonda enviada 8s después).
+       - Ventana de gracia pre-reboot de 6s post-envío de ACK LoRa (`deferredAction` y `preRebootArmed` tras vaciar `responseQueue`).
+       - Comandos nuevos: `set_preset`, `set_lora`, `set_freq`, `panic`, `panic_ok`, y reconfiguración de Canal 0 en `ch_set 0`.
+    2. **AdminModule.cpp**:
+       - Inyectadas comprobaciones con guarda `if (navaCLIModule)` para sincronización transparente hacia `/resilience.bin` de los 12 ajustes cotidianos desde la App oficial de Meshtastic.
+    3. **Router.cpp**:
+       - Inyectado el Modo Túnel de Pánico (`NavaCLIModule::navaIsPanicTunnelMode()`) con descarte de tráfico ajeno no urgente (`p->priority != meshtastic_MeshPacket_Priority_ALERT`).
+    4. **distribuir.ps1**:
+       - Añadido switch `-V5` con destino `Desktop\NavaTastic V5 4.3.4` y sufijos `*_V5_4.3.4.uf2` / `*.zip` cumpliendo estrictamente la Norma 13.
+  - **Corrección de los 4 Bugs Críticos de Desincronización V4 (25/08)**:
+    1. **Bug 1 (Rol en MQTT y Mapas)**: Sincronización de `owner.role` con `config.device.role` en `AdminModule::handleSetConfig`, `/nava set_role`, `syncDeviceRoleFromConfig` y `loadResiliencePrefs` con `nodeDB->updateUser` y `service->reloadOwner(true)`.
+    2. **Bug 2 (Identidad en `/nava set_name`)**: Inclusión de `SEGMENT_DEVICESTATE` en `saveToDisk`, `nodeDB->updateUser` y `service->reloadOwner(true)` para propagación instantánea a la malla.
+    3. **Bug 3 (Difusión Inmediata tras `/nava set_pos` y `pos_clear`)**: Guardado de `SEGMENT_CONFIG | SEGMENT_NODEDATABASE` y emisión forzada vía `positionModule->sendOurPosition(NODENUM_BROADCAST, false)` en `set_pos` y `clearLocalPosition` en `pos_clear`.
+    4. **Bug 4 (Mensajería Directa en Routers)**: Desactivación de `is_unmessagable = false` en `NodeDB::installRoleDefaults(ROUTER)`, `loadResiliencePrefs` y `set_role` garantizando administración y DMs siempre operativos.
+    5. **Hardcodeo Persistente de Nombre de Nodo y Flush**: Al fijar el nombre con `/nava set_name "[Largo]" "[Corto]"` se guarda en `custom_long_name` y `custom_short_name` dentro de `/resilience.bin` V6 (`NAV6`), sobreviviendo a cualquier reset de fábrica. Para volver al modo natural de la App, el subcomando `/nava set_name flush` borra el hardcodeo de resiliencia.
+    6. **Cadencia por Defecto de Telemetría (12h)**: Modificada la cadencia por defecto hardcodeada de todos los tipos de telemetría (batería, energía, clima, calidad de aire, salud) a 12 horas (`43200s`), minimizando el uso de canal y sincronizando bidireccionalmente entre la App Oficial y `/resilience.bin`.
+
+
 
 
 

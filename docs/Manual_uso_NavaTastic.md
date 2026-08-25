@@ -1,5 +1,5 @@
 ---
-title: "Manual de Uso — Firmware NavaTastic Eclipse V4"
+title: "Manual de Uso — Firmware NavaTastic V5 (v4.3.4)"
 subtitle: "Desarrollo optimizado para infraestructura solar en ubicaciones de difícil acceso"
 author: "Modificación inicial por JBAU92 · Desarrollo continuado por EA2OY"
 date: "Agosto 2026"
@@ -8,12 +8,13 @@ toc: true
 toc-title: "Índice"
 ---
 
-# Manual de Uso — Firmware NavaTastic Eclipse V4
+# Manual de Uso — Firmware NavaTastic V5 (v4.3.4)
 
-> **ADENDA 17/08/2026 — REPO UNIFICADO V4 (F21/F22)**: manual de usuario **VIGENTE** (comportamiento
-> del firmware; la versión actual es NavaTastic Eclipse V4 (4.3.3) = repo unificado, 12 builds
-> `navarrico_*`). Los binarios se distribuyen desde `distribucion\` del repo (32
-> ficheros, nombres históricos).
+> **ADENDA 25/08/2026 — NAVATASTIC V5 (v4.3.4)**: manual de usuario **VIGENTE**. Incluye sincronización
+> bidireccional transparente con la App Oficial de Meshtastic en `/resilience.bin` V6 (`NAV6`),
+> Hop-Aware Timing con jitter adaptativo, protocolo de evacuación simultánea de pánico,
+> persistencia física de capa LoRa/frecuencia y Canal 0 Primario. Distribución en 12 variantes
+> `navarrico_*` desde `distribucion\` y `Desktop\NavaTastic V5 4.3.4`.
 
 Este firmware ha sido diseñado específicamente para nodos de la red **Meshtastic** que operan de forma aislada y autónoma. Su objetivo es garantizar la supervivencia del hardware ante caídas críticas de energía o corrupciones de memoria, permitiendo la recuperación y gestión de forma **100% remota** sin necesidad de intervenciones físicas en el emplazamiento.
 
@@ -147,18 +148,21 @@ Si el nodo sufre una corrupción de memoria, un fallo de escritura o un reinicio
 
 ---
 
-## 6. Coexistencia y Diferencias con la App Oficial de Meshtastic
+## 6. Sincronización Bidireccional y Coexistencia con la App Oficial de Meshtastic
 
-NavaTastic incorpora un motor de resiliencia (`/resilience.bin`) diseñado para garantizar la supervivencia de repetidores solares de montaña. Esto genera comportamientos intencionados que difieren de la App oficial:
+A partir de **NavaTastic V5 (v4.3.4)**, la interacción entre la App Oficial de Meshtastic (Android / iOS) y el motor de resiliencia `/resilience.bin` V6 (`NAV6`) es **completamente transparente y bidireccional**. Ya no existen restricciones que obliguen a usar exclusivamente comandos `/nava` para las configuraciones cotidianas:
 
-| Parámetro / Interruptor | Comportamiento en App Oficial | Comportamiento en NavaTastic | Razón de Seguridad y Resiliencia | Manejo Canónico en NavaTastic |
-| :--- | :--- | :--- | :--- | :--- |
-| **Interruptor Bluetooth (BLE)** | Al apagar el switch se guarda en flash. | Al reiniciar, el firmware **vuelve a encender BLE** si no se usó `/nava`. | **Protección Anti-Huérfano**: Evita que un toque accidental en la pantalla del móvil deje el repetidor incomunicado sin Bluetooth en la montaña. | Para apagarlo de forma permanente: enviar por DM `/nava ble off` (guarda `prefs.ble_disabled = 1`). |
-| **Canal 1 (Navadmin)** | La App permite borrarlo o editarlo. | **Inamovible y protegido**: Rechaza `/nava ch_del 1` y restaura PSK `AQ==`. | **Canal de Rescate Vital**: Garantiza que el nodo siempre emita avisos de ciclo solar, telemetría y diagnósticos. | Para silenciarlo en abierto: `/nava navadmin_mute on` o mover la consola con `/nava set_cli_chan <2-7>`. |
-| **Claves Admin tras Reset** | Un Factory Reset borra todas las claves. | **Persistencia Criptográfica**: Las claves de usuario y rescate se restauran solas. | **Mantenimiento Remoto Seguro**: Evita perder el control administrativo tras un reset de configuración. | Consultar con `/nava admin_ls` o purgar copia persistida con `/nava keys_clear`. |
-| **Rol de Hardware** | Un reset vuelve al rol del binario original. | **Rol Semi-Permanente**: El rol modificado persiste tras Factory Reset. | **Supervivencia de Malla**: Evita que un router reconvertido vuelva a cliente tras una tormenta eléctrica. | Conmutar con `/nava set_role router` o `/nava set_role client`. |
-| **Base de Datos de Nodos** | La App espera que los nodos se guarden en flash. | **100% RAM-Only**: Nodos de paso viven en RAM y no se escriben en disco. | **Cero Desgaste de Flash**: Multiplica por 10 la vida útil del microcontrolador al no quemar las celdas flash. | Los favoritos manuales y automáticos se respaldan en `/resilience.bin`. |
-| **Cadencia de Balizas en Routers** | Suele emitir cada 15 a 30 minutos. | Fijada por defecto a **72 horas** en routers de infraestructura. | **Anti-Saturación LoRa**: Protege el canal de spam de posición innecesario en repetidores fijos. | Ajustar intervalos de flota con `/nava set_pos_tx` y `/nava set_nodeinfo_tx`. |
+| Parámetro / Interruptor | Comportamiento en App Oficial | Comportamiento en NavaTastic V5 | Razón de Seguridad y Resiliencia |
+| :--- | :--- | :--- | :--- |
+| **Nombre del Nodo (App vs NavaCLI)** | En la App cambia el nombre natural en flash (`/prefs`). | Con `/nava set_name` se **hardcodea en `/resilience.bin`** y sobrevive a cualquier reset de fábrica. | **Identidad Inmutable Optativa**: Permite fijar el nombre a fuego vía DM o liberar con `/nava set_name flush`. |
+| **Rol del Dispositivo** | Al cambiar el rol en la App se envía a Flash. | Se sincroniza en `/resilience.bin`, actualiza `owner.role` y sobrevive a Factory Reset. | **Supervivencia de Malla**: Evita que un router vuelva a cliente tras una tormenta eléctrica. |
+| **OK to MQTT** | Se conmuta en *Settings -> LoRa*. | Sincronizado automáticamente hacia `/resilience.bin`. | **Transparencia Total**: El estado elegido en la App se conserva permanentemente. |
+| **Intervalos de Telemetría, NodeInfo y Posición** | Se modifican desde los menús de la App. | Sincronizados condicionalmente en `/resilience.bin` (`0` escrituras parásitas si no cambia). | **Cero Desgaste Flash**: Respaldado en el motor de resiliencia sin degradación. |
+| **Posición Fija y Coordenadas GPS** | Se fijan en *Device -> Location*. | Se guardan en `/resilience.bin` y se dispara baliza inmediata a la red y mapas. | **Refresco Instantáneo**: Las pasarelas y MeshMap reciben la posición sin demoras. |
+| **Canales 0 al 7** | Se crean o editan en la pestaña de canales. | Se respaldan en `/resilience.bin` (incluyendo Canal 0 Primario y secundarios 2-7). | **Persistencia de Canales**: Los canales configurados en la App sobreviven a reinicios. |
+| **Preset LoRa y Frecuencia** | Se ajustan en *LoRa Config*. | Se validan mediante *Sanity Whitelist* y se guardan en el bloque de radio física. | **Reconfiguración Blindada**: Evita desconfiguraciones accidentales de frecuencia. |
+| **PIN Bluetooth (BLE)** | Se define en *Bluetooth Config*. | Se sincroniza en `/resilience.bin` para emparejamientos fijos. | **Acceso Ininterrumpido**: El PIN configurado persiste tras caídas de energía. |
+| **Canal 1 (Navadmin)** | Protegido contra borrado en el nodo. | Inamovible con clave PSK `AQ==` (`0x01`). | **Canal de Rescate Vital**: Garantiza que el repetidor siempre pueda ser tele-diagnosticado. |
 
 ---
 
@@ -264,7 +268,7 @@ La administración remota se realiza con comandos **`/nava`** (módulo `NavaCLIM
 
 ---
 
-# NavaTastic User Manual — Eclipse V3 (English)
+# NavaTastic User Manual — V5 (v4.3.4) (English)
 
 > English translation of the Spanish manual above. **The Spanish original is the authoritative
 > version.** The firmware is designed for autonomous, isolated **Meshtastic** network nodes; its

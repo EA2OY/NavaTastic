@@ -796,6 +796,13 @@ void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src)
             skipHandle = true;
         }
 
+        // NAVARICO V5: Modo Túnel del Protocolo Botón del Pánico (suspende reenvío ordinario ajeno)
+        if (!isFromUs(p) && NavaCLIModule::navaIsPanicTunnelMode() && p->priority != meshtastic_MeshPacket_Priority_ALERT) {
+            LOG_DEBUG("NavaCLI: Modo Tunel de Panico activo, cancelando reenvio de paquete ordinario");
+            cancelSending(p->from, p->id);
+            skipHandle = true;
+        }
+
         // NAVARICO F22: Lista negra global persistente (ign)
         if (!isFromUs(p) && NavaCLIModule::isNodeIgnored(p->from)) {
             LOG_DEBUG("NavaCLI: Paquete ignorado de nodo en lista negra 0x%x", p->from);

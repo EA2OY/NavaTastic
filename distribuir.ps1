@@ -14,11 +14,13 @@
 param(
     [string]$EnvName = "",
     [switch]$Todo,
-    [switch]$V2
+    [switch]$V2,
+    [switch]$V5
 )
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 $v2Root = "C:\Users\Jesus\Desktop\NavaTastic Eclipse Edition V2"
+$v5Root = "C:\Users\Jesus\Desktop\NavaTastic V5 4.3.4"
 
 # Mapa env -> (Rama, Nombre de fichero historico)
 $map = @{
@@ -54,7 +56,7 @@ foreach ($e in $envs) {
             $dir = Join-Path $destRama ($cara + "\" + $tipo)
             New-Item -ItemType Directory -Path $dir -Force | Out-Null
             $patron = if ($tipo -eq "UF2") { "*.uf2" } else { "*.zip" }
-            # V2: los .pio/build acumulan artefactos de builds anteriores; SIEMPRE el mas reciente
+            # V2/V5: los .pio/build acumulan artefactos de builds anteriores; SIEMPRE el mas reciente
             $src = Get-ChildItem -LiteralPath $buildDir -Filter $patron -File | Where-Object { $_.Name -notlike "*ota*" -and $_.Name -notlike "*factory*" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
             if (-not $src) { Write-Warning "Sin $patron en $buildDir (env $e)"; continue }
             $ext = if ($tipo -eq "UF2") { ".uf2" } else { ".zip" }
@@ -69,6 +71,14 @@ foreach ($e in $envs) {
                 $v2Dest = Join-Path $v2Dir ($info.Nombre + $ext)
                 Copy-Item -LiteralPath $src.FullName -Destination $v2Dest -Force
                 Write-Host ("V2  {0}" -f $v2Dest)
+            }
+            if ($V5) {
+                $v5Dir = Join-Path $v5Root ($info.Rama + "\" + $cara + "\" + $tipo)
+                New-Item -ItemType Directory -Path $v5Dir -Force | Out-Null
+                $v5Name = $info.Nombre -replace "2\.7\.26", "2.7.26 V5 4.3.4"
+                $v5Dest = Join-Path $v5Dir ($v5Name + $ext)
+                Copy-Item -LiteralPath $src.FullName -Destination $v5Dest -Force
+                Write-Host ("V5  {0}" -f $v5Dest)
             }
         }
     }

@@ -1051,36 +1051,57 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
     9. `/nava help` $\rightarrow$ Catálogo completo de comandos F21 fragmentado en 4 partes por límites de MTU.
   - **Dictamen de Auditoría F21**: Todos los módulos de gestión remota de canales, redirección de CLI, URLs canónicas, estructuras volátiles en RAM y PIN Bluetooth operan correctamente sobre el hardware real sin regresión en la resiliencia solar.
 
-### SESIÓN 17/08/2026 — FRENTE F22: CONSOLA DE GESTIÓN DE FLOTA, BLINDAJE ANTI-TORMENTAS Y GENERACIÓN NAVA V4 (12/12 SUCCESS)
-- **Objetivo Cumplido**: Implementación de la consola de gestión de flota en lote en canales privados, blindaje anti-tormentas en el canal público Navadmin, persistencia V5 de listas negras y control de difusión periódica de posición/telemetría.
+### SESIÓN 25/08/2026 — IMPLEMENTACIÓN COMPLETA NAVATASTIC V5 (v4.3.4): HOP-AWARE TIMING, PERSISTENCIA LORA/CH0, PROTOCOLO DE PÁNICO Y SYNC BIDIRECCIONAL (12/12 SUCCESS)
+- **Objetivo Cumplido**: Implementación integral de los 4 grandes pilares de NavaTastic V5 (v4.3.4) en el repositorio unificado, migración a versión de resiliencia `NAV6`, compilación limpia de la matriz de 12 variantes con PlatformIO y distribución versionada a `Desktop\NavaTastic V5 4.3.4`.
 - **Modificaciones en Código Fuente**:
   1. `src/modules/NavaCLIModule.h`:
-     - Bump a `NAVATASTIC_BUILD "V4"` y `NAVS_RESILIENCE_VERSION = 0x4E415635` ("NAV5").
-     - Estructura `ResiliencePrefs` ampliada con `pos_tx_secs`, `nodeinfo_tx_secs`, `telem_tx_secs`, `ignoredNodes[8]` e `ignoredCount`.
-     - Declaración de helpers: `isNodeIgnored()`, `addIgnoredNode()`, `removeIgnoredNode()`, `clearIgnoredNodes()`.
+     - Bump de versión: `#define NAVATASTIC_BUILD "V5"` y `#define NAVS_RESILIENCE_VERSION 0x4E415636` ("NAV6").
+     - Estructura empaquetada `struct NavaPanicPulse` (24 bytes) con campos `magic` (`0x50414E43`), `use_preset`, `modem_preset`, `sf`, `cr`, `bw_code`, `channel_slot`, `freq_mhz`, `remaining_seconds`, `rollback_minutes` y `sender_nodenum`.
+     - `struct ResiliencePrefs`:
+       - Ampliación de array `autoFavIds[32]` (de 16 a 32 auto-favoritos).
+       - Inclusión de campos de Capa Física LoRa: `lora_use_preset`, `lora_modem_preset`, `lora_bandwidth`, `lora_spread_factor`, `lora_coding_rate`, `lora_override_frequency`, `lora_channel_num`, `lora_configured`.
+       - Inclusión de campos de Capa Lógica Canal 0: `ch0_name[12]`, `ch0_psk[32]`, `ch0_psk_len`, `ch0_configured`.
+       - Inclusión de campos del Protocolo de Pánico: `panic_active`, `panic_target_preset`, `panic_target_bw`, `panic_target_sf`, `panic_target_cr`, `panic_target_slot`, `panic_target_freq`, `panic_target_time_ms`, `panic_rollback_mins`, `panic_last_pulse_ms`, `panic_trial_active`, `panic_trial_deadline_ms`.
+     - `enum NavaDeferredAction`: `NAVA_DEFERRED_NONE`, `NAVA_DEFERRED_REBOOT`, `NAVA_DEFERRED_FACTORY_RESET`, `NAVA_DEFERRED_FULL_RESET`, `NAVA_DEFERRED_WIPE`, `NAVA_DEFERRED_STORM`, `NAVA_DEFERRED_TXOFF`, `NAVA_DEFERRED_KEYS_CLEAR`, `NAVA_DEFERRED_LORA_CHANGE`, `NAVA_DEFERRED_PANIC_JUMP`.
   2. `src/modules/NavaCLIModule.cpp`:
-     - **Blindaje Anti-Tormentas en Canal Público (Navadmin)**:
-       - Broadcast masivo (sin `!ID`): solo permite los 7 comandos ligeros de sondeo (`ping`, `status`, `bat`, `power`, `env`, `channel`, `noise`) en 1 sola línea corta con jitter anti-colisión escalonado.
-       - Silencio intencionado para `/nava help` general y comandos no permitidos en broadcast abierto (cero respuestas masivas ni colapsos de canal).
-       - Broadcast dirigido (con `!ID` o `@grupo`): permite diagnósticos individuales (`stats`, `log`, `ch_ls`, `help`, `peers`, `rxlog`, `afc`, `reset_reason`).
-     - **Consola Privada de Gestión de Flota (Slots 2..7)**:
-       - Permite órdenes en lote a toda la red con un solo mensaje: `set_ok_to_mqtt`, `set_pos_tx`, `set_nodeinfo_tx`, `set_telem_tx`, `ign add/del/clear/ls`, `set_beacon`, `set_tz`, `set_chem`, `set_vbat`, `set_vwake`, `sleepmsg`, `mute`, `test_tx`, `db_purge`, `nodeinfo`, `pos`, `sendtel`.
-       - Comandos individuales geográficos (`set_pos`, `set_name`, `set_pin`, `pos_clear`) y destructivos nucleares (`wipe`, `factory_reset`, `full_reset`, `keys_clear`, `reboot`, `ch_reset`, `ch_del`) exigen `!ID` o DM para evitar desastres masivos.
-     - **Nuevos Comandos Implementados**:
-       - `power`: Telemetría solar/corriente INA219 (V, mA carga/descarga, mW) ahora permitida en canal abierto.
-       - `set_pos_tx [on|off|<mins>]`: Control de difusión periódica de posición (persiste en `/resilience.bin` V5).
-       - `set_nodeinfo_tx [on|off|<mins>]`: Control de difusión periódica de NodeInfo/identidad (persiste en `/resilience.bin` V5).
-       - `set_telem_tx [on|off|<mins>]`: Control de reporte de telemetría de batería y sensores (`moduleConfig.telemetry.device_update_interval`, persiste en disco).
-       - `pos_clear`: Borrado de coordenadas fijas guardadas.
-       - `ign add/del/clear/ls`: Lista negra global persistente en disco (hasta 8 nodos bloqueados).
-     - **Ayuda Contextual Ampliada**:
-       - Menú general `/nava help` actualizado.
-       - Entradas de ayuda específica `helpForCommand()` y `usageAndState()` añadidas y verificadas para todos los comandos nuevos y modificados.
-  3. `src/mesh/Router.cpp`:
-     - Integración de `NavaCLIModule::isNodeIgnored(p->from)` en `handleReceived()`: los paquetes provenientes de nodos en la lista negra son cancelados y descartados inmediatamente a nivel de enrutador.
-- **Compilación y Distribución**:
-  - Matriz de 12 variantes compilada con **SUCCESS** (`build.ps1` -> 12/12).
-  - 32 binarios UF2/OTA generados y distribuidos a `distribucion\` (`distribuir.ps1 -Todo`).
+     - **Migración a `NAV6`**: `loadResiliencePrefs()` detecta estructuras `NAV5`, `NAV4`, `NAV3` o versiones previas y migra automáticamente preservando claves admin (`keySlot*`), rol y auto-favoritos preexistentes.
+     - **Persistencia LoRa y Canal 0**:
+       - `applyPersistedLoraConfig()`, `adoptPersistedLoraConfig()`, `syncLoraConfigFromConfig()`.
+       - `applyPersistedChannel0()`, `adoptPersistedChannel0()`, `syncChannel0FromConfig()`.
+     - **Sincronización Bidireccional de la App Oficial**:
+       - Interceptores para los 12 ajustes cotidianos: `syncDeviceRoleFromConfig()`, `syncOkToMqttFromConfig()`, `syncTelemetryIntervalFromConfig()`, `syncNodeInfoIntervalFromConfig()`, `syncPositionIntervalFromConfig()`, `syncFixedPositionFromConfig()`, `syncBluetoothPinFromConfig()`, `syncCustomChannelFromConfig()`.
+     - **Hop-Aware Timing & True Random Jitter**:
+       - `wantPacket()` y `handleReceived()` calculan saltos recorridos `hops = (p->hop_start > p->hop_limit) ? (p->hop_start - p->hop_limit) : 0`.
+       - `enqueueResponse()` aplica retardo adaptativo en DM (300ms a 0 saltos, 1.5s a 1 salto, 3.5s a $\ge 2$ saltos) y True Random Jitter en Navadmin (`5000 + random(0, 8000)` ms).
+     - **Desacople Asíncrono de Traceroute**:
+       - `/nava trace !ID` responde inmediatamente con texto de confirmación y programa el lanzamiento de la sonda RF en `millis() + 8000`.
+     - **Ventana de Gracia Pre-Reboot Armada Post-Envío (6s)**:
+       - Los comandos de reinicio/reset/wipe/storm/txoff/lora/panic arman `deferredAction` y, una vez que `responseQueue.empty()` es true, se activa `preRebootArmed = true; deferredExecutionTime = millis() + 6000;`, garantizando la emisión completa del paquete ACK antes de reiniciar.
+     - **Protocolo de Pánico**:
+       - `/nava panic <preset|sfnarrow> [minutos=10] [rollback_mins=0]` y `/nava panic_ok`.
+       - `startPanic()`, `emitPanicPulse()`, `cancelPanicRollback()`, ventana de silencio a $T-60\text{s}$ y salto coordinado a $T=0$.
+     - **Nuevos Comandos CLI**:
+       - `/nava set_preset [long_fast|medium_fast|...]`
+       - `/nava set_lora <bw> <sf> <cr> <freq_mhz> <slot> [txpower]`
+       - `/nava set_freq <freq_mhz> [slot]`
+       - `/nava panic`, `/nava panic_ok`
+       - `/nava ch_set 0 <nombre> <psk_base64>`
+  3. `src/modules/AdminModule.cpp`:
+     - Inyectadas llamadas con guarda segura `if (navaCLIModule)` en `handleSetConfig`, `handleSetModuleConfig` y `handleSetChannel` para sincronización automática y transparente hacia `/resilience.bin`.
+  4. `src/mesh/Router.cpp`:
+     - Inyectado el Modo Túnel en `Router::perhapsHandleReceived()`: cancela el reenvío de tráfico ajeno cuando `NavaCLIModule::navaIsPanicTunnelMode()` es true y `p->priority != meshtastic_MeshPacket_Priority_ALERT`.
+  5. `distribuir.ps1`:
+     - Añadido switch `-V5` apuntando a `C:\Users\Jesus\Desktop\NavaTastic V5 4.3.4` con sufijo `*_V5_4.3.4.uf2` / `*.zip` (Norma 13).
+- **Corrección de los 4 Bugs Críticos de Desincronización V4 (25/08, Fixes V4-in-V5)**:
+  1. **Bug 1 (Desincronización de Rol en MQTT y Mapas)**: Corregida la divergencia entre `config.device.role` y `owner.role`. `AdminModule::handleSetConfig` (caso `device`), `/nava set_role`, `syncDeviceRoleFromConfig` y `loadResiliencePrefs` sincronizan `owner.role = config.device.role`, ejecutan `nodeDB->updateUser(nodeDB->getNodeNum(), owner)`, persisten `SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE` y fuerzan `service->reloadOwner(true)`.
+  2. **Bug 2 (Persistencia Incompleta y Refresco en `/nava set_name`)**: Añadida terminación null `\0`, `nodeDB->updateUser`, guardado de `SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE` y llamada inmediata a `service->reloadOwner(true)` para emisión de `NodeInfo` actualizado.
+  3. **Bug 3 (Difusión Inmediata tras `/nava set_pos` y `pos_clear`)**: `set_pos` persiste `SEGMENT_CONFIG | SEGMENT_NODEDATABASE` y dispara `positionModule->sendOurPosition(NODENUM_BROADCAST, false)`. `pos_clear` limpia coordenadas locales con `nodeDB->clearLocalPosition()`, resetea flags y guarda en disco.
+  4. **Bug 4 (Coherencia de Mensajería Directa en Routers)**: Eliminado el marcado automático de `is_unmessagable = true` para repetidores/routers. En `NodeDB::installRoleDefaults(ROUTER)`, `loadResiliencePrefs` y `set_role`, se asegura `owner.is_unmessagable = false` y `owner.has_is_unmessagable = true`, manteniendo la recepción de mensajes administrativos por DM plenamente operativa.
+- **Compilación y Verificación**:
+  - Matriz completa de 12 variantes compilada con **100% SUCCESS** en PlatformIO (`build.ps1`).
+  - Distribución versionada ejecutada con éxito (`distribuir.ps1 -Todo -V5`).
+
+
 
 ### SESIÓN 17/08/2026 — PUBLICACIÓN OFICIAL GITHUB RELEASE V4.3.3 Y SANEAMIENTO DE ASSETS PÚBLICOS
 - **Publicación Release v4.3.3 (`EA2OY/NavaTastic`)**:
@@ -1150,6 +1171,30 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   - Verificada la purga de claves personales al 100% (cero coincidencias regex en todo el árbol), garantizando el uso exclusivo de claves dummy de 44 caracteres.
 - **Sincronización en Producción en GitHub**:
   - Publicado el árbol saneado a `https://github.com/EA2OY/NavaTastic` (`main`) mediante rama huérfana limpia `github-public`.
+
+### SESIÓN 25/08/2026 — LANZAMIENTO COMPLETO DE NAVATASTIC V5 (v4.3.4), 4 FIXES DE DESINCRONIZACIÓN Y NOMBRE PERSISTENTE
+- **Pilar 1: Hop-Aware Adaptive Timing & Desacople Asíncrono de Traceroute**:
+  - Jitter pseudo-aleatorio `5000 + random(0, 8000)` ms para canal Navadmin (Canal 1).
+  - Hop-Aware timing adaptativo: 300ms a 0 saltos, 1.5s a 1 salto, 3.5s a $\ge 2$ saltos.
+  - Desacople de `traceroute`: respuesta ACK de texto inmediata y disparo de la sonda RF a los 8 segundos.
+  - Ventana de gracia pre-reboot de 6s (`preRebootArmed = true; deferredExecutionTime = millis() + 6000;`) una vez que `responseQueue.empty()` es true.
+- **Pilar 2: Persistencia Física LoRa y Canal 0 Primario (`NAV6`)**:
+  - Registro de parámetros de radio (`lora_*`) y Canal 0 (`ch0_*`) en `/resilience.bin` V6 (`NAV6` / `0x4E415636`).
+  - Comandos `/nava set_preset`, `/nava set_lora`, `/nava set_freq`, `/nava ch_set 0`.
+  - Capacidad ampliada de auto-favoritos a 32 nodos directos (`autoFavIds[32]`).
+- **Pilar 3: Protocolo Botón del Pánico para Evacuación de Malla**:
+  - Pulso binario `NavaPanicPulse` (24 bytes) con magic `0x50414E43` (`PANC`) en Canal 1 con prioridad `ALERT` y bypass de duty cycle.
+  - Modo Túnel en `Router.cpp` (`navaIsPanicTunnelMode()`), ventana de silencio en $T-60\text{s}$, salto simultáneo en $T=0$ y `/nava panic_ok` para consolidación.
+- **Pilar 4: Sincronización Bidireccional Transparente de la App Oficial**:
+  - Puentes con guarda `if (navaCLIModule)` en `AdminModule.cpp` para los 12 ajustes cotidianos: rol, MQTT, telemetría, nodeinfo, posición fija, canales 0-7, LoRa preset, PIN BLE, ignorados y claves admin.
+- **Corrección de los 4 Bugs Críticos de Desincronización (Fixes V4-in-V5)**:
+  - Sincronización de `owner.role` con `config.device.role`, persistencia de `SEGMENT_DEVICESTATE` en `/nava set_name`, disparo inmediato en `set_pos` y `pos_clear`, y desactivación de `is_unmessagable = false` en `NodeDB::installRoleDefaults(ROUTER)`.
+- **Hardcodeo Persistente de Nombre de Nodo y Subcomando Flush**:
+  - Modificar el nombre con `/nava set_name "[Largo]" "[Corto]"` guarda `custom_long_name` y `custom_short_name` en `/resilience.bin` V6 (`NAV6`), sobreviviendo a resets de fábrica.
+  - El subcomando `/nava set_name flush` limpia el hardcodeo de `/resilience.bin` y devuelve el nodo al comportamiento natural de la App.
+- **Cadencia por Defecto de Telemetría (12 Horas)**:
+  - Establecido el intervalo por defecto de fábrica de todos los módulos de telemetría (batería, energía, clima/ambiente, calidad de aire, salud) a **12 horas** (`43200s`), reduciendo drásticamente el airtime LoRa.
+  - Sincronización transparente garantizada: cualquier cambio desde la App oficial o vía `/nava set_telem_tx` actualiza instantáneamente `/resilience.bin` y todos los sensores activos.
 
 
 

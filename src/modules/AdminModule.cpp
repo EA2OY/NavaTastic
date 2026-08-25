@@ -712,6 +712,18 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
             config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT;
         }
 #endif
+        // Sincronizar la identidad de usuario con el rol configurado y mantener mensajería activa:
+        owner.role = config.device.role;
+        owner.is_unmessagable = false;
+        owner.has_is_unmessagable = true;
+        nodeDB->updateUser(nodeDB->getNodeNum(), owner);
+        changes |= SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE;
+
+        // NAVARICO V5: Sincronización transparente de rol y nodeinfo broadcast hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncDeviceRoleFromConfig();
+            navaCLIModule->syncNodeInfoIntervalFromConfig();
+        }
         break;
     case meshtastic_Config_position_tag:
         LOG_INFO("Set config: Position");
@@ -725,6 +737,12 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
             saveChanges(SEGMENT_NODEDATABASE | SEGMENT_CONFIG, false);
         }
         config.position = c.payload_variant.position;
+
+        // NAVARICO V5: Sincronización transparente de posición GPS y coordenadas fijas hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncPositionIntervalFromConfig();
+            navaCLIModule->syncFixedPositionFromConfig();
+        }
 
         // Save nodedb as well in case we got a fixed position packet
         break;
@@ -879,12 +897,21 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
 
             changes = SEGMENT_CONFIG | SEGMENT_MODULECONFIG;
         }
+        // NAVARICO V5: Sincronización transparente de parámetros LoRa y OK to MQTT hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncLoraConfigFromConfig();
+            navaCLIModule->syncOkToMqttFromConfig();
+        }
         break;
     }
     case meshtastic_Config_bluetooth_tag:
         LOG_INFO("Set config: Bluetooth");
         config.has_bluetooth = true;
         config.bluetooth = c.payload_variant.bluetooth;
+        // NAVARICO V5: Sincronización transparente de PIN Bluetooth fijo hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncBluetoothPinFromConfig();
+        }
         break;
     case meshtastic_Config_security_tag:
         LOG_INFO("Set config: Security");
@@ -996,6 +1023,10 @@ bool AdminModule::handleSetModuleConfig(const meshtastic_ModuleConfig &c)
         LOG_INFO("Set module config: Telemetry");
         moduleConfig.has_telemetry = true;
         moduleConfig.telemetry = c.payload_variant.telemetry;
+        // NAVARICO V5: Sincronización transparente de intervalo de telemetría hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncTelemetryIntervalFromConfig();
+        }
         break;
     case meshtastic_ModuleConfig_canned_message_tag:
         LOG_INFO("Set module config: Canned Message");
@@ -1054,6 +1085,14 @@ void AdminModule::handleSetChannel(const meshtastic_Channel &cc)
         sendWarning(licensedModeMessage);
     }
     channels.onConfigChanged(); // tell the radios about this change
+    // NAVARICO V5: Sincronización transparente de canales hacia /resilience.bin
+    if (navaCLIModule) {
+        if (cc.index == 0) {
+            navaCLIModule->syncChannel0FromConfig();
+        } else if (cc.index >= 2 && cc.index <= 7) {
+            navaCLIModule->syncCustomChannelFromConfig(cc.index);
+        }
+    }
     saveChanges(SEGMENT_CHANNELS, false);
 }
 

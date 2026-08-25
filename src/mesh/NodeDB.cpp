@@ -1063,7 +1063,7 @@ void NodeDB::installRoleDefaults(meshtastic_Config_DeviceConfig_Role role)
         moduleConfig.telemetry.device_update_interval = default_telemetry_broadcast_interval_secs;
         config.device.rebroadcast_mode = meshtastic_Config_DeviceConfig_RebroadcastMode_LOCAL_ONLY;
         owner.has_is_unmessagable = true;
-        owner.is_unmessagable = true;
+        owner.is_unmessagable = false; // NAVARICO: los repetidores/routers permanecen mensajables para administracion
 
         // Custom defaults for repeaters/routers
         config.device.node_info_broadcast_secs = 72 * 60 * 60;          // 72 hours

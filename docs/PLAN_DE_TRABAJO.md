@@ -358,87 +358,43 @@ Antes de ejecutar comandos o editar código, DEBES leer OBLIGATORIAMENTE en este
 
 ```
 
-- [ ] **MEJORA FUTURA: MOTOR DE RETARDOS ADAPTATIVOS (HOP-AWARE TIMING) Y DESACOPLE ASÍNCRONO DE TRACEROUTE PARA MALLAS DE ALTA LATENCIA (+20s / 35s RTT)**:
-      * **Problema Identificado**: En mallas densas o de 3 a 5 saltos (latencias de +20s ida y ~35s RTT en SFNarrow), el jitter determinista actual en Navadmin (`getNodeNum() % 6000`) y la emisión inmediata (0 ms) en DM colisionan con los ecos de retransmisión (*TX Blindness* de repetidores). En `traceroute`, la sonda `RouteDiscovery` y el texto de acuse compiten simultáneamente.
-      * **Solución Mix para Navadmin (Canal 1 / Difusión 1-a-Muchos)**:
-        1. **True Random Jitter**: Sustituir el cálculo determinista por una ventana aleatoria real pura: `5000 ms + random(0, 8000 ms)` (dispersión de 5 a 13 segundos).
-        2. **Filtro de Carga en Abierto**: Respuestas multi-línea pesadas en Navadmin exigen direccionamiento `!ID` para prevenir que 10 nodos respondan con 30 fragmentos a la vez.
-      * **Solución Mix para Mensajes Directos (DM Privado Cifrado / Tráfico 1-a-1)**:
-        1. **Hop-Aware Adaptive Jitter**: Retardo proporcional a los saltos recorridos por el paquete entrante (`hops = hop_start - hop_limit`):
-           - 0 saltos (Laboratorio / Enlace directo): **300 a 600 ms** (respuesta instantánea sin demoras).
-           - 1 salto (1 repetidor intermedio): **1.500 a 2.500 ms**.
-           - $\ge 2$ saltos (Malla profunda / Montaña): **3.500 a 5.000 ms** (da tiempo a extinguir los ecos en valles laterales).
-        2. **Desacople Secuencial de `traceroute`**: Enviar primero el texto `OK: TRACEROUTE INICIADO`, temporizar una pausa de silencio de **8 a 10 segundos**, y disparar `traceRouteModule->startTraceRoute()` solo cuando el texto ya haya avanzado 2 saltos en la red.
-        3. **Ventana de Gracia Pre-Reboot Armada Post-Envío**: En órdenes con acción diferida (`reboot`, `factory_reset`, `full_reset`, `wipe`, `storm`, `txoff`, `keys_clear`), el temporizador de ejecución (`rebootTime`, `stormTime`) **NO se fija al recibir el comando**, sino que se arma dinámicamente en `runOnce()` en el instante en que `responseQueue.empty()` se cumple (tras entregar el ACK a la cola de radio `txQueue`), otorgando **6 a 8 segundos de margen post-envío** para que el paquete termine de modularse y el repetidor vecino lo capture antes del reinicio de la CPU.
-- [ ] **MEJORA FUTURA: PERSISTENCIA BLINDADA DE PRESET LORA (ESTÁNDAR/CUSTOM) Y CANAL 0 EN RESILIENCE.BIN CON GESTIÓN DUAL (NAVACLI + APP OFICIAL)**:
-      * **Objetivo y Arquitectura Desacoplada**: Permitir que el preset LoRa (tanto estándar como custom, incluyendo el slot de frecuencia) y el Canal 0 primario sobrevivan a reinicios y resets de fábrica en `/resilience.bin`, manteniendo una estricta separación e independencia entre la Capa Física (Radio) y la Capa Lógica (Canal 0) para permitir migraciones remotas seguras en 2 pasos vía túnel PKI directo.
-      * **Campos en `struct NavaResiliencePrefs`**:
-        1. **Bloque A (Capa Física LoRa)**: `use_preset` (0=Custom, 1=Estándar), `modem_preset` (0..9 enum), `bandwidth` (31, 62, 125, 200, 250, 500), `spread_factor` (SF 5 a 12 nativo SX1262), `coding_rate` (4..8), `channel_num` (**Slot de frecuencia**, ej. Slot 4 en SFNarrow o Slot 1 en MediumFast), `override_frequency` (**863.0000 a 873.3000 MHz** para banda EU868 y filtro E22P), y `tx_power` (1..22 dBm).
-        2. **Bloque B (Capa Lógica Canal 0 Primario)**: `name` (1 a 11 caracteres) y `psk` (1B `0x01` para `AQ==` o 16B/32B AES).
-        3. **Bloque C (Canal de Rescate Slot 1)**: Canal `Navadmin` inmutable protegido en Slot 1.
-      * **Gestión Dual y Sincronización Segura**:
-        - **Vía App Oficial (AdminMessage / Protobuf)**: Puentes de sincronización en `AdminModule.cpp` (`syncLoraConfigFromConfig()` y `syncChannel0FromConfig()`) con filtro estricto de rangos (*Sanity Whitelist*). Si el admin modifica la radio o el canal 0 desde la App, se valida y persiste automáticamente en `/resilience.bin`.
-        - **Vía NavaCLI DM (Mensajes de Texto Directos)**:
-          * `/nava set_preset <nombre>`: Aplica preset estándar (`long_fast`, `medium_fast`, `short_fast`, etc.), resetea `override_frequency = 0` y asigna su slot por defecto.
-          * `/nava set_lora <bw> <sf> <cr> <freq_mhz> <slot> [txpower]`: Configuración integral de preset Custom (ej: `/nava set_lora 62 7 5 869.618 4 22` para SFNarrow España).
-          * `/nava set_freq <freq_mhz> [slot]`: Ajuste atómico de frecuencia física y número de slot.
-          * `/nava ch_set 0 <nombre> <psk_b64>`: Configuración persistente de nombre y clave PSK del Canal 0.
-          * **Ampliación de Auto-Favoritos (16 $\rightarrow$ 32)**: Ampliar `autoFavIds[32]` en `struct NavaResiliencePrefs` (de 16 a 32 nodos directos) para repetidores de alta cota con visión directa a más de 15 repetidores vecinos, manteniendo el algoritmo de desalojo híbrido de `NodeDB` (máx 80 nodos).
-      * **Reconfiguración RF Diferida con Feedback en Frecuencia Antigua**:
-        - Al solicitar un cambio de preset LoRa o frecuencia (vía NavaCLI o App), el nodo **emite primero el ACK de confirmación en la frecuencia y modulación antigua** (`OK: PRESET LORA -> [NOMBRE] EN [FREQ]MHz. APLICANDO EN 6s...`).
-        - La reconfiguración del hardware SX1262 se ejecuta mediante un **Soft Reset limpio (`rebootAtMsec`) diferido 6 a 8 segundos post-envío** en `runOnce()` (flag `loraChangeScheduled`), garantizando que el operador reciba el acuse de recibo en su pantalla antes del reinicio y que la radio SX1262 se inicialice desde cero con calibración completa en el nuevo preset.
-      * **Válvula de Fallback y Actualización de `/nava help`**:
-        - Fallback automático al preset de fábrica (`SFNarrow / EU_868`) si `RadioLibInterface` falla en inicializar el módem con los datos de resiliencia.
-        - Actualización completa de `/nava help` y de los textos de ayuda contextual (`/nava set_preset ?`, `/nava set_lora ?`, `/nava set_freq ?`).
+- [x] **NAVATASTIC V5 (v4.3.4) — MOTOR DE RETARDOS ADAPTATIVOS (HOP-AWARE TIMING) Y DESACOPLE ASÍNCRONO DE TRACEROUTE (25/08)**:
+      * **True Random Jitter en Navadmin (Canal 1)**: `5000 ms + (navaGetRandomU32() % 8000)` (dispersión de 5 a 13s) para respuestas de difusión.
+      * **Hop-Aware Adaptive Jitter en DM Privado**: Retardo proporcional a saltos: 300ms a 0 saltos, 1.5s a 1 salto, 3.5s a $\ge 2$ saltos.
+      * **Desacople Secuencial de `traceroute`**: Respuesta ACK de texto inmediata y lanzamiento desacoplado de la sonda RF 8s después (`traceExecutionTime = millis() + 8000`).
+      * **Ventana de Gracia Pre-Reboot Post-Envío (6s)**: Control unificado por `deferredAction` y armado de temporizador (`preRebootArmed = true; deferredExecutionTime = millis() + 6000;`) una vez que `responseQueue.empty()` es true, asegurando que el ACK LoRa sale completamente al aire antes de reiniciar la CPU.
 
-- [ ] **MEJORA FUTURA: PROTOCOLO "BOTÓN DEL PÁNICO" (EVACUACIÓN DE EMERGENCIA DE MALLA A PRESET ALTERNATIVO CON SINCRONIZACIÓN MONOTÓNICA RELATIVA)**:
-      * **Objetivo y Contexto de Crisis**: Mecanismo de contingencia táctico para evacuar de forma simultánea y coordinada a toda una red provincial de repetidores de montaña desde un preset colapsado (por interferencia intencionada *jamming*, saturación extrema de *chutil* o rotura de canal) hacia un preset limpio (ej. `MediumFast`), garantizando que la orden alcance hasta el último rincón de la cordillera sin desincronizar la red.
-      * **Operativa Integral en 5 Fases**:
-        1. **Fase 0 (Activación Criptográfica Inviolable)**:
-           - El Administrador lanza en el canal *Navadmin* (o DM privado): `/nava panic <preset|lora_params> [minutos=10] [rollback_mins=0]`.
-           - El comando va firmado con la clave privada del administrador (validado contra `admin_key[0..2]`). Nodos descartan en silencio cualquier intento no autorizado.
-        2. **Fase 1 (Feedback Inmediato Nivel 1 al Operador)**:
-           - El repetidor directo en visión responde en <300 ms con acuse de texto: `OK: ALERTA ROJA. EVACUACION A [PRESET] EN [MIN] MINUTOS.`, dando confirmación instantánea al mando.
-        3. **Fase 2 (Difusión Epidémica y Sincronización Monotónica Relativa, Minutos 0 a 9)**:
-           - **Purga Inmediata de Colas**: Al validar la orden, el nodo ejecuta `txQueue.clear()`, eliminando de golpe chats o telemetrías viejas atascadas.
-           - **Superpoderes de Evacuación**: `override_duty_cycle = true` (anula restricciones europeas del 1% para emitir a fuego) y prioridad `Priority_EMERGENCY`.
-           - **Potencia TX Protegida**: Se respeta estrictamente la potencia configurada en el nodo (sin forzar subidas para evitar *brownouts* de batería en invierno en módulos E22P).
-           - **Modo Túnel (Discriminación de Tráfico)**: El router suspende el reenvío de tráfico ordinario de terceros (chats, telemetría) y dedica el 100% de la radio exclusivamente a la evacuación.
-           - **Paquete Binario Ultracorto (~24 Bytes / 200 ms airtime)**: Con CAD agresivo contra portadoras continuas de ruido.
-           - **Disparo Continuo con Jitter (25 a 45 segundos)**: Cada repetidor emite ~15 a 20 pulsos con desincronización aleatoria para maximizar la probabilidad de penetración en ruido ($P = 1 - (1-p)^N$).
-           - **Sincronización por Cuarzo Monotónico (`millis()`)**: Cero dependencia de GPS, relojes UTC o año 1970. Cada nodo descuenta el tiempo transcurrido en el campo `remaining_seconds` antes de retransmitir. Todos los timers de hardware de la cordillera llegan a cero en el mismo segundo.
-           - **Aviso Local por BLE**: Inyección automática de mensaje de chat local en la App oficial (`[NAVATASTIC]: ALERTA DE EVACUACION A [PRESET] EN X MINUTOS`).
-           - **Grabación en Memoria Blindada**: Los datos de destino se guardan de inmediato en `/resilience.bin`.
-        4. **Fase 3 (Ventana de Silencio Preparatoria, Minuto 9 a 10 / Últimos 60s)**:
-           - A falta de 60 segundos, todos los repetidores cesan emisiones, vacían buffers de radio y entran en silencio absoluto para evitar cortes a mitad de transmisión.
-        5. **Fase 4 (Salto Simultáneo por Soft Reset en T=10:00)**:
-           - Todos los microcontroladores ejecutan `NVIC_SystemReset()` en el mismo milisegundo.
-           - Al arrancar: `loadResiliencePrefs()` carga el nuevo preset y `RadioLibInterface::setup()` inicializa y calibra el chip SX1262 en la nueva frecuencia.
-        6. **Fase 5 (Consolidación y Modos de Retorno)**:
-           - **Modo Firme (Por defecto)**: Salto definitivo y permanente en `/resilience.bin` (cero riesgo de partición de red o *split-brain*).
-           - **Modo Prueba con Rollback**: Si el admin fijó minutos de retorno (ej. 120m), los nodos esperan consolidación en la nueva frecuencia mediante el comando en cascada `/nava panic_ok` en *Navadmin*. Solo si pasan los 120m en silencio absoluto de administradores, se ejecuta un reinicio total de hardware para regresar a la frecuencia segura de fábrica (`SFNarrow`).
+- [x] **NAVATASTIC V5 (v4.3.4) — PERSISTENCIA BLINDADA DE PRESET LORA (ESTÁNDAR/CUSTOM) Y CANAL 0 EN RESILIENCE.BIN (25/08)**:
+      * **Persistencia Física LoRa y Lógica Canal 0**: Campos `lora_use_preset`, `lora_modem_preset`, `lora_bandwidth`, `lora_spread_factor`, `lora_coding_rate`, `lora_override_frequency`, `lora_channel_num`, `lora_configured` y `ch0_*` integrados en `/resilience.bin` V6 (`NAV6` / `0x4E415636`).
+      * **Comandos NavaCLI Nuevos**: `/nava set_preset`, `/nava set_lora`, `/nava set_freq` y `/nava ch_set 0` con feedback en modulación antigua y reinicio suave diferido.
+      * **Capacidad Ampliada de Auto-Favoritos**: Array `autoFavIds[32]` ampliado de 16 a 32 nodos directos.
 
-- [ ] **MEJORA FUTURA: SINCRONIZACIÓN BIDIRECCIONAL TRANSPARENTE DE LA APP OFICIAL EN RESILIENCE.BIN (UX ZERO-FRICTION)**:
-      * **Problema Resuelto**: Eliminar la fricción de los usuarios comunes que configuran parámetros desde la App oficial de Meshtastic y ven cómo se revierten al reiniciar el nodo debido a las plantillas por defecto.
-      * **Arquitectura de Interceptores en `AdminModule.cpp`**:
-        - Cada vez que el usuario pulsa "Guardar" en la App móvil oficial, `AdminModule` intercepta la transacción de `AdminMessage`, valida los rangos (*Sanity Whitelist*) y realiza un guardado condicional estricto en `/resilience.bin` (`if changed`, 0 escrituras parásitas a Flash si el valor no cambia).
-        - **Ajustes Sincronizados al 100% desde la App Oficial**:
-          1. **Rol del Dispositivo**: `prefs.role` (evita que un `TRACKER` o `ROUTER_LATE` vuelva a cambiar al boot).
-          2. **OK to MQTT**: `prefs.ok_to_mqtt` (1=ON, 2=OFF, interceptado desde *Settings -> LoRa Config*).
-          3. **Intervalo de Telemetría**: `prefs.telem_tx_secs`.
-          4. **Intervalo de NodeInfo Broadcast**: `prefs.nodeinfo_tx_secs`.
-          5. **Intervalo de Posición GPS**: `prefs.pos_tx_secs`.
-          6. **Posición Fija Coordenadas**: `prefs.fixed_pos_lat`, `prefs.fixed_pos_lon`, `prefs.fixed_pos_alt`, `prefs.fixed_pos_enabled`.
-          7. **Canal 0 Primario**: `prefs.primary_channel_name` y `prefs.primary_channel_psk`.
-          8. **Canales Secundarios 2 al 7**: `prefs.customChannels[6]`.
-          9. **Preset LoRa y Frecuencia**: `prefs.lora_*`.
-          10. **PIN Fijo Bluetooth**: `prefs.fixed_pin`.
-          11. **Lista Negra / Ignorar Nodo**: `prefs.ignoredNodes`.
-          12. **Claves de Administrador**: `prefs.admin_keys` *(ya activo)*.
-        - **Ajustes Exclusivos de Consola `/nava`**: Química de Batería (`set_chem`), Umbrales de Voltaje (`set_vbat`/`set_vwake`), Storm RTC2 (`storm`), y Gate Fav Auto (`fav auto`).
+- [x] **NAVATASTIC V5 (v4.3.4) — PROTOCOLO "BOTÓN DEL PÁNICO" (EVACUACIÓN DE EMERGENCIA DE MALLA) (25/08)**:
+      * **Estructura Binaria y Difusión**: Pulso `NavaPanicPulse` empaquetado de 24 bytes con magic `0x50414E43` (`PANC`) en Canal 1 con prioridad `ALERT` y bypass de duty cycle.
+      * **Modo Túnel y Ventana de Silencio**: Suspensión de retransmisión de paquetes ajenos ordinarios en `Router.cpp` durante evacuación activa, silencio total en $T-60\text{s}$ y salto simultáneo en $T=0$.
+      * **Rollback de Seguridad y `/nava panic_ok`**: Si se especifica `rollback_mins > 0`, al expirar el tiempo de prueba sin comando `/nava panic_ok` el nodo revierte automáticamente a configuración de rescate mediante factory reset y reboot.
+
+- [x] **NAVATASTIC V5 (v4.3.4) — SINCRONIZACIÓN BIDIRECCIONAL TRANSPARENTE DE LA APP OFICIAL EN RESILIENCE.BIN (25/08)**:
+      * **Interceptores en `AdminModule.cpp`**: 12 ajustes habituales interceptados con guarda segura `if (navaCLIModule)` y guardado condicional estricto (`if changed`) hacia `/resilience.bin`: Rol, OK to MQTT, telemetría, nodeinfo, posición fija, canales 0-7, LoRa, PIN BLE, ignorados y claves admin.
+      * **Compilación y Distribución**: 12/12 envs PlatformIO SUCCESS limpio y distribución versionada a `Desktop\NavaTastic V5 4.3.4` (`distribuir.ps1 -Todo -V5`).
+
+- [x] **NAVATASTIC V5 (v4.3.4) — CORRECCIÓN DE LOS 4 BUGS CRÍTICOS DE DESINCRONIZACIÓN V4 (25/08, FIXES V4-IN-V5)**:
+      * **Bug 1 (Desincronización de Rol en MQTT y Mapas)**: Corregido el desfase entre `config.device.role` y `owner.role` (`meshtastic_User`). Ahora `AdminModule::handleSetConfig`, `/nava set_role`, `syncDeviceRoleFromConfig` y `loadResiliencePrefs` actualizan `owner.role`, invocan `nodeDB->updateUser` y `service->reloadOwner(true)`, asegurando que las pasarelas MQTT y MeshMap reflejen de inmediato el rol real del nodo.
+      * **Bug 2 (Persistencia Incompleta y Refresco en `/nava set_name`)**: Corregida la omisión de `SEGMENT_DEVICESTATE` en `/nava set_name`. Se añadió terminación segura `\0`, `nodeDB->updateUser`, guardado de `SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE` y `service->reloadOwner(true)` para propagación instantánea de la identidad a la malla.
+      * **Bug 3 (Difusión Inmediata tras `/nava set_pos` y `pos_clear`)**: Corregido el retardo de baliza de posición. Ahora `set_pos` guarda `SEGMENT_CONFIG | SEGMENT_NODEDATABASE` y dispara `positionModule->sendOurPosition(NODENUM_BROADCAST, false)` inmediatamente. `pos_clear` ejecuta `nodeDB->clearLocalPosition()`, limpia `fixed_pos_enabled` y persiste en disco.
+      * **Bug 4 (Coherencia de Mensajería Directa en Routers)**: Eliminado el bloqueo de mensajería `is_unmessagable` en repetidores/routers NavaTastic. `NodeDB::installRoleDefaults(ROUTER)`, `loadResiliencePrefs` y `set_role` garantizan `owner.is_unmessagable = false` y `owner.has_is_unmessagable = true`, manteniendo la recepción de mensajes y administración por DM operativa en todo momento.
+
+- [x] **NAVATASTIC V5 (v4.3.4) — HARDCODEO PERSISTENTE DE NOMBRE EN RESILIENCE.BIN Y SUBCOMANDO FLUSH (25/08)**:
+      * **Persistencia Exclusiva por NavaCLI**: Modificar el nombre con `/nava set_name "[Largo]" "[Corto]"` guarda `custom_long_name` y `custom_short_name` en `/resilience.bin` V6 (`NAV6`), haciendo que el nombre persista a cualquier reset de fábrica futuro.
+      * **Coexistencia con App Oficial**: El usuario puede modificar libremente el nombre desde la App de Meshtastic en flash `/prefs` (`owner.long_name`), respetándose en runtime.
+      * **Subcomando `/nava set_name flush`**: Elimina el hardcodeo de `/resilience.bin` y devuelve el nodo a su comportamiento natural (regeneración de nombre por defecto de fábrica en caso de reset).
+
+- [x] **NAVATASTIC V5 (v4.3.4) — CADENCIA POR DEFECTO DE TELEMETRÍA (12 HORAS) Y SINCRONIZACIÓN (25/08)**:
+      * **Valores por Defecto Hardcodeados**: Todos los módulos de telemetría (batería, energía, clima/ambiente, calidad de aire, salud) parten ahora por defecto de un intervalo de **12 horas** (`43200` segundos / `720` min), minimizando la saturación de airtime en la red LoRa comunitaria.
+      * **Sincronización Bidireccional Total**: Modificar la cadencia desde la App Oficial o con `/nava set_telem_tx [minutos|on|off]` sincroniza automáticamente `/resilience.bin` y todos los submódulos de telemetría en tiempo real.
 
 - [ ] **MEJORA FUTURA MESHNAVARRA UTILITY (RECORDATORIO OPERADOR)**:
-      * Actualizar el catálogo de botones predefinidos en la interfaz táctil de la app Android MeshNavarra Utility para incluir accesos directos a los nuevos comandos de NavaTastic V4 (`set_cli_chan`, `ign`, `set_ok_to_mqtt`, `stats`, `log`, `pos_clear`, etc.), permitiendo lanzar órdenes en lote a la flota con un solo toque desde el móvil.
+      * Actualizar el catálogo de botones predefinidos en la interfaz táctil de la app Android MeshNavarra Utility para incluir accesos directos a los nuevos comandos de NavaTastic V5 (`set_preset`, `set_lora`, `set_freq`, `panic`, `panic_ok`, `set_cli_chan`, `ign`, `set_ok_to_mqtt`, `stats`, `log`, `pos_clear`, etc.), permitiendo lanzar órdenes en lote a la flota con un solo toque desde el móvil.
 
 ## Datos de referencia
 - Epoch 12/08/2026 00:00 +02:00: lo calcula build.ps1 (-Paridad)
