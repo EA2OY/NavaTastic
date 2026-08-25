@@ -245,13 +245,10 @@ Está gitignored y no forma parte del código.
 > El repo público es https://github.com/EA2OY/NavaTastic (solo General, sin claves Propia).
 > Proyecto hermano: https://github.com/EA2OY/MeshNavarra-Utility (app del operador).
 
-1. **Nunca subir el historial local** (contiene claves Propia en commits del 14/08). Publicar
-   SIEMPRE una rama huérfana con UN solo commit del árbol saneado:
-   `git branch -D github-public` → `git checkout --orphan github-public` →
-   `git add -A` → `git add -f distribucion docs/pdf` → **borrar** `.github\workflows\*.yml`
-   del disco → `git commit` → `git push -f <url-token> github-public:main` →
-   `git checkout master` → **`distribuir.ps1 -Todo`** (el cambio de rama borra los ficheros
-   force-add del disco — L24).
+1. **Publicación como Fork Auditable (Squash sobre upstream `54e0d8d`)**:
+   Nunca subir el historial local de micro-commits (contiene pruebas antiguas). Publicar SIEMPRE una rama basada en el commit oficial de Meshtastic 2.7.26 (`54e0d8d`) con UN solo commit consolidado del árbol saneado:
+   `git branch -D github-public` → `git checkout -b github-public 54e0d8d` → `git read-tree -u -m master` → quitar `.github/workflows/*.yml` → `git add -A` → `git add -f distribucion docs/pdf` → `git commit` → `git push -f <url-token> github-public:main` → `git checkout master` → **`distribuir.ps1 -Todo`** (el cambio de rama borra los ficheros force-add del disco — L24).
+   *Ventaja*: En GitHub se vincula a la base oficial y la pestaña "Files changed" muestra exactamente los 104 archivos modificados para auditoría instantánea en 1 clic.
 2. **Actions desactivadas** en el repo (los workflows upstream envían correos de error).
    Si se recreara el repo: quitar workflows + `PUT /repos/EA2OY/NavaTastic/actions/permissions`
    con `{"enabled":false}`.
