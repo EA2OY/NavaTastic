@@ -804,6 +804,16 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
   - **Flasheo de Faketec y Retorno a Producción SFN**: Flasheado el nodo físico Faketec (`COM17`) con `navarrico_faketec_sx1262_r2ig` (Rama 2 Routers LIPO) y restablecida la frecuencia oficial de España de ShortFast Narrow (`869.618 MHz / 22 dBm` / canal 4), saliendo del modo aislamiento de laboratorio (`869.545 MHz / 1 dBm`).
   - **Auditoría de Sanitización Criptográfica**: Verificada al 100% la ausencia de claves personales en todo el repositorio (0 coincidencias regex), utilizando únicamente claves dummy estándar de 44 caracteres (`K8mP2x9Lv...`, `B7vN4w1Zq...`, `R3k9Qm2Wp...`).
   - **Sincronización Total en GitHub (`EA2OY/NavaTastic:main`)**: Publicado con éxito el árbol saneado mediante el flujo seguro de rama huérfana (`github-public:main`), quedando la portada, manuales, PDFs y binarios inmediatamente accesibles para la comunidad.
+- **Estado Consolidado (25/08/2026, Diseño Arquitectónico de NavaTastic V5 / v4.3.4 Finalizado)**:
+  - **Especificación Completa en `PLAN_DE_TRABAJO.md`**: Diseñados y blindados los 4 grandes pilares de la futura versión **NavaTastic V5 (v4.3.4)**:
+    1. **Hop-Aware Timing & Desacople de Traceroute**: Jitter adaptativo en DM (0.3s a 5.0s según saltos recorridos), True Random Jitter en Navadmin (5 a 13s), desacople secuencial de `traceroute` (texto ACK $\rightarrow$ 8-10s de silencio $\rightarrow$ sonda RF) y ventana de gracia pre-reboot (6-8s) armada dinámicamente en `runOnce()` tras vaciar la cola `responseQueue`.
+    2. **Persistencia LoRa (Estándar/Custom) y Canal 0 en `/resilience.bin`**: Separación de Capa Física (Preset LoRa, SF 5-12, BW 31-500, Freq 863.0-873.3 MHz, Slot, Potencia) y Capa Lógica (Canal 0 Nombre/PSK), con reconfiguración RF diferida y feedback en frecuencia antigua antes del Soft Reset.
+    3. **Protocolo "Botón del Pánico" (Evacuación de Malla)**: Evacuación coordinada provincial en 10 minutos vía pulso binario ultracorto (24B), purga de cola `txQueue.clear()`, `override_duty_cycle = true`, `Priority_EMERGENCY`, potencia protegida (sin forzar subidas para no dañar baterías en invierno), modo túnel, temporización monotónica relativa por cuarzo (`millis()`), ventana de silencio (60s) y Soft Reset simultáneo, con consolidación en destino vía `/nava panic_ok`.
+    4. **Sincronización Bidireccional Transparente de la App Oficial**: Interceptores en `AdminModule.cpp` para los 12 ajustes habituales (rol, OK to MQTT, telemetría, nodeinfo, posición fija, canales 0-7, LoRa, PIN BLE, ignorados, claves admin) con guardado condicional estricto (`if changed`, 0 escrituras parásitas).
+  - **Norma 13 de Versionado de Compilaciones**: Toda compilación de V5 generará binarios y carpetas etiquetadas (`Desktop\NavaTastic V5 4.3.4` y `*_V5_4.3.4.uf2`), garantizando que los binarios V4 previos nunca se sobreescriban ni borren.
+  - **Snapshot de Seguridad V4**: Creado el tag Git `v4.3.3-stable` como seguro de vida antes de iniciar las modificaciones de V5.
+  - **Handover Estratégico a Nueva Sesión**: Planificado el traspaso a una sesión limpia dedicada al 100% a la implementación en código C++ y compilación con PlatformIO, manteniendo esta sesión como base de auditoría y arquitectura.
+
 
 
 

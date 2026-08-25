@@ -45,6 +45,12 @@ Heredadas del cerebro 4.3 (`PROMPT_INICIALIZACION.md`). Son obligatorias en toda
     `distribuir.ps1 -V2` a `Desktop\NavaTastic Eclipse Edition V2` (misma estructura
     Rama×LIPO|NIMH×UF2|OTA, nombres históricos). El Desktop de Eclipse
     (`Desktop\NavaTastic 4.3 120826`) es SOLO LECTURA y NO se toca nunca.
+13. **Versionado de Compilaciones y Distribuibles (norma 25/08)**: Toda nueva versión mayor/menor
+    (ej. NavaTastic V5 / v4.3.4) debe generar sus carpetas y binarios de salida etiquetados
+    explícitamente con la versión (ej. `Desktop\NavaTastic V5 4.3.4` o sufijos `*_V5_4.3.4.uf2`),
+    garantizando que **NUNCA se sobreescriban ni borren los binarios de versiones anteriores (V4)**.
+    Ambas versiones deben coexistir diferenciadas en disco local y en GitHub Releases bajo
+    autorización explícita del operador.
 
 > Detalle completo (original histórico): `docs\cerebro\PROMPT_INICIALIZACION.md` y `PROMPT_DESPLIEGUE.md`.
 
