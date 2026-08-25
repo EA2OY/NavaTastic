@@ -58,13 +58,22 @@ Esta versión introduce la arquitectura **NavaTastic V5**, elevando la estabilid
         prerelease = $false
     } | ConvertTo-Json
 
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases" -Headers $headers -Method Post -Body $createPayload
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases" -Headers $headers -ContentType "application/json; charset=utf-8" -Method Post -Body ([System.Text.Encoding]::UTF8.GetBytes($createPayload))
     Write-Host "Release creada con éxito! ID: $($release.id)"
 } else {
     Write-Host "Release existente encontrada. ID: $($release.id)"
 }
 
+if (-not $release -or -not $release.id) {
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/tags/$Tag" -Headers $headers -Method Get
+}
+
+if (-not $release -or -not $release.id) {
+    throw "Error fatal: No se pudo crear ni obtener la Release en GitHub para el tag $Tag."
+}
+
 $releaseId = $release.id
+Write-Host "Usando Release ID: $releaseId"
 
 # Borrar assets antiguos si existen
 if ($release.assets -and $release.assets.Count -gt 0) {
@@ -89,7 +98,7 @@ $filesToUpload += Get-ChildItem "distribucion\Rama 1 Clientes\LIPO\OTA\*.zip"
 # PDFs
 $filesToUpload += Get-ChildItem "docs\pdf\*.pdf"
 
-$uploadUrlBase = "https://uploads.github.com/repos/$Repo/releases/$releaseId/assets?name="
+$uploadUrlBase = if ($release.upload_url) { $release.upload_url -replace '\{\?name,label\}', '?name=' } else { "https://uploads.github.com/repos/$Repo/releases/$releaseId/assets?name=" }
 
 foreach ($file in $filesToUpload) {
     $cleanName = $file.Name -replace " ", "."
