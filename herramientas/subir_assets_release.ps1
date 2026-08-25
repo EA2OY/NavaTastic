@@ -6,13 +6,9 @@ param(
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-$inputData = @"
-protocol=https
-host=github.com
-path=$Repo.git
-"@
-$cred = $inputData | git credential fill 2>&1
-$token = ($cred | Where-Object { $_ -like "password=*" }) -replace "password=",""
+$cred = "protocol=https`nhost=github.com`n`n" | git credential fill
+$tokenLine = ($cred | Where-Object { $_ -like "password=*" }) | Select-Object -First 1
+$token = if ($tokenLine) { ($tokenLine -replace "password=","").Trim() } else { "" }
 
 if (-not $token) {
     throw "Error: No se pudo obtener el token de Git Credential Manager."
