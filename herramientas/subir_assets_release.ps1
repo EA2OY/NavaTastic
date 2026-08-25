@@ -3,6 +3,9 @@ param(
     [string]$Repo = "EA2OY/NavaTastic"
 )
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 $inputData = @"
 protocol=https
 host=github.com
@@ -39,9 +42,12 @@ Esta versión introduce la arquitectura **NavaTastic V5**, elevando la estabilid
 1. **Sincronización Bidireccional Transparente de la App Oficial**: Sincronización continua de los 12 ajustes cotidianos (rol, MQTT, telemetría, intervalos de baliza, coordenadas fijas, canales 0-7, LoRa preset y PIN BLE) hacia `/resilience.bin` V6 (`NAV6`).
 2. **Hop-Aware Timing y Desacople de Traceroute**: Jitter adaptativo de 5 a 13s, retardo en malla de 300ms (0 saltos), 1.5s (1 salto) y 3.5s (>=2 saltos). Traceroute desacoplado con sondeo a los 8 segundos.
 3. **Persistencia Física LoRa y Canal 0 Primario**: Comandos `/nava set_preset`, `/nava set_lora`, `/nava set_freq`, `/nava ch_set 0` con validación estricta y blindaje ante reinicios.
-4. **Protocolo Botón del Pánico**: Evacuación simultánea de toda la cordillera en $T$ minutos con canal prioritario `ALERT` y comando `/nava panic_ok`.
-5. **Ventana de Gracia Pre-Reboot**: 6 segundos de drenaje garantizado de cola de radio antes de cualquier reinicio o reset.
-6. **Capacidad Ampliada de Auto-Favoritos**: Soporte para hasta 32 routers vecinos directos en memoria de resiliencia.
+4. **Nombre Persistente y Subcomando Flush**: Fijación de nombre a fuego en `/resilience.bin` con `/nava set_name "[Largo]" "[Corto]"` (resistente a Factory Reset) y liberación de hardcodeo al modo natural con `/nava set_name flush`.
+5. **Telemetrías por Defecto a 12 Horas (43200s)**: Intervalo inicial no saturante para sensores de batería, clima, energía, salud y calidad de aire, propagable en bloque con `/nava set_telem_tx`.
+6. **Protocolo Botón del Pánico**: Evacuación simultánea de toda la cordillera en T minutos con canal prioritario `ALERT` y comando `/nava panic_ok`.
+7. **Corrección de Bugs de Desincronización**: Resueltos al 100% los fallos de Rol, Nombre, Posición Fija y Mensajería DM.
+8. **Ventana de Gracia Pre-Reboot**: 6 segundos de drenaje garantizado de cola de radio antes de cualquier reinicio o reset.
+9. **Capacidad Ampliada de Auto-Favoritos**: Soporte para hasta 32 routers vecinos directos en memoria de resiliencia.
 
 ### 📦 Contenido de esta Release:
 - 12 binarios `.uf2` para flasheo directo por USB (DFU).

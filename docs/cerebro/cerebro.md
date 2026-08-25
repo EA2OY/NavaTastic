@@ -334,20 +334,19 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     654321, backup de claves, gestión de claves admin (2 propias + desautorizar la de fábrica
     en slot 0 — el slot 0 vacío se re-inyecta), estado de pruebas por placa, licencia GPL v3
     + cumplimiento (fuente de los binarios en el mismo commit) + disclaimer.
-- **Trampas de la publicaci�n (L24-L26 en BITACORA)**: el checkout entre ramas BORRA del
-    disco los ficheros force-add que la otra rama no trackea (distribucion/workflows) ?
-    repoblar `distribuir.ps1 -Todo` tras cada publicaci�n y regenerar la hu�rfana borr�ndola
-    antes; el token GitHub del operador se comparti� por chat ? REVOCAR y usar uno puntual
-    por sesi�n (o gh CLI).
-- **2026-08-15 (23� parte) � HANDOVER FINAL (cierre de sesi�n)**: sesi�n cerrada y
+  - **Trampas de la publicación (L24-L26 en BITACORA)**: el checkout entre ramas BORRA del
+    disco los ficheros force-add que la otra rama no trackea (distribucion/workflows) —
+    repoblar `distribuir.ps1 -Todo` tras cada publicación y regenerar la huérfana borrándola
+    antes; el token GitHub del operador se compartió por chat — REVOCAR y usar uno puntual
+    por sesión (o gh CLI).
+- **2026-08-15 (23ª parte) — HANDOVER FINAL (cierre de sesión)**: sesión cerrada y
   commitada (master `9d45c2bbf`). **SNAPSHOT FINAL**: `_archivo\NavaTastic Eclipse Edition
-  V2 - FINAL 20260815 (HEAD 9d45c2bbf).zip` (5.85 MB, 2205 entradas) � versi�n final y
-  completa (V2.6 + README biling�e + docs GitHub + escudo), reemplaza al intermedio del
+  completa (V2.6 + README bilinge + docs GitHub + escudo), reemplaza al intermedio del
   80e9f7e14. **PROMPT DE RETOMA reescrito** en PLAN_DE_TRABAJO.md (estado V2.6 + GitHub +
-  snapshot FINAL + c�mo trabajar sobre el c�digo + Propia + trampas).
+  snapshot FINAL + cmo trabajar sobre el cdigo + Propia + trampas).
   `docs\INSTRUCCION_AUDITORIA_CLAUDE.md` actualizado al repo unificado con el material
-  personal excluido (orden del operador). Queda en manos del operador: auditor�a externa
-  del c�digo (Claude, amigo del operador) y prompt de auditor�a de MeshNavarra-Utility.
+  personal excluido (orden del operador). Queda en manos del operador: auditora externa
+  del cdigo (Claude, amigo del operador) y prompt de auditora de MeshNavarra-Utility.
 - **2026-08-15 (24ª parte) — RONDA AUDITORÍA EXTERNA (Claude, pack 14/08) analizada y resuelta**:
   la auditoría encontró 1 bug "MEDIO" + 1 "BAJO" + 2 observaciones + 1 confirmación. Contrastada
   contra el código VIVO: (1) §1 Seed 3670 mV en `navaGetLpcompWakeMv` — **RECHAZADO el fix
@@ -459,7 +458,7 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     publicación en el grupo de Telegram (decisión del operador), próximos releases (bump de
     `NAVATASTIC_BUILD` en NavaCLIModule.h por release).
 - **2026-08-16 (36ª parte) — README EN: 10 caracteres mojibake corregidos (publicación retoma)**:
-  el README público mostraba 10 caracteres rotos "�" (U+FFFD, bytes EF BF BD) en la sección
+  el README público mostraba 10 caracteres rotos "" (U+FFFD, bytes EF BF BD) en la sección
   EN — guiones largos y el "×" de "6 boards/radios × 2 branches" grabados mal en la
   traducción del 15/08. Fix: `README.md` (backup `.bak-20260816-0335`) sustituyendo los 10
   U+FFFD por U+2014 (—) ×9 y U+00D7 (×) ×1 (verificado: 0 restos). Decisión del operador:

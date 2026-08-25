@@ -259,3 +259,5 @@ Está gitignored y no forma parte del código.
    enlaces a carpetas. El README ya apunta a Releases.
 4. **Credenciales**: usar un token puntual del operador (revocar al terminar) o `gh` CLI con
    login. Nunca commitear el token.
+5. **Codificación UTF-8 Estricta en Releases y Documentación**: En Windows PowerShell 5.1, la codificación por defecto es CP1252, corrompiendo caracteres multiocteto (`—` como `â€”`, `🌟` como `ðŸŒŸ`, `ó` como `Ã³`). Toda interacción con la API de GitHub (cuerpo de Release, descripciones, etc.) debe codificarse explícitamente en UTF-8 puro (`[System.Text.Encoding]::UTF8` o Python con UTF-8) y guardar todos los ficheros `.ps1` y `.md` con codificación UTF-8 limpia (L35 en BITACORA).
+

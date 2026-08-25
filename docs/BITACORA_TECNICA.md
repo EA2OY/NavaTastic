@@ -878,7 +878,7 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 
 ### RETOMA 16/08 — README EN: mojibake corregido + republicación (publicación post-V3)
 - **Síntoma**: el README público (release v4.3.2, rama huérfana) mostraba 10 caracteres rotos
-  "�" (U+FFFD, bytes EF BF BD en el fichero) en la sección EN: guiones largos (9×) y el "×"
+  "" (U+FFFD, bytes EF BF BD en el fichero) en la sección EN: guiones largos (9×) y el "×"
   de "6 boards/radios × 2 branches" (1×) — mal grabados en la traducción EN del 15/08.
 - **Fix**: `README.md` con backup `.bak-20260816-0335`; los 10 U+FFFD sustituidos por
   U+2014 (—) y U+00D7 (×) según contexto (verificado por códigos de carácter: 0 restos de
@@ -1195,7 +1195,11 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
 - **Cadencia por Defecto de Telemetría (12 Horas)**:
   - Establecido el intervalo por defecto de fábrica de todos los módulos de telemetría (batería, energía, clima/ambiente, calidad de aire, salud) a **12 horas** (`43200s`), reduciendo drásticamente el airtime LoRa.
   - Sincronización transparente garantizada: cualquier cambio desde la App oficial o vía `/nava set_telem_tx` actualiza instantáneamente `/resilience.bin` y todos los sensores activos.
-
-
-
+- **L35 — Codificación UTF-8 Estricta en PowerShell y API de GitHub (Prevención de Mojibake)**:
+  - **Causa raíz**: En Windows PowerShell 5.1, la codificación por defecto de scripts y cadenas es Windows-1252 (CP1252). Si un script `.ps1` contiene caracteres multiocteto (em-dash, emojis, vocales acentuadas, eñes), PowerShell los interpreta como ANSI/CP1252 y `ConvertTo-Json` los envía con doble codificación a la API de GitHub (`POST /repos/.../releases`), resultando en caracteres corruptos visibles en la web de GitHub.
+  - **Solución definitiva**:
+    1. Forzar `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` y `$OutputEncoding = [System.Text.Encoding]::UTF8` en los scripts PowerShell.
+    2. Guardar siempre los scripts `.ps1` y documentos `.md` en UTF-8 limpio.
+    3. Al crear o modificar Releases de GitHub, usar serialización UTF-8 explícita (`[System.Text.Encoding]::UTF8.GetBytes(...)` o scripts Python con codificación UTF-8).
+    4. Release `v4.3.4` en GitHub actualizada y saneada al 100% en UTF-8 nativo.
 
