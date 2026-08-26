@@ -282,6 +282,7 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     void adoptPersistedChannels();
     void ensureNavadminChannel();
     void installSurvivalBaseline();
+    void adoptExistingOperationalConfig();
 
     // NAVARICO V5: Restauración de Capa Física LoRa y Canal 0 Primario
     void applyPersistedLoraConfig();

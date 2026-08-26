@@ -331,6 +331,133 @@ void NavaCLIModule::ensureNavadminChannel()
     LOG_INFO("NavaCLI: Canal 1 Navadmin auto-aprovisionado en Flash con exito.");
 }
 
+void NavaCLIModule::adoptExistingOperationalConfig()
+{
+    bool changed = false;
+
+    // 1. Claves de administración del dueño (respetando soberanía: no inyectar MasterNode si el dueño ya tiene clave)
+    const meshtastic_Config_SecurityConfig &sec = config.security;
+    bool hasOwnerKey = false;
+    for (pb_size_t i = 0; i < sec.admin_key_count && i < 3; i++) {
+        const uint8_t *k = sec.admin_key[i].bytes;
+        size_t sz = sec.admin_key[i].size;
+        if (sz == 32 && navaKeyIsValid(k) && !navaKeyIsProjectKey(k)) {
+            hasOwnerKey = true;
+            if (i == 0 && navaKeyIsEmpty(prefs.keySlot0Own)) {
+                memcpy(prefs.keySlot0Own, k, 32);
+                changed = true;
+                LOG_INFO("NavaCLI: Respaldo pasivo - Clave admin de dueno slot 0 absorbida hacia /resilience.bin");
+            } else if (i == 1 && navaKeyIsEmpty(prefs.keySlot1)) {
+                memcpy(prefs.keySlot1, k, 32);
+                changed = true;
+                LOG_INFO("NavaCLI: Respaldo pasivo - Clave admin slot 1 absorbida hacia /resilience.bin");
+            } else if (i == 2 && navaKeyIsEmpty(prefs.keySlot2)) {
+                memcpy(prefs.keySlot2, k, 32);
+                changed = true;
+                LOG_INFO("NavaCLI: Respaldo pasivo - Clave admin slot 2 absorbida hacia /resilience.bin");
+            }
+        }
+    }
+
+    // Si el nodo NO tenía ninguna clave admin configurada (nodo virgen o sin administrador configurado):
+    // Se asegura de que la clave oficial de MasterNode de fábrica esté inyectada en admin_key[0]
+    if (!hasOwnerKey && sec.admin_key_count == 0) {
+#ifdef USERPREFS_USE_ADMIN_KEY_0
+        static const uint8_t projK[] = USERPREFS_USE_ADMIN_KEY_0;
+        if (sizeof(projK) == 32) {
+            memcpy(config.security.admin_key[0].bytes, projK, 32);
+            config.security.admin_key[0].size = 32;
+            config.security.admin_key_count = 1;
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
+            LOG_INFO("NavaCLI: Nodo virgen sin administrador previo - Clave MasterNode de fabrica inyectada");
+        }
+#endif
+    }
+
+    // 2. Canales secundarios (Slots 2..7): absorber canales preexistentes si no estaban guardados en resilience.bin
+    for (uint8_t i = 2; i < MAX_NUM_CHANNELS; i++) {
+        uint8_t idx = i - 2;
+        const meshtastic_Channel &ch = channels.getByIndex(i);
+        ResilientChannel &rc = prefs.customChannels[idx];
+        if (rc.is_active == 0 && ch.has_settings && ch.role != meshtastic_Channel_Role_DISABLED && ch.settings.name[0] != '\0') {
+            rc.is_active = 1;
+            strncpy(rc.name, ch.settings.name, sizeof(rc.name) - 1);
+            rc.name[sizeof(rc.name) - 1] = '\0';
+            if (ch.settings.psk.size > 0 && ch.settings.psk.size <= 32) {
+                memcpy(rc.psk, ch.settings.psk.bytes, ch.settings.psk.size);
+                rc.psk_len = ch.settings.psk.size;
+            } else {
+                rc.psk[0] = 0x01;
+                rc.psk_len = 1;
+            }
+            rc.uplink_enabled = ch.settings.uplink_enabled ? 1 : 0;
+            rc.downlink_enabled = ch.settings.downlink_enabled ? 1 : 0;
+            changed = true;
+            LOG_INFO("NavaCLI: Respaldo pasivo - Canal secundario slot %d ('%s') absorbido hacia /resilience.bin", i, rc.name);
+        }
+    }
+
+    // 3. Canal 0 Primario
+    if (prefs.ch0_configured == 0) {
+        const meshtastic_Channel &ch0 = channels.getByIndex(0);
+        if (ch0.has_settings && ch0.settings.name[0] != '\0') {
+            strncpy(prefs.ch0_name, ch0.settings.name, sizeof(prefs.ch0_name) - 1);
+            prefs.ch0_name[sizeof(prefs.ch0_name) - 1] = '\0';
+            if (ch0.settings.psk.size > 0 && ch0.settings.psk.size <= 32) {
+                memcpy(prefs.ch0_psk, ch0.settings.psk.bytes, ch0.settings.psk.size);
+                prefs.ch0_psk_len = ch0.settings.psk.size;
+            } else {
+                prefs.ch0_psk[0] = 0x01;
+                prefs.ch0_psk_len = 1;
+            }
+            prefs.ch0_configured = 1;
+            changed = true;
+            LOG_INFO("NavaCLI: Respaldo pasivo - Canal 0 ('%s') absorbido hacia /resilience.bin", prefs.ch0_name);
+        }
+    }
+
+    // 4. Capa Física LoRa
+    if (prefs.lora_configured == 0) {
+        const meshtastic_Config_LoRaConfig &lora = config.lora;
+        prefs.lora_use_preset = lora.use_preset ? 1 : 0;
+        prefs.lora_modem_preset = (uint8_t)lora.modem_preset;
+        prefs.lora_bandwidth = lora.bandwidth;
+        prefs.lora_spread_factor = lora.spread_factor;
+        prefs.lora_coding_rate = lora.coding_rate;
+        prefs.lora_channel_num = lora.channel_num;
+        prefs.lora_override_frequency = lora.override_frequency;
+        prefs.lora_tx_power = lora.tx_power;
+        prefs.lora_configured = 1;
+        changed = true;
+        LOG_INFO("NavaCLI: Respaldo pasivo - Capa Fisica LoRa absorbida hacia /resilience.bin");
+    }
+
+    // 5. Nombre del repetidor / nodo
+    if (prefs.custom_long_name[0] == '\0' && owner.long_name[0] != '\0') {
+        strncpy(prefs.custom_long_name, owner.long_name, sizeof(prefs.custom_long_name) - 1);
+        prefs.custom_long_name[sizeof(prefs.custom_long_name) - 1] = '\0';
+        if (owner.short_name[0] != '\0') {
+            strncpy(prefs.custom_short_name, owner.short_name, sizeof(prefs.custom_short_name) - 1);
+            prefs.custom_short_name[sizeof(prefs.custom_short_name) - 1] = '\0';
+        }
+        changed = true;
+        LOG_INFO("NavaCLI: Respaldo pasivo - Nombre ('%s') absorbido hacia /resilience.bin", prefs.custom_long_name);
+    }
+
+    // 6. Rol del dispositivo
+    if (prefs.role == 0xFF && config.device.role <= meshtastic_Config_DeviceConfig_Role_ROUTER) {
+        prefs.role = (uint8_t)config.device.role;
+        changed = true;
+        LOG_INFO("NavaCLI: Respaldo pasivo - Rol (%d) absorbido hacia /resilience.bin", prefs.role);
+    }
+
+    // 7. Guardado si hubo cambios
+    if (changed) {
+        saveResiliencePrefs();
+        LOG_INFO("NavaCLI: Respaldo pasivo completado y guardado en /resilience.bin con exito.");
+    }
+}
+
 // --- V2: acceso estatico a los flags de sueño (leidos desde main.cpp pre-check) ---
 static bool navaResiliencePeek(uint8_t &sleepMsgsOut, uint8_t &wasInSleepOut)
 {
@@ -3272,6 +3399,8 @@ int32_t NavaCLIModule::runOnce()
         // NAVARICO V5: restaurar capa física LoRa y Canal 0 Primario persistidos
         applyPersistedLoraConfig();
         applyPersistedChannel0();
+        // NAVARICO V5: Respaldo pasivo y adopción no destructiva de la configuración activa del usuario
+        adoptExistingOperationalConfig();
 
         // Si arrancamos en modo prueba post-salto de pánico, rearmar el plazo relativo a este arranque fresco
         if (prefs.panic_trial_active == 1) {
