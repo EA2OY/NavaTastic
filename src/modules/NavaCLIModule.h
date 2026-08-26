@@ -52,7 +52,7 @@ struct NavaLogEntry {
 
 // NAVARICO V5: Pulso binario ultracorto para Protocolo "Botón del Pánico" (exactamente 28 Bytes)
 struct __attribute__((packed)) NavaPanicPulse {
-    uint32_t magic;             // 0x50414E43 ("PANC")
+    char magic[4];              // "PANC" o "POK!" (independiente de endianness)
     uint32_t session_id;        // Identificador único de sesión de pánico (Monotonic Session Anchor)
     uint8_t use_preset;         // 1=Preset estándar, 0=Custom
     uint8_t modem_preset;       // 0..13 enum meshtastic_Config_LoRaConfig_ModemPreset
@@ -293,6 +293,7 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     // NAVARICO V5: Protocolo "Botón del Pánico"
     void startPanic(const NavaPanicPulse &pulse);
     void emitPanicPulse();
+    void emitPanicOkPulse();
     void cancelPanicRollback();
     void handlePanicPulse(const meshtastic_MeshPacket &mp);
     uint32_t currentPanicSessionId = 0;

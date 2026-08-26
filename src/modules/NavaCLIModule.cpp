@@ -1355,7 +1355,8 @@ void NavaCLIModule::emitPanicPulse()
     if (targetChan < 1 || targetChan > 7) targetChan = 1;
 
     NavaPanicPulse pulse;
-    pulse.magic = 0x50414E43;
+    memset(&pulse, 0, sizeof(pulse));
+    memcpy(pulse.magic, "PANC", 4);
     pulse.session_id = currentPanicSessionId;
     pulse.use_preset = (prefs.panic_target_preset != 0) ? 1 : 0;
     pulse.modem_preset = prefs.panic_target_preset;
@@ -1374,14 +1375,43 @@ void NavaCLIModule::emitPanicPulse()
         p->channel = targetChan;
         p->hop_limit = 1; // Pulso directo local para avanzar de valle en valle en cascada sin rebotes innecesarios
         p->priority = meshtastic_MeshPacket_Priority_ALERT;
-        p->decoded.portnum = ourPortNum;
+        p->decoded.portnum = meshtastic_PortNum_PRIVATE_APP;
         p->decoded.payload.size = sizeof(pulse);
         memcpy(p->decoded.payload.bytes, &pulse, sizeof(pulse));
-        service->sendToMesh(p, RX_SRC_LOCAL, true);
+        service->sendToMesh(p, RX_SRC_LOCAL, false);
     }
     nextPulseIntervalMs = 25000 + (rand() % 20000);
     prefs.panic_last_pulse_ms = millis();
     LOG_INFO("NavaCLI: Pulso de Panico emitido (sesion 0x%08x). Quedan %d segundos para evacuacion", currentPanicSessionId, remSecs);
+}
+
+void NavaCLIModule::emitPanicOkPulse()
+{
+    uint8_t targetChan = prefs.cliChannelSlot;
+    if (targetChan < 1 || targetChan > 7) targetChan = 1;
+
+    NavaPanicPulse pulse;
+    memset(&pulse, 0, sizeof(pulse));
+    memcpy(pulse.magic, "POK!", 4);
+    pulse.session_id = currentPanicSessionId;
+    pulse.sender_nodenum = nodeDB->getNodeNum();
+
+    meshtastic_MeshPacket *p = allocDataPacket();
+    if (p) {
+        p->to = NODENUM_BROADCAST;
+        p->channel = targetChan;
+        p->hop_limit = Default::getConfiguredOrDefaultHopLimit(config.lora.hop_limit);
+        p->priority = meshtastic_MeshPacket_Priority_ALERT;
+        p->decoded.portnum = meshtastic_PortNum_PRIVATE_APP;
+        p->decoded.payload.size = sizeof(pulse);
+        memcpy(p->decoded.payload.bytes, &pulse, sizeof(pulse));
+        service->sendToMesh(p, RX_SRC_LOCAL, false);
+    }
+
+    char textBuf[120];
+    snprintf(textBuf, sizeof(textBuf), "[Panico] SALTO CONSOLIDADO. Rollback cancelado en toda la red.");
+    enqueueResponse(NODENUM_BROADCAST, targetChan, textBuf, true, true);
+    LOG_INFO("NavaCLI: Pulso POK emitido para consolidar la red completa");
 }
 
 void NavaCLIModule::cancelPanicRollback()
@@ -1683,8 +1713,8 @@ bool NavaCLIModule::wantPacket(const meshtastic_MeshPacket *p)
         if (rxLogCount < 5) rxLogCount++;
     }
 
-    if (p != nullptr && p->decoded.portnum == ourPortNum && p->decoded.payload.size == sizeof(NavaPanicPulse)) {
-        if (memcmp(p->decoded.payload.bytes, "PANC", 4) == 0) {
+    if (p != nullptr && (p->decoded.portnum == meshtastic_PortNum_PRIVATE_APP || p->decoded.portnum == ourPortNum) && p->decoded.payload.size >= 24) {
+        if (memcmp(p->decoded.payload.bytes, "PANC", 4) == 0 || memcmp(p->decoded.payload.bytes, "POK!", 4) == 0) {
             return true;
         }
     }
@@ -1730,16 +1760,24 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
         return ProcessMessage::CONTINUE;
     }
 
-    // Comprobar si es un pulso binario de pánico
-    if (mp.decoded.portnum == ourPortNum && mp.decoded.payload.size == sizeof(NavaPanicPulse) && memcmp(mp.decoded.payload.bytes, "PANC", 4) == 0) {
-        uint8_t cliSlot = prefs.cliChannelSlot;
-        if (cliSlot < 1 || cliSlot > 7) cliSlot = 1;
-        if (mp.channel == cliSlot || mp.channel == 1) {
-            NavaPanicPulse pulse;
-            memcpy(&pulse, mp.decoded.payload.bytes, sizeof(pulse));
-            startPanic(pulse);
+    // Comprobar si es un pulso binario de pánico o consolidación
+    if ((mp.decoded.portnum == meshtastic_PortNum_PRIVATE_APP || mp.decoded.portnum == ourPortNum) && mp.decoded.payload.size >= 24) {
+        if (memcmp(mp.decoded.payload.bytes, "POK!", 4) == 0) {
+            LOG_INFO("NavaCLI: Recibido pulso POK de consolidacion de red desde 0x%08x", (unsigned int)mp.from);
+            cancelPanicRollback();
+            return ProcessMessage::STOP;
         }
-        return ProcessMessage::STOP;
+        if (memcmp(mp.decoded.payload.bytes, "PANC", 4) == 0) {
+            uint8_t cliSlot = prefs.cliChannelSlot;
+            if (cliSlot < 1 || cliSlot > 7) cliSlot = 1;
+            if (mp.channel == cliSlot || mp.channel == 1) {
+                NavaPanicPulse pulse;
+                memset(&pulse, 0, sizeof(pulse));
+                memcpy(&pulse, mp.decoded.payload.bytes, std::min<size_t>(sizeof(pulse), mp.decoded.payload.size));
+                startPanic(pulse);
+            }
+            return ProcessMessage::STOP;
+        }
     }
 
     std::string text((char *)mp.decoded.payload.bytes, mp.decoded.payload.size);
@@ -2673,7 +2711,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
     }
     else if (cmd.rfind("panic_ok", 0) == 0) {
         cancelPanicRollback();
-        enqueueResponse(replyDest, replyChannel, "OK: SALTO DE PANICO CONSOLIDADO. ROLLBACK CANCELADO.", true, false, hops);
+        emitPanicOkPulse();
+        enqueueResponse(replyDest, replyChannel, "OK: SALTO DE PANICO CONSOLIDADO. ROLLBACK CANCELADO EN LA RED.", true, false, hops);
     }
     else if (cmd.rfind("panic", 0) == 0) {
         std::string arg = (cmd.length() > 5) ? cmd.substr(5) : "";
@@ -2693,7 +2732,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         if (mins < 2 || mins > 120) mins = 10;
 
         NavaPanicPulse pulse;
-        pulse.magic = 0x50414E43;
+        memset(&pulse, 0, sizeof(pulse));
+        memcpy(pulse.magic, "PANC", 4);
         pulse.session_id = ((uint32_t)rand() << 16) ^ (uint32_t)millis() ^ nodeDB->getNodeNum();
         pulse.remaining_seconds = mins * 60;
         pulse.rollback_minutes = rollbackMins;
@@ -3089,6 +3129,20 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             enqueueResponse(replyDest, replyChannel, "ERR: NIVEL INVALIDO (1-5)", true, false, hops);
             return;
         }
+        uint16_t wakeMv = 0;
+        switch (lvl) {
+            case 1: wakeMv = 2100; break;
+            case 2: wakeMv = 2500; break;
+            case 3: wakeMv = 3700; break;
+            case 4: wakeMv = 4500; break;
+            case 5: wakeMv = 3300; break;
+        }
+        if (wakeMv <= prefs.vbat_cutoff) {
+            char err[100];
+            snprintf(err, sizeof(err), "ERR: VWAKE (%umV) DEBE SUPERAR VBAT_CUTOFF (%umV)", wakeMv, (unsigned int)prefs.vbat_cutoff);
+            enqueueResponse(replyDest, replyChannel, err, true, false, hops);
+            return;
+        }
         prefs.vwake_level = lvl;
         saveResiliencePrefs();
         currentWakeLevel = lvl;
@@ -3391,12 +3445,24 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         deferredAction = NAVA_DEFERRED_FACTORY_RESET;
         preRebootArmed = false;
     }
-    else if (cmd == "full_reset") {
+    else if (cmd.rfind("full_reset", 0) == 0) {
+        std::string arg = (cmd.length() > 10) ? cmd.substr(10) : "";
+        while (!arg.empty() && (arg.front() == ' ' || arg.front() == '\t')) arg.erase(0, 1);
+        if (arg != "confirm" && arg != "CONFIRM") {
+            enqueueResponse(replyDest, replyChannel, "ERR: COMANDO DESTRUCTIVO. Requiere: /nava full_reset CONFIRM", true, false, hops);
+            return;
+        }
         enqueueResponse(replyDest, replyChannel, "OK: RESET COMPLETO PROGRAMADO (PKI conservado, tras vaciar cola...)", true, false, hops);
         deferredAction = NAVA_DEFERRED_FULL_RESET;
         preRebootArmed = false;
     }
-    else if (cmd == "wipe") {
+    else if (cmd.rfind("wipe", 0) == 0) {
+        std::string arg = (cmd.length() > 4) ? cmd.substr(4) : "";
+        while (!arg.empty() && (arg.front() == ' ' || arg.front() == '\t')) arg.erase(0, 1);
+        if (arg != "confirm" && arg != "CONFIRM") {
+            enqueueResponse(replyDest, replyChannel, "ERR: COMANDO DESTRUCTIVO. Requiere: /nava wipe CONFIRM", true, false, hops);
+            return;
+        }
         enqueueResponse(replyDest, replyChannel, "OK: WIPE PROGRAMADO (par PKI nuevo al reiniciar, tras vaciar cola...)", true, false, hops);
         deferredAction = NAVA_DEFERRED_WIPE;
         preRebootArmed = false;
@@ -3576,7 +3642,7 @@ int32_t NavaCLIModule::runOnce()
             reply->channel = response.channel;
             reply->want_ack = false;
             statsTxPackets++;
-            service->sendToMesh(reply);
+            service->sendToMesh(reply, RX_SRC_LOCAL, true);
         }
 
         if (sleepPending && responseQueue.empty()) {
@@ -3873,9 +3939,9 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
     else if (topic == "factory_reset")
         return "factory_reset: Formateo remoto de emergencia; restaura valores de rescate. Uso: /nava factory_reset";
     else if (topic == "full_reset")
-        return "full_reset: Reset completo (config + semi-persistentes a defaults) conservando claves PKI y bonds BLE. Uso: /nava full_reset";
+        return "full_reset: Reset completo (config + semi-persistentes a defaults) conservando claves PKI y bonds BLE. Uso: /nava full_reset CONFIRM";
     else if (topic == "wipe")
-        return "wipe: Purga total: regenera el par PKI (los peers fallan DM hasta re-aprender la clave nueva). Uso: /nava wipe";
+        return "wipe: Purga total: regenera el par PKI (los peers fallan DM hasta re-aprender la clave nueva). Uso: /nava wipe CONFIRM";
     else if (topic == "admin_ls")
         return "admin_ls: Muestra las 3 claves criptograficas de admin en base64. Uso: /nava admin_ls";
     else if (topic == "keys_ls")

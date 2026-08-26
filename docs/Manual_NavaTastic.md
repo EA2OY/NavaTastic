@@ -161,8 +161,8 @@ Permite cambiar de canal, preset o velocidad a todos los repetidores de la monta
 - **`/nava db_clear`** — Vacía la base de nodos (nuclear).
 - **`/nava reboot`** — Reinicio con ventana de gracia de 6 segundos tras vaciar la cola de transmisión del paquete de acuse.
 - **`/nava factory_reset`** — Reset de fábrica de emergencia conservando claves admin de usuario y canales secundarios en `/resilience.bin`.
-- **`/nava full_reset`** — Reset completo a defaults conservando el par PKI, los bonds BLE y las claves admin del usuario (`NAV6`).
-- **`/nava wipe`** — Purga total de compromiso: erase total + par PKI NUEVO + bonds BLE + purga de claves admin persistidas (queda solo la de rescate del proyecto).
+- **`/nava full_reset CONFIRM`** — Reset completo a defaults conservando el par PKI, los bonds BLE y las claves admin del usuario (`NAV7`). Requiere confirmación explícita.
+- **`/nava wipe CONFIRM`** — Purga total de compromiso: erase total + par PKI NUEVO + bonds BLE + purga de claves admin persistidas. Requiere confirmación explícita.
 
 ---
 
@@ -170,7 +170,9 @@ Permite cambiar de canal, preset o velocidad a todos los repetidores de la monta
 
 - **`/nava set_chem [lipo/nimh/sodium/lifepo4]`** — Cambia química de batería y ajusta corte/OCV/LPCOMP. Persiste en `/resilience.bin`. Cortes: lipo 3500, nimh 3400, sodium 2600, **lifepo4 2800**.
 - **`/nava set_vbat [2400-3600]`** — Corte de apagado por batería en mV.
-- **`/nava set_vwake [1-5]`** — Nivel LPCOMP de reencendido solar.
+- **`/nava set_vwake [1-5]`** — Nivel LPCOMP de reencendido solar (debe ser estrictamente superior al corte `vbat_cutoff`).
+- **`/nava panic <preset|params> [minutos=10] [rollback=0]`** — Salto coordinado de evacuación por pánico de toda la red.
+- **`/nava panic_ok`** — Consolida permanentemente el salto de evacuación en toda la red, emitiendo pulso `POK!` y cancelando el rollback.
 - **`/nava storm [1-720]`** — Hibernación con radio apagada (RTC2), despierta por temporizador y reinicia.
 - **`/nava storm test1` / `test2`** — Prueba rápida: 60s / 120s.
 - **`/nava txoff`** — Apaga TX tras 3s (mantiene RX).

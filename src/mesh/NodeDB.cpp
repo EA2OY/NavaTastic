@@ -1067,7 +1067,11 @@ void NodeDB::installDefaultModuleConfig()
 void NodeDB::installRoleDefaults(meshtastic_Config_DeviceConfig_Role role)
 {
     if (role == meshtastic_Config_DeviceConfig_Role_ROUTER) {
+        uint32_t userScreenOn = config.display.screen_on_secs;
         initConfigIntervals();
+        if (userScreenOn > 1) {
+            config.display.screen_on_secs = userScreenOn;
+        }
         initModuleConfigIntervals();
         moduleConfig.telemetry.device_update_interval = default_telemetry_broadcast_interval_secs;
         config.device.rebroadcast_mode = meshtastic_Config_DeviceConfig_RebroadcastMode_LOCAL_ONLY;

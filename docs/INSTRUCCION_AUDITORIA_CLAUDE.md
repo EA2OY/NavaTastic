@@ -91,9 +91,29 @@ El auditor debe entender el contexto operativo real: repetidores solares en cumb
    - **Propósito**: Operatividad táctica colectiva mediante canales cifrados simétricos (AES-128 / AES-256). Permite enviar órdenes simultáneas a una constelación de repetidores.
    - **Salvaguarda**: Si se requiere administración nuclear con no-repudio individual, se utiliza Mensaje Directo (DM) con autenticación asimétrica por PKI (Curve25519) y comprobación de clave pública registrada.
 
-4. **Protocolo "Botón del Pánico" (Evacuación de Flota)**:
+4. **Protocolo "Botón del Pánico" (Evacuación de Flota) y Consolidación (`panic_ok`)**:
    - **Propósito**: Salto sincronizado de toda la red a una frecuencia/preset de emergencia ante interferencias o catástrofes.
-   - **Salvaguarda**: La orden inicial textual `/nava panic` **exige obligatoriamente DM cifrado por PKI** (clave privada del administrador). Una vez verificada criptográficamente, el repetidor emite el paquete binario mágico (`NavaPanicPulse` "PANC") por el canal Navadmin para que la flota propague la evacuación en cascada de valle en valle.
+   - **Salvaguarda**: La orden inicial textual `/nava panic` **exige obligatoriamente DM cifrado por PKI** (clave privada del administrador).
+   - **Desacople del chat de usuario**: El pulso binario se emite por el puerto privado del sistema (`meshtastic_PortNum_PRIVATE_APP`, 256) y con firma mágica independiente de endianness (`char magic[4] = "PANC"`). Esto evita que los 28 bytes de la trama binaria aparezcan como caracteres basura en las aplicaciones móviles de los usuarios en el canal Navadmin. Los usuarios solo reciben el aviso textual limpio en español (`[Panico] EVACUACION a...`).
+   - **Consolidación en red (`panic_ok`)**: Cuando el operador emite `/nava panic_ok` por DM, el nodo consolida su configuración y propaga un pulso de confirmación (`POK!`) por la malla para que todos los repetidores en periodo de prueba cancelen su rollback simultáneamente.
+
+5. **Confirmación explícita en dos pasos para comandos destructivos**:
+   - `/nava wipe CONFIRM` y `/nava full_reset CONFIRM` exigen el parámetro `CONFIRM` de forma mandatoria. Un resbalón tipográfico o un comando `/nava wipe` sin confirmar es rechazado de inmediato, impidiendo dejar huérfano un nodo en montaña.
+
+6. **Validación defensiva de umbral de despertar solar (`set_vwake`)**:
+   - `set_vwake` rechaza cualquier nivel cuyo voltaje de despertar sea inferior o igual al corte de batería activo (`vbat_cutoff`), blindando el nodo contra estados inconsistentes de sueño perpetuo.
+
+7. **Tiempo de pantalla OLED en rol ROUTER**:
+   - Upstream de Meshtastic fuerza por defecto `screen_on_secs = 1` segundo en rol `ROUTER` vía macro `IF_ROUTER(1, 60*10)` en `Default.h` para proteger la batería y evitar quemar píxeles.
+   - NavaTastic adopta ese valor de 1 segundo por defecto, pero **respeta y preserva cualquier ajuste manual superior configurado por el usuario** (ej. 15s o 30s) a través de reinicios y recargas de rol, permitiendo el mantenimiento y diagnóstico visual en campo.
+
+8. **Capa de Persistencia Atómica `/resilience.bin` (NAV7)**:
+   - Escritura atómica mediante fichero temporal (`/resilience.tmp`) y posterior `rename()` atómico, garantizando que un corte de alimentación en un repetidor solar jamás corrompa ni pierda la configuración persistida.
+   - Todas las operaciones de lectura/escritura en LittleFS están blindadas con `concurrency::LockGuard g(spiLock)` para evitar colisiones en el bus SPI con el chip LoRa.
+   - Validación integral de integridad mediante checksum CRC32 en el arranque.
+
+9. **Escudo Anti-Tormentas (Supresión de 12h de NodeInfo repetidos)**:
+   - El nodo no solicita respuesta en su anuncio propio de arranque (`want_response = false`) y suprime durante 12 horas las consultas repetidas de NodeInfo procedentes de un mismo emisor (salvo administradores). Esta es una optimización deliberada para proteger el espectro y la batería en cumbres solares frente a spam de consultas en la malla.
 
 ## 3. Candidatos YA ANOTADOS (no son novedad si los encuentras)
 
