@@ -6,7 +6,7 @@ param(
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
-$cred = "protocol=https`nhost=github.com`n`n" | git credential fill
+$cred = @('protocol=https', 'host=github.com', '') | git credential fill
 $tokenLine = ($cred | Where-Object { $_ -like "password=*" }) | Select-Object -First 1
 $token = if ($tokenLine) { ($tokenLine -replace "password=","").Trim() } else { "" }
 
@@ -30,25 +30,25 @@ $release = try {
 if (-not $release) {
     Write-Host "Creando nueva Release para el tag $Tag..."
     $releaseNotes = @"
-## NavaTastic V5 (v4.3.4) — Sincronización Bidireccional de App Oficial, Hop-Aware Timing y Resiliencia NAV6
+## NavaTastic V5 (v4.3.4) — Saneamiento Integral Clean Slate, Clave Única MasterNode y Auto-Navadmin
 
-Esta versión introduce la arquitectura **NavaTastic V5**, elevando la estabilidad, resiliencia y supervivencia de repetidores solares en montaña a un nuevo estándar:
+Esta versión consolida la arquitectura definitiva **NavaTastic V5 (v4.3.4)** con todas las correcciones integradas:
 
-### 🌟 Principales Novedades de NavaTastic V5:
-1. **Sincronización Bidireccional Transparente de la App Oficial**: Sincronización continua de los 12 ajustes cotidianos (rol, MQTT, telemetría, intervalos de baliza, coordenadas fijas, canales 0-7, LoRa preset y PIN BLE) hacia `/resilience.bin` V6 (`NAV6`).
-2. **Hop-Aware Timing y Desacople de Traceroute**: Jitter adaptativo de 5 a 13s, retardo en malla de 300ms (0 saltos), 1.5s (1 salto) y 3.5s (>=2 saltos). Traceroute desacoplado con sondeo a los 8 segundos.
-3. **Persistencia Física LoRa y Canal 0 Primario**: Comandos `/nava set_preset`, `/nava set_lora`, `/nava set_freq`, `/nava ch_set 0` con validación estricta y blindaje ante reinicios.
-4. **Nombre Persistente y Subcomando Flush**: Fijación de nombre a fuego en `/resilience.bin` con `/nava set_name "[Largo]" "[Corto]"` (resistente a Factory Reset) y liberación de hardcodeo al modo natural con `/nava set_name flush`.
-5. **Telemetrías por Defecto a 12 Horas (43200s)**: Intervalo inicial no saturante para sensores de batería, clima, energía, salud y calidad de aire, propagable en bloque con `/nava set_telem_tx`.
-6. **Protocolo Botón del Pánico**: Evacuación simultánea de toda la cordillera en T minutos con canal prioritario `ALERT` y comando `/nava panic_ok`.
-7. **Corrección de Bugs de Desincronización**: Resueltos al 100% los fallos de Rol, Nombre, Posición Fija y Mensajería DM.
-8. **Ventana de Gracia Pre-Reboot**: 6 segundos de drenaje garantizado de cola de radio antes de cualquier reinicio o reset.
-9. **Capacidad Ampliada de Auto-Favoritos**: Soporte para hasta 32 routers vecinos directos en memoria de resiliencia.
+### 🛡️ Novedades y Correcciones Críticas en V5:
+1. **Saneamiento Automático de Memoria (Clean Slate)**: Al actualizar o arrancar, cualquier archivo `/resilience.bin` antiguo o no conforme se purga de raíz y se recrea limpio con los 760 bytes exactos del formato `NAV6`.
+2. **Clave Única MasterNode en Toda la Flota**: Unificación de la clave de administración remota de fábrica (`USERPREFS_USE_ADMIN_KEY_0` de MasterNode) en los 12 entornos.
+3. **Auto-Aprovisionamiento Inteligente de Navadmin en Slot 1**: Ya no se requiere hacer Factory Reset tras instalar sobre firmware oficial; `Navadmin` se aprovisiona automáticamente en el primer arranque respetando cualquier canal previo del usuario.
+4. **Protocolo Botón del Pánico Endurecido**: Persistencia atómica de parámetros LoRa en Flash antes del reboot ($T=0$), cálculo de prueba de rollback relativo al arranque fresco y avisos de texto claro en cascada por `Navadmin` con prioridad `ALERT`.
+5. **Invarianza Estricta de Offsets y Sanitización Criptográfica**: Blindaje estructural de memoria y filtro `navaKeyIsValid` para purgar cualquier residuo de memoria sin entropía.
+6. **Sincronización Bidireccional Transparente de la App Oficial**: Sincronización continua de los 12 ajustes cotidianos (rol, MQTT, telemetría, intervalos de baliza, coordenadas fijas, canales 0-7, LoRa preset y PIN BLE) hacia `/resilience.bin`.
+7. **Hop-Aware Timing y Desacople de Traceroute**: Jitter adaptativo y retardos graduados por saltos para evitar colisiones en la cordillera.
+8. **Nombre Persistente y Modo Natural**: `/nava set_name "[Largo]" "[Corto]"` (resistente a resets) y `/nava set_name flush` para liberar al modo natural.
+9. **Telemetrías No Saturantes a 12 Horas (43200s)**: Por defecto para sensores de batería, clima, energía y salud.
 
 ### 📦 Contenido de esta Release:
 - 12 binarios `.uf2` para flasheo directo por USB (DFU).
 - 12 paquetes `.zip` para actualización inalámbrica OTA desde la App oficial de Meshtastic.
-- Manuales y documentación técnica en PDF actualizados a V5.
+- Documentación técnica y manuales en PDF actualizados.
 "@
 
     $createPayload = @{
