@@ -860,6 +860,23 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     2. En `firstRunDone` (post-boot), si `panic_trial_active == 1`, rearmar el plazo relativo al tiempo de arranque fresco: `panic_trial_deadline_ms = millis() + (rollback_mins * 60000)`.
     3. Purgar flags de pánico residuales (`panic_active = 0`, `panic_target_time_ms = 0`) atómicamente antes del reboot.
     4. Emitir un mensaje de texto claro por difusión en `Navadmin`: `[Panico] Evacuacion a <PRESET> en X min. Rollback en Y min.` y garantizar su retransmisión multi-salto con prioridad `ALERT`.
+- **Estado Consolidado (26/08/2026 17:45, Cierre de Auditoría V5: Auto-Favorito Admin, Botón del Pánico Multirouter en Cascada y Fork Auditable en GitHub)**:
+  - **Blindaje Total de Auto-Favorito para el Administrador**:
+    1. En `NodeDB::updateUser()` rama `(a2)`: añadida asignación `info->is_favorite = true` para acreditar al admin desde el primer anuncio.
+    2. En `NodeDB::checkAndRegisterRAMAutoFavorite()`: añadida comprobación `isAdminNode(*info)` para auto-favoritar al admin sin importar su rol (`CLIENT`), protegiéndolo de cualquier desalojo en RAM.
+    3. En `NavaCLIModule::handleReceived()`: guardado inmediato como favorito en `NodeDB` (`set_favorite(true)`) al recibir cualquier comando `/nava` autenticado (sea por DM o por difusión), eliminando de raíz las supresiones de NodeInfo y el cartel de "no ha intercambiado PKI".
+  - **Protocolo Botón del Pánico Multirouter en Cascada**:
+    1. `session_id` monotónico en `NavaPanicPulse`: anclaje del reloj de hardware en el primer pulso recibido (`Session Anchor`), ignorando variaciones de tiempo posteriores y evitando desvíos por latencia de red.
+    2. Pulsos locales de cobertura directa con `hop_limit = 1` y prioridad `ALERT` emitidos por `prefs.cliChannelSlot`, propagando la ola de valle en valle sin tormentas de paquetes.
+    3. Jitter aleatorio asíncrono anti-colisión: cadencia dinámica de `25s + rand(0..20s)` entre pulsos.
+    4. Comando `/nava panic` habilitado tanto por DM privado (cifrado asimétrico Curve25519 nativo desde apps oficiales de Meshtastic de serie) como directamente en el canal `Navadmin`.
+  - **Compilación Limpia y Despliegue de los 12 Entornos**:
+    - Compilación completa exitosa de la suite (12/12) mediante `build.ps1 -Distribuir`.
+    - Binarios UF2 y OTA actualizados en `distribucion\` y `C:\Users\Jesus\Desktop\NavaTastic V5 4.3.4\`.
+  - **Sincronización Total en GitHub (`EA2OY/NavaTastic`)**:
+    - Rama `master` actualizada con el historial de commits.
+    - Rama `main` regenerada y forzada sobre el commit oficial de Meshtastic 2.7.26 (`54e0d8d0a`), permitiendo la comparación directa de forks en 1 clic para la comunidad de Telegram y auditores externos.
+
 
 
 
