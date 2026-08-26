@@ -77,8 +77,8 @@ struct ResiliencePrefs {
     uint8_t ble_disabled;   // 0=ON, 1=OFF
     uint8_t auto_fav;       // 1=auto-favoriteo ON (default), 0=OFF (/nava fav auto)
     uint8_t role;           // V2.1 Rama 1 y Rama 2: rol semi-permanente. 0xFF=sin fijar; 0=CLIENT, 1=CLIENT_MUTE, 2=ROUTER. Sobrevive a factory reset
-    uint32_t autoFavIds[32]; // V5: ampliado de 16 a 32 ids de nodos favoritados por auto-fav
-    uint8_t autoFavCount;    // V5: número de ids válidos en autoFavIds (0-32)
+    uint32_t autoFavIds[16]; // V2/V4: ids (NodeNum) de nodos favoritados (slots 0-15). Invariable para compatibilidad de offset
+    uint8_t autoFavCount;    // V2/V4/V5: número de ids válidos en autoFavIds (0-32)
     uint8_t sleepMsgs;       // V2: 1=mensajes sueño/vivo/listo ON (default), 0=OFF (/nava sleepmsg)
     uint8_t wasInSleep;      // V2: 1=dormido por bateria (se setea antes de cpuDeepSleep, se lee al boot para Listo/Vivo)
     uint8_t reserved;        // V2: reservado
@@ -107,7 +107,11 @@ struct ResiliencePrefs {
     uint32_t telem_tx_secs;              // Difusión de Telemetría (0=OFF, >0 segundos, default: 900s)
     uint32_t ignoredNodes[8];            // Lista negra global de nodos ignorados (NodeNum)
     uint8_t ignoredCount;                // Número de nodos ignorados (0-8)
-    // NAVARICO V5: Bloque A - Capa Física LoRa Persistente
+
+    // =========================================================================
+    // NAVARICO V5: BLOQUES NUEVOS SIEMPRE AL FINAL PARA PRESERVAR OFFSETS
+    // =========================================================================
+    // Bloque A - Capa Física LoRa Persistente
     uint8_t lora_use_preset;             // 0=Custom, 1=Preset estándar
     uint8_t lora_modem_preset;           // 0..13 meshtastic_Config_LoRaConfig_ModemPreset
     uint32_t lora_bandwidth;             // 31, 62, 125, 200, 250, 500 kHz
@@ -117,12 +121,14 @@ struct ResiliencePrefs {
     float lora_override_frequency;       // Frecuencia explícita (863.0000f - 873.3000f MHz)
     uint8_t lora_tx_power;               // Potencia de transmisión (1..22 dBm)
     uint8_t lora_configured;             // 1=parámetros LoRa configurados/activos
-    // NAVARICO V5: Bloque B - Capa Lógica Canal 0 Primario Persistente
+
+    // Bloque B - Capa Lógica Canal 0 Primario Persistente
     char ch0_name[12];                   // Nombre del Canal 0
     uint8_t ch0_psk[32];                 // Clave PSK (1B 0x01 o 16B/32B AES)
     uint8_t ch0_psk_len;                 // Longitud de PSK (1, 16 o 32)
     uint8_t ch0_configured;              // 1=Canal 0 configurado/activo
-    // NAVARICO V5: Bloque C - Protocolo "Botón del Pánico" (Evacuación de Emergencia)
+
+    // Bloque C - Protocolo "Botón del Pánico" (Evacuación de Emergencia)
     uint8_t panic_active;                // 1=modo pánico / evacuación en curso
     uint8_t panic_target_preset;         // Preset destino
     uint8_t panic_target_sf;             // SF destino
@@ -135,9 +141,13 @@ struct ResiliencePrefs {
     uint32_t panic_last_pulse_ms;        // Último pulso de pánico emitido
     uint8_t panic_trial_active;          // 1=nodo operando en modo prueba post-salto esperando panic_ok
     uint32_t panic_trial_deadline_ms;    // Límite millis() para recibir panic_ok antes de revertir
-    // NAVARICO V5: Bloque D - Nombre Persistente de Nodo (Hardcodeo / Modo Natural)
+
+    // Bloque D - Nombre Persistente de Nodo (Hardcodeo / Modo Natural)
     char custom_long_name[40];           // Nombre largo persistente (/nava set_name)
     char custom_short_name[5];           // Nombre corto persistente (4 caracteres + '\0')
+
+    // Bloque E - Extensión de Auto-Favoritos (slots 16..31)
+    uint32_t extraAutoFavIds[16];        // Slots 16-31 de auto-favoritos
 };
 
 enum NavaDeferredAction {
@@ -265,10 +275,13 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     void adoptPersistedAdminKeys();
     static bool navaKeyIsEmpty(const uint8_t *key);
     static bool navaKeyIsProjectKey(const uint8_t *key);
+    static bool navaKeyIsValid(const uint8_t *key);
 
     // NAVARICO F21: Restauración y respaldo de canales secundarios
     void applyPersistedChannels();
     void adoptPersistedChannels();
+    void ensureNavadminChannel();
+    void installSurvivalBaseline();
 
     // NAVARICO V5: Restauración de Capa Física LoRa y Canal 0 Primario
     void applyPersistedLoraConfig();
@@ -287,6 +300,8 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     void navaFullResetKeepKeys();
 
     // V2/V5: helpers del listado persistente de auto-favoritos (status real tras reinicio)
+    uint32_t getAutoFavId(size_t index) const;
+    void setAutoFavId(size_t index, uint32_t id);
     bool isAutoFav(uint32_t nodeNum) const;
     bool addAutoFav(uint32_t nodeNum);    // true si cambio
     bool removeAutoFav(uint32_t nodeNum); // true si cambio

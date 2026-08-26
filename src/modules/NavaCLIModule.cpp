@@ -64,220 +64,176 @@ NavaCLIModule::NavaCLIModule()
 
 void NavaCLIModule::loadResiliencePrefs() {
     memset(&prefs, 0, sizeof(prefs));
+    bool validExisting = false;
+
     if (FSCom.exists("/resilience.bin")) {
         File f = FSCom.open("/resilience.bin", FILE_O_READ);
         if (f) {
             size_t fileSize = f.size();
-            f.read((uint8_t*)&prefs, sizeof(prefs));
-            f.close();
-            if (prefs.magic == 0x52455349) {
-                // NAVARICO F21/V5: si el fichero es de versión previa (< NAV6) o tamaño distinto -> migrar.
-                bool legacy = (fileSize != sizeof(prefs) || prefs.version != NAVS_RESILIENCE_VERSION);
-                // F15/F21/V5: campos fuera de rango -> sanear (preservando los válidos).
-                bool fieldsBad = (prefs.chemistry > 3 ||
-                    prefs.vbat_cutoff < 2400 || prefs.vbat_cutoff > 3600 || prefs.vwake_level < 1 || prefs.vwake_level > 5 ||
-                    prefs.tx_disabled > 1 || prefs.ble_disabled > 1 || prefs.auto_fav > 1 ||
-                    (prefs.role > meshtastic_Config_DeviceConfig_Role_ROUTER && prefs.role != 0xFF) ||
-                    prefs.autoFavCount > 32 || prefs.sleepMsgs > 1 || prefs.wasInSleep > 1 ||
-                    prefs.cliChannelSlot < 1 || prefs.cliChannelSlot > 7 || prefs.navadminMuted > 1 ||
-                    prefs.ignoredCount > 8);
+            if (fileSize == sizeof(ResiliencePrefs)) {
+                size_t bytesRead = f.read((uint8_t*)&prefs, sizeof(prefs));
+                if (bytesRead == sizeof(ResiliencePrefs) && prefs.magic == 0x52455349 && prefs.version == NAVS_RESILIENCE_VERSION) {
+                    bool fieldsSane = (prefs.chemistry <= 3 &&
+                        prefs.vbat_cutoff >= 2400 && prefs.vbat_cutoff <= 3600 &&
+                        prefs.vwake_level >= 1 && prefs.vwake_level <= 5 &&
+                        prefs.tx_disabled <= 1 && prefs.ble_disabled <= 1 && prefs.auto_fav <= 1 &&
+                        (prefs.role <= meshtastic_Config_DeviceConfig_Role_ROUTER || prefs.role == 0xFF) &&
+                        prefs.autoFavCount <= 32 && prefs.sleepMsgs <= 1 && prefs.wasInSleep <= 1 &&
+                        prefs.cliChannelSlot >= 1 && prefs.cliChannelSlot <= 7 && prefs.navadminMuted <= 1 &&
+                        prefs.ignoredCount <= 8);
 
-                if (legacy) {
-                    // Inicializar nuevos campos V5 con defaults seguros
-                    prefs.lora_use_preset = 0;
-                    prefs.lora_modem_preset = 0;
-                    prefs.lora_bandwidth = 0;
-                    prefs.lora_spread_factor = 0;
-                    prefs.lora_coding_rate = 0;
-                    prefs.lora_channel_num = 0;
-                    prefs.lora_override_frequency = 0.0f;
-                    prefs.lora_tx_power = 0;
-                    prefs.lora_configured = 0;
-
-                    memset(prefs.ch0_name, 0, sizeof(prefs.ch0_name));
-                    memset(prefs.ch0_psk, 0, sizeof(prefs.ch0_psk));
-                    prefs.ch0_psk_len = 0;
-                    prefs.ch0_configured = 0;
-
-                    prefs.panic_active = 0;
-                    prefs.panic_target_preset = 0;
-                    prefs.panic_target_sf = 0;
-                    prefs.panic_target_cr = 0;
-                    prefs.panic_target_bw = 0;
-                    prefs.panic_target_slot = 0;
-                    prefs.panic_target_freq = 0.0f;
-                    prefs.panic_rollback_mins = 0;
-                    prefs.panic_target_time_ms = 0;
-                    prefs.panic_last_pulse_ms = 0;
-                    prefs.panic_trial_active = 0;
-                    prefs.panic_trial_deadline_ms = 0;
-
-                    memset(prefs.custom_long_name, 0, sizeof(prefs.custom_long_name));
-                    memset(prefs.custom_short_name, 0, sizeof(prefs.custom_short_name));
-
-                    // Si venía de versión <=84B (pre-NAV3), adoptar claves de admin
-                    if (fileSize <= 84) {
-                        memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
-                        memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
-                        memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
-                        adoptPersistedAdminKeys();
+                    if (fieldsSane) {
+                        validExisting = true;
                     }
                 }
-
-                if (legacy || fieldsBad) {
-                    if (prefs.cliChannelSlot < 1 || prefs.cliChannelSlot > 7) prefs.cliChannelSlot = 1;
-                    if (prefs.navadminMuted > 1) prefs.navadminMuted = 0;
-                    if (prefs.auto_fav > 1) prefs.auto_fav = 1;
-                    if (prefs.sleepMsgs > 1) prefs.sleepMsgs = 1;
-                    if (prefs.autoFavCount > 32) prefs.autoFavCount = 32;
-                    if (prefs.ignoredCount > 8) {
-                        prefs.ignoredCount = 0;
-                        memset(prefs.ignoredNodes, 0, sizeof(prefs.ignoredNodes));
-                    }
-                    if (prefs.chemistry > 3) {
-                        #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
-                            prefs.chemistry = 2; // SODIUM
-                        #else
-                            prefs.chemistry = 0; // LIPO
-                        #endif
-                    }
-                    if (prefs.vbat_cutoff < 2400 || prefs.vbat_cutoff > 3600) {
-                        #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
-                            prefs.vbat_cutoff = 2600;
-                        #else
-                            prefs.vbat_cutoff = 3500;
-                        #endif
-                    }
-                    if (prefs.vwake_level < 1 || prefs.vwake_level > 5) {
-                        #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
-                            prefs.vwake_level = 1;
-                        #else
-                            prefs.vwake_level = 3;
-                        #endif
-                    }
-                    if (prefs.tx_disabled > 1) prefs.tx_disabled = 0;
-                    if (prefs.ble_disabled > 1) prefs.ble_disabled = 0;
-                    prefs.version = NAVS_RESILIENCE_VERSION; // Marcador NAV6
-                    saveResiliencePrefs();
-                }
-
-                navaAutoFavoriteEnabled = (prefs.auto_fav != 0);
-                // Aplicar parámetros cargados a RAM
-                power->setChemistryProfile(prefs.chemistry);
-                power->updateOcvCurve(prefs.vbat_cutoff);
-                config.lora.tx_enabled = (prefs.tx_disabled == 0);
-                currentWakeLevel = prefs.vwake_level;
-                if (prefs.ble_disabled == 1) {
-                    config.bluetooth.enabled = false;
-                    setBleForceDisabled(true);
-                } else {
-                    config.bluetooth.enabled = true;
-                    setBleForceDisabled(false);
-                }
-                // V2.1 Rama 1 y Rama 2: rol semi-permanente
-                if (prefs.role <= meshtastic_Config_DeviceConfig_Role_ROUTER) {
-                    config.device.role = (meshtastic_Config_DeviceConfig_Role)prefs.role;
-                    owner.role = config.device.role;
-                    nodeDB->installRoleDefaults(config.device.role);
-                    owner.is_unmessagable = false;
-                    owner.has_is_unmessagable = true;
-                    nodeDB->updateUser(nodeDB->getNodeNum(), owner);
-                }
-                if (prefs.fixed_pin > 0) {
-                    config.bluetooth.fixed_pin = prefs.fixed_pin;
-                }
-                if (prefs.ok_to_mqtt == 1) {
-                    config.lora.config_ok_to_mqtt = true;
-                } else if (prefs.ok_to_mqtt == 2) {
-                    config.lora.config_ok_to_mqtt = false;
-                }
-                if (prefs.fixed_pos_enabled == 1) {
-                    config.position.fixed_position = true;
-                    meshtastic_Position pos = meshtastic_Position_init_zero;
-                    pos.latitude_i = prefs.fixed_pos_lat;
-                    pos.longitude_i = prefs.fixed_pos_lon;
-                    pos.altitude = prefs.fixed_pos_alt;
-                    pos.time = getValidTime(RTCQualityFromNet);
-                    nodeDB->setLocalPosition(pos);
-                }
-                if (prefs.beacon_interval_secs > 0) {
-                    config.device.node_info_broadcast_secs = prefs.beacon_interval_secs;
-                    config.position.position_broadcast_secs = prefs.beacon_interval_secs;
-                }
-                if (prefs.pos_tx_secs > 0) {
-                    config.position.position_broadcast_secs = prefs.pos_tx_secs;
-                }
-                if (prefs.nodeinfo_tx_secs > 0) {
-                    config.device.node_info_broadcast_secs = prefs.nodeinfo_tx_secs;
-                }
-                if (prefs.telem_tx_secs > 0) {
-                    moduleConfig.telemetry.device_update_interval = prefs.telem_tx_secs;
-                    moduleConfig.telemetry.environment_update_interval = prefs.telem_tx_secs;
-                    moduleConfig.telemetry.power_update_interval = prefs.telem_tx_secs;
-                    moduleConfig.telemetry.air_quality_interval = prefs.telem_tx_secs;
-                    moduleConfig.telemetry.health_update_interval = prefs.telem_tx_secs;
-                }
-                // V5: Restaurar nombre personalizado persistido si existe y es válido
-                if (prefs.custom_long_name[0] != '\0') {
-                    bool isValidCustomName = true;
-                    size_t len = strnlen(prefs.custom_long_name, sizeof(prefs.custom_long_name));
-                    if (len == 0 || len >= sizeof(prefs.custom_long_name)) {
-                        isValidCustomName = false;
-                    } else {
-                        for (size_t i = 0; i < len; i++) {
-                            unsigned char c = (unsigned char)prefs.custom_long_name[i];
-                            if (c < 0x20 || c == 0x7F) {
-                                isValidCustomName = false;
-                                break;
-                            }
-                        }
-                    }
-                    if (!isValidCustomName) {
-                        memset(prefs.custom_long_name, 0, sizeof(prefs.custom_long_name));
-                        memset(prefs.custom_short_name, 0, sizeof(prefs.custom_short_name));
-                        saveResiliencePrefs();
-                    } else {
-                        strncpy(owner.long_name, prefs.custom_long_name, sizeof(owner.long_name) - 1);
-                        owner.long_name[sizeof(owner.long_name) - 1] = '\0';
-                        sanitizeUtf8(owner.long_name, sizeof(owner.long_name));
-                        if (prefs.custom_short_name[0] != '\0') {
-                            strncpy(owner.short_name, prefs.custom_short_name, sizeof(owner.short_name) - 1);
-                            owner.short_name[sizeof(owner.short_name) - 1] = '\0';
-                            sanitizeUtf8(owner.short_name, sizeof(owner.short_name));
-                        }
-                        nodeDB->updateUser(nodeDB->getNodeNum(), owner);
-                    }
-                }
-                return;
             }
+            f.close();
         }
     }
-    
-    // Fallback valores por defecto
+
+    if (!validExisting) {
+        if (FSCom.exists("/resilience.bin")) {
+            LOG_WARN("NavaCLI: /resilience.bin no conforme o corrupto detectado. Purgando a limpio (Clean Slate)...");
+            FSCom.remove("/resilience.bin");
+        }
+        installSurvivalBaseline();
+        return;
+    }
+
+    // SANITIZACIÓN UNIVERSAL DE CLAVES ADMIN (purga de 0x01+31 ceros y claves corruptas)
+    if (!navaKeyIsValid(prefs.keySlot0Own)) memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
+    if (!navaKeyIsValid(prefs.keySlot1)) memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
+    if (!navaKeyIsValid(prefs.keySlot2)) memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
+
+    // SANITIZACIÓN UNIVERSAL DE ESTADOS DE PÁNICO / ACCIONES DIFERIDAS AL BOOT
+    prefs.panic_active = 0;
+    prefs.panic_target_time_ms = 0;
+    prefs.panic_last_pulse_ms = 0;
+    if (prefs.panic_trial_active != 1) {
+        prefs.panic_trial_active = 0;
+        prefs.panic_trial_deadline_ms = 0;
+    }
+
+    saveResiliencePrefs();
+
+    navaAutoFavoriteEnabled = (prefs.auto_fav != 0);
+    // Aplicar parámetros cargados a RAM
+    power->setChemistryProfile(prefs.chemistry);
+    power->updateOcvCurve(prefs.vbat_cutoff);
+    config.lora.tx_enabled = (prefs.tx_disabled == 0);
+    currentWakeLevel = prefs.vwake_level;
+    if (prefs.ble_disabled == 1) {
+        config.bluetooth.enabled = false;
+        setBleForceDisabled(true);
+    } else {
+        config.bluetooth.enabled = true;
+        setBleForceDisabled(false);
+    }
+    // V2.1 Rama 1 y Rama 2: rol semi-permanente
+    if (prefs.role <= meshtastic_Config_DeviceConfig_Role_ROUTER) {
+        config.device.role = (meshtastic_Config_DeviceConfig_Role)prefs.role;
+        owner.role = config.device.role;
+        nodeDB->installRoleDefaults(config.device.role);
+        owner.is_unmessagable = false;
+        owner.has_is_unmessagable = true;
+        nodeDB->updateUser(nodeDB->getNodeNum(), owner);
+    }
+    if (prefs.fixed_pin > 0) {
+        config.bluetooth.fixed_pin = prefs.fixed_pin;
+    }
+    if (prefs.ok_to_mqtt == 1) {
+        config.lora.config_ok_to_mqtt = true;
+    } else if (prefs.ok_to_mqtt == 2) {
+        config.lora.config_ok_to_mqtt = false;
+    }
+    if (prefs.fixed_pos_enabled == 1) {
+        config.position.fixed_position = true;
+        meshtastic_Position pos = meshtastic_Position_init_zero;
+        pos.latitude_i = prefs.fixed_pos_lat;
+        pos.longitude_i = prefs.fixed_pos_lon;
+        pos.altitude = prefs.fixed_pos_alt;
+        pos.time = getValidTime(RTCQualityFromNet);
+        nodeDB->setLocalPosition(pos);
+    }
+    if (prefs.beacon_interval_secs > 0) {
+        config.device.node_info_broadcast_secs = prefs.beacon_interval_secs;
+        config.position.position_broadcast_secs = prefs.beacon_interval_secs;
+    }
+    if (prefs.pos_tx_secs > 0) {
+        config.position.position_broadcast_secs = prefs.pos_tx_secs;
+    }
+    if (prefs.nodeinfo_tx_secs > 0) {
+        config.device.node_info_broadcast_secs = prefs.nodeinfo_tx_secs;
+    }
+    if (prefs.telem_tx_secs > 0) {
+        moduleConfig.telemetry.device_update_interval = prefs.telem_tx_secs;
+        moduleConfig.telemetry.environment_update_interval = prefs.telem_tx_secs;
+        moduleConfig.telemetry.power_update_interval = prefs.telem_tx_secs;
+        moduleConfig.telemetry.air_quality_interval = prefs.telem_tx_secs;
+        moduleConfig.telemetry.health_update_interval = prefs.telem_tx_secs;
+    }
+    // V5: Restaurar nombre personalizado persistido si existe y es válido
+    if (prefs.custom_long_name[0] != '\0') {
+        bool isValidCustomName = true;
+        size_t len = strnlen(prefs.custom_long_name, sizeof(prefs.custom_long_name));
+        if (len == 0 || len >= sizeof(prefs.custom_long_name)) {
+            isValidCustomName = false;
+        } else {
+            for (size_t i = 0; i < len; i++) {
+                unsigned char c = (unsigned char)prefs.custom_long_name[i];
+                if (c < 0x20 || c == 0x7F) {
+                    isValidCustomName = false;
+                    break;
+                }
+            }
+        }
+        if (!isValidCustomName) {
+            memset(prefs.custom_long_name, 0, sizeof(prefs.custom_long_name));
+            memset(prefs.custom_short_name, 0, sizeof(prefs.custom_short_name));
+            saveResiliencePrefs();
+        } else {
+            strncpy(owner.long_name, prefs.custom_long_name, sizeof(owner.long_name) - 1);
+            owner.long_name[sizeof(owner.long_name) - 1] = '\0';
+            sanitizeUtf8(owner.long_name, sizeof(owner.long_name));
+            if (prefs.custom_short_name[0] != '\0') {
+                strncpy(owner.short_name, prefs.custom_short_name, sizeof(owner.short_name) - 1);
+                owner.short_name[sizeof(owner.short_name) - 1] = '\0';
+                sanitizeUtf8(owner.short_name, sizeof(owner.short_name));
+            }
+            nodeDB->updateUser(nodeDB->getNodeNum(), owner);
+        }
+    }
+}
+
+void NavaCLIModule::installSurvivalBaseline()
+{
+    LOG_INFO("NavaCLI: Instalando Linea de Base de Supervivencia NavaTastic...");
+    memset(&prefs, 0, sizeof(prefs));
     prefs.magic = 0x52455349;
-    #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
-        prefs.chemistry = 2; // SODIUM
-        prefs.vbat_cutoff = 2600;
-        prefs.vwake_level = 1;
-    #else
-        prefs.chemistry = 0; // LIPO
-        prefs.vbat_cutoff = 3500;
-        prefs.vwake_level = 3;
-    #endif
+    prefs.version = NAVS_RESILIENCE_VERSION;
+#if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
+    prefs.chemistry = 2; // SODIUM
+    prefs.vbat_cutoff = 2600;
+    prefs.vwake_level = 1;
+#else
+    prefs.chemistry = 0; // LIPO
+    prefs.vbat_cutoff = 3500;
+    prefs.vwake_level = 3;
+#endif
     prefs.tx_disabled = 0;
     prefs.ble_disabled = 0;
     prefs.auto_fav = 1;
     prefs.role = 0xFF; // sin rol fijado (default: el del perfil del env)
     prefs.autoFavCount = 0;
     memset(prefs.autoFavIds, 0, sizeof(prefs.autoFavIds));
+    memset(prefs.extraAutoFavIds, 0, sizeof(prefs.extraAutoFavIds));
     prefs.sleepMsgs = 1;
     prefs.wasInSleep = 0;
     prefs.reserved = 0;
-    prefs.version = NAVS_RESILIENCE_VERSION; // NAVARICO: marcador NAV6
     memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
     memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
     memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
-    adoptPersistedAdminKeys();
+
     prefs.cliChannelSlot = 1;
     prefs.navadminMuted = 0;
     memset(prefs.customChannels, 0, sizeof(prefs.customChannels));
@@ -322,7 +278,57 @@ void NavaCLIModule::loadResiliencePrefs() {
     memset(prefs.custom_short_name, 0, sizeof(prefs.custom_short_name));
     navaAutoFavoriteEnabled = true;
     setBleForceDisabled(false);
+
     saveResiliencePrefs();
+}
+
+void NavaCLIModule::ensureNavadminChannel()
+{
+    meshtastic_Channel &ch1 = channels.getByIndex(1);
+    
+    // Si el Slot 1 ya es Navadmin, no hay nada que hacer
+    if (ch1.has_settings && ch1.role == meshtastic_Channel_Role_SECONDARY && strcmp(ch1.settings.name, "Navadmin") == 0) {
+        return;
+    }
+
+    // Si el Slot 1 tiene un canal previo configurado del usuario (que NO es Navadmin)
+    if (ch1.has_settings && ch1.role != meshtastic_Channel_Role_DISABLED && ch1.settings.name[0] != '\0') {
+        int freeSlot = -1;
+        for (int i = 2; i < MAX_NUM_CHANNELS; i++) {
+            const meshtastic_Channel &cand = channels.getByIndex(i);
+            if (!cand.has_settings || cand.role == meshtastic_Channel_Role_DISABLED) {
+                freeSlot = i;
+                break;
+            }
+        }
+        if (freeSlot >= 2) {
+            LOG_INFO("NavaCLI: Reubicando canal previo de slot 1 hacia slot %d para dar paso a Navadmin", freeSlot);
+            meshtastic_Channel movedCh = ch1;
+            movedCh.index = freeSlot;
+            channels.setChannel(movedCh);
+            syncCustomChannelFromConfig(freeSlot);
+        } else {
+            LOG_WARN("NavaCLI: Todos los slots ocupados (0..7). Sustituyendo slot 1 por Navadmin prioritario.");
+        }
+    }
+
+    // Aprovisionar Navadmin en Slot 1
+    meshtastic_Channel navadminCh = meshtastic_Channel_init_zero;
+    navadminCh.index = 1;
+    navadminCh.role = meshtastic_Channel_Role_SECONDARY;
+    navadminCh.has_settings = true;
+    strcpy(navadminCh.settings.name, "Navadmin");
+    navadminCh.settings.psk.size = 1;
+    navadminCh.settings.psk.bytes[0] = 0x01;
+    navadminCh.settings.module_settings.position_precision = 0;
+    navadminCh.settings.uplink_enabled = false;
+    navadminCh.settings.downlink_enabled = false;
+    navadminCh.settings.has_module_settings = true;
+    channels.setChannel(navadminCh);
+
+    channels.onConfigChanged();
+    nodeDB->saveToDisk(SEGMENT_CHANNELS);
+    LOG_INFO("NavaCLI: Canal 1 Navadmin auto-aprovisionado en Flash con exito.");
 }
 
 // --- V2: acceso estatico a los flags de sueño (leidos desde main.cpp pre-check) ---
@@ -597,6 +603,7 @@ std::string NavaCLIModule::buildEnergyLine()
 // NAVARICO F20: helpers de deteccion de clave vacia y de clave del proyecto
 bool NavaCLIModule::navaKeyIsEmpty(const uint8_t *key)
 {
+    if (!key) return true;
     for (size_t i = 0; i < 32; i++) {
         if (key[i] != 0) return false;
     }
@@ -621,13 +628,53 @@ bool NavaCLIModule::navaKeyIsProjectKey(const uint8_t *key)
     return false;
 }
 
+bool NavaCLIModule::navaKeyIsValid(const uint8_t *key)
+{
+    if (!key || navaKeyIsEmpty(key)) return false;
+    // Detección de claves corruptas o bytes residuales / 1-byte PSKs (como AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=)
+    // Una clave pública X25519 válida tiene entropía real en sus 32 bytes.
+    // Si bytes 1..31 son todos cero, o si todos los bytes son iguales, es un valor corrupto/inválido.
+    bool allZerosAfterFirst = true;
+    for (size_t i = 1; i < 32; i++) {
+        if (key[i] != 0) {
+            allZerosAfterFirst = false;
+            break;
+        }
+    }
+    if (allZerosAfterFirst) return false;
+
+    bool allIdentical = true;
+    for (size_t i = 1; i < 32; i++) {
+        if (key[i] != key[0]) {
+            allIdentical = false;
+            break;
+        }
+    }
+    if (allIdentical) return false;
+
+    return true;
+}
+
+uint32_t NavaCLIModule::getAutoFavId(size_t index) const
+{
+    if (index < 16) return prefs.autoFavIds[index];
+    if (index < 32) return prefs.extraAutoFavIds[index - 16];
+    return 0;
+}
+
+void NavaCLIModule::setAutoFavId(size_t index, uint32_t id)
+{
+    if (index < 16) prefs.autoFavIds[index] = id;
+    else if (index < 32) prefs.extraAutoFavIds[index - 16] = id;
+}
+
 void NavaCLIModule::adoptPersistedAdminKeys()
 {
     meshtastic_Config_SecurityConfig &sec = config.security;
     for (pb_size_t i = 0; i < sec.admin_key_count && i < 3; i++) {
         const uint8_t *k = sec.admin_key[i].bytes;
         size_t sz = sec.admin_key[i].size;
-        if (sz != 32 || navaKeyIsEmpty(k) || navaKeyIsProjectKey(k)) {
+        if (sz != 32 || !navaKeyIsValid(k) || navaKeyIsProjectKey(k)) {
             continue;
         }
         if (i == 0) {
@@ -645,7 +692,7 @@ void NavaCLIModule::applyPersistedAdminKeys()
     meshtastic_Config_SecurityConfig &sec = config.security;
     bool changed = false;
 
-    if (!navaKeyIsEmpty(prefs.keySlot0Own)) {
+    if (navaKeyIsValid(prefs.keySlot0Own)) {
         if (sec.admin_key[0].size != 32 || memcmp(sec.admin_key[0].bytes, prefs.keySlot0Own, 32) != 0) {
             memcpy(sec.admin_key[0].bytes, prefs.keySlot0Own, 32);
             sec.admin_key[0].size = 32;
@@ -653,7 +700,7 @@ void NavaCLIModule::applyPersistedAdminKeys()
         }
     }
 
-    if (!navaKeyIsEmpty(prefs.keySlot1)) {
+    if (navaKeyIsValid(prefs.keySlot1)) {
         if (sec.admin_key_count < 2 || sec.admin_key[1].size != 32 ||
             memcmp(sec.admin_key[1].bytes, prefs.keySlot1, 32) != 0) {
             memcpy(sec.admin_key[1].bytes, prefs.keySlot1, 32);
@@ -662,7 +709,7 @@ void NavaCLIModule::applyPersistedAdminKeys()
         }
     }
 
-    if (!navaKeyIsEmpty(prefs.keySlot2)) {
+    if (navaKeyIsValid(prefs.keySlot2)) {
         if (sec.admin_key_count < 3 || sec.admin_key[2].size != 32 ||
             memcmp(sec.admin_key[2].bytes, prefs.keySlot2, 32) != 0) {
             memcpy(sec.admin_key[2].bytes, prefs.keySlot2, 32);
@@ -673,8 +720,14 @@ void NavaCLIModule::applyPersistedAdminKeys()
 
     pb_size_t count = 0;
     for (pb_size_t i = 0; i < 3; i++) {
-        if (sec.admin_key[i].size == 32 && !navaKeyIsEmpty(sec.admin_key[i].bytes)) {
+        if (sec.admin_key[i].size == 32 && navaKeyIsValid(sec.admin_key[i].bytes)) {
             count = i + 1;
+        } else if (sec.admin_key[i].size != 32 || !navaKeyIsValid(sec.admin_key[i].bytes)) {
+            if (!navaKeyIsEmpty(sec.admin_key[i].bytes)) {
+                memset(sec.admin_key[i].bytes, 0, sizeof(sec.admin_key[i].bytes));
+                sec.admin_key[i].size = 0;
+                changed = true;
+            }
         }
     }
     if (sec.admin_key_count != count) {
@@ -684,7 +737,7 @@ void NavaCLIModule::applyPersistedAdminKeys()
 
     if (changed) {
         nodeDB->saveToDisk(SEGMENT_CONFIG);
-        LOG_INFO("F20: claves admin restauradas desde /resilience.bin");
+        LOG_INFO("F20: claves admin saneadas y restauradas desde /resilience.bin");
     }
 }
 
@@ -1062,11 +1115,32 @@ void NavaCLIModule::startPanic(const NavaPanicPulse &pulse)
     prefs.panic_last_pulse_ms = millis();
     saveResiliencePrefs();
 
-    while (!responseQueue.empty()) {
-        responseQueue.pop();
-    }
-
     config.lora.override_duty_cycle = true;
+
+    // Emisión de aviso textual claro por difusión en Navadmin
+    char textBuf[160];
+    if (pulse.use_preset) {
+        const char *pname = "DESCONOCIDO";
+        switch (pulse.modem_preset) {
+            case meshtastic_Config_LoRaConfig_ModemPreset_LONG_FAST: pname = "LONG_FAST"; break;
+            case meshtastic_Config_LoRaConfig_ModemPreset_MEDIUM_FAST: pname = "MEDIUM_FAST"; break;
+            case meshtastic_Config_LoRaConfig_ModemPreset_SHORT_FAST: pname = "SHORT_FAST"; break;
+            case meshtastic_Config_LoRaConfig_ModemPreset_LONG_SLOW: pname = "LONG_SLOW"; break;
+            case meshtastic_Config_LoRaConfig_ModemPreset_SHORT_SLOW: pname = "SHORT_SLOW"; break;
+            case meshtastic_Config_LoRaConfig_ModemPreset_MEDIUM_SLOW: pname = "MEDIUM_SLOW"; break;
+            case meshtastic_Config_LoRaConfig_ModemPreset_LONG_MODERATE: pname = "LONG_MODERATE"; break;
+            case meshtastic_Config_LoRaConfig_ModemPreset_SHORT_TURBO: pname = "SHORT_TURBO"; break;
+            default: pname = "PRESET"; break;
+        }
+        snprintf(textBuf, sizeof(textBuf), "[Panico] EVACUACION a %s en %u min. Rollback: %u min. Silencio a T-60s.",
+                 pname, (pulse.remaining_seconds + 59) / 60, (unsigned int)pulse.rollback_minutes);
+    } else {
+        snprintf(textBuf, sizeof(textBuf), "[Panico] EVACUACION a BW%u SF%u CR4/%u Freq:%.4f Slot:%u en %u min. Rollback: %u min.",
+                 pulse.bw_code, pulse.sf, pulse.cr, pulse.freq_mhz, pulse.channel_slot,
+                 (pulse.remaining_seconds + 59) / 60, (unsigned int)pulse.rollback_minutes);
+    }
+    enqueueResponse(NODENUM_BROADCAST, 1, textBuf, true, true);
+
     emitPanicPulse();
 }
 
@@ -1183,6 +1257,9 @@ void NavaCLIModule::navaFullResetKeepKeys()
     prefs.panic_last_pulse_ms = 0;
     prefs.panic_trial_active = 0;
     prefs.panic_trial_deadline_ms = 0;
+    memset(prefs.custom_long_name, 0, sizeof(prefs.custom_long_name));
+    memset(prefs.custom_short_name, 0, sizeof(prefs.custom_short_name));
+    memset(prefs.extraAutoFavIds, 0, sizeof(prefs.extraAutoFavIds));
 
     memcpy(prefs.keySlot1, k1, 32);
     memcpy(prefs.keySlot2, k2, 32);
@@ -1194,7 +1271,7 @@ void NavaCLIModule::navaFullResetKeepKeys()
 bool NavaCLIModule::isAutoFav(uint32_t nodeNum) const
 {
     for (uint8_t i = 0; i < prefs.autoFavCount && i < 32; i++) {
-        if (prefs.autoFavIds[i] == nodeNum) return true;
+        if (getAutoFavId(i) == nodeNum) return true;
     }
     return false;
 }
@@ -1203,7 +1280,7 @@ bool NavaCLIModule::addAutoFav(uint32_t nodeNum)
 {
     if (isAutoFav(nodeNum)) return false;
     if (prefs.autoFavCount < 32) {
-        prefs.autoFavIds[prefs.autoFavCount++] = nodeNum;
+        setAutoFavId(prefs.autoFavCount++, nodeNum);
         saveResiliencePrefs();
         return true;
     }
@@ -1213,12 +1290,12 @@ bool NavaCLIModule::addAutoFav(uint32_t nodeNum)
 bool NavaCLIModule::removeAutoFav(uint32_t nodeNum)
 {
     for (uint8_t i = 0; i < prefs.autoFavCount && i < 32; i++) {
-        if (prefs.autoFavIds[i] == nodeNum) {
+        if (getAutoFavId(i) == nodeNum) {
             for (uint8_t j = i; j + 1 < prefs.autoFavCount; j++) {
-                prefs.autoFavIds[j] = prefs.autoFavIds[j + 1];
+                setAutoFavId(j, getAutoFavId(j + 1));
             }
             prefs.autoFavCount--;
-            prefs.autoFavIds[prefs.autoFavCount] = 0;
+            setAutoFavId(prefs.autoFavCount, 0);
             saveResiliencePrefs();
             return true;
         }
@@ -1238,7 +1315,7 @@ void NavaCLIModule::reconcileAutoFavs()
         uint32_t id = router->activeDirectRouters[i];
         if (id != 0 && !isAutoFav(id)) {
             if (prefs.autoFavCount < 32) {
-                prefs.autoFavIds[prefs.autoFavCount++] = id;
+                setAutoFavId(prefs.autoFavCount++, id);
                 changed = true;
             }
         }
@@ -1505,10 +1582,11 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
             LOG_WARN("Rechazado: Comando /nava en canal sin firma PKI desde 0x%08x", mp.from);
             return ProcessMessage::STOP;
         }
-        // Rate-limit genérico del canal de difusión: max 1 comando cada 30s por nodo emisor
+        // Rate-limit genérico del canal de difusión: max 1 comando cada 30s por nodo emisor (excepto urgentes)
+        bool isUrgentCmd = (cmd.rfind("panic", 0) == 0 || cmd == "ping" || cmd == "status" || cmd == "reboot");
         static std::map<NodeNum, uint32_t> lastBroadcastCmd;
         auto it = lastBroadcastCmd.find(mp.from);
-        if (it != lastBroadcastCmd.end() && (int32_t)(millis() - it->second) < 30000) {
+        if (!isUrgentCmd && it != lastBroadcastCmd.end() && (int32_t)(millis() - it->second) < 30000) {
             return ProcessMessage::STOP;
         }
         lastBroadcastCmd[mp.from] = millis();
@@ -3185,6 +3263,8 @@ int32_t NavaCLIModule::runOnce()
     // Primer tick tras el boot
     if (!firstRunDone) {
         firstRunDone = true;
+        // NAVARICO V5: Auto-aprovisionar Navadmin en Slot 1 (sin requerir factory reset tras flasheo)
+        ensureNavadminChannel();
         // NAVARICO F20: restaurar claves admin persistidas
         applyPersistedAdminKeys();
         // NAVARICO F21: restaurar canales secundarios persistidos
@@ -3192,6 +3272,13 @@ int32_t NavaCLIModule::runOnce()
         // NAVARICO V5: restaurar capa física LoRa y Canal 0 Primario persistidos
         applyPersistedLoraConfig();
         applyPersistedChannel0();
+
+        // Si arrancamos en modo prueba post-salto de pánico, rearmar el plazo relativo a este arranque fresco
+        if (prefs.panic_trial_active == 1) {
+            uint32_t rollMins = (prefs.panic_rollback_mins > 0 && prefs.panic_rollback_mins <= 1440) ? prefs.panic_rollback_mins : 5;
+            prefs.panic_trial_deadline_ms = millis() + (rollMins * 60000);
+            LOG_INFO("NavaCLI: Nodo operando en periodo de prueba de panico. Rollback en %u min si no se recibe panic_ok", (unsigned int)rollMins);
+        }
 
         logEvent("BOOT causa 0x%08X", (unsigned int)rawResetReason);
 
@@ -3283,11 +3370,14 @@ int32_t NavaCLIModule::runOnce()
     if (prefs.panic_active == 1) {
         int32_t remSecs = (int32_t)(prefs.panic_target_time_ms - millis()) / 1000;
         if (remSecs <= 0) {
-            LOG_INFO("NavaCLI: Salto de Panico T=0. Ejecutando cambio de preset...");
+            LOG_INFO("NavaCLI: Salto de Panico T=0. Ejecutando cambio de preset y sincronizando radio...");
             if (prefs.panic_target_preset != 0) {
                 prefs.lora_use_preset = 1;
                 prefs.lora_modem_preset = prefs.panic_target_preset;
                 prefs.lora_override_frequency = 0.0f;
+                config.lora.use_preset = true;
+                config.lora.modem_preset = (meshtastic_Config_LoRaConfig_ModemPreset)prefs.panic_target_preset;
+                config.lora.override_frequency = 0.0f;
             } else {
                 prefs.lora_use_preset = 0;
                 prefs.lora_bandwidth = prefs.panic_target_bw;
@@ -3295,14 +3385,23 @@ int32_t NavaCLIModule::runOnce()
                 prefs.lora_coding_rate = prefs.panic_target_cr;
                 prefs.lora_override_frequency = prefs.panic_target_freq;
                 prefs.lora_channel_num = prefs.panic_target_slot;
+                config.lora.use_preset = false;
+                config.lora.bandwidth = prefs.panic_target_bw;
+                config.lora.spread_factor = prefs.panic_target_sf;
+                config.lora.coding_rate = prefs.panic_target_cr;
+                config.lora.override_frequency = prefs.panic_target_freq;
+                config.lora.channel_num = prefs.panic_target_slot;
             }
             prefs.lora_configured = 1;
             prefs.panic_active = 0;
+            prefs.panic_target_time_ms = 0;
+            prefs.panic_last_pulse_ms = 0;
             if (prefs.panic_rollback_mins > 0) {
                 prefs.panic_trial_active = 1;
                 prefs.panic_trial_deadline_ms = millis() + (prefs.panic_rollback_mins * 60000);
             }
             saveResiliencePrefs();
+            nodeDB->saveToDisk(SEGMENT_CONFIG);
             rebootAtMsec = millis() + 25;
             return 1000;
         } else if (remSecs > 60 && (millis() - prefs.panic_last_pulse_ms >= 30000)) {

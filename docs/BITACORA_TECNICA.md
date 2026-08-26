@@ -1237,9 +1237,16 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
   - **Acción Operativa Inmediata**:
     1. **Suspensión de Publicación de V5 en GitHub**: Eliminación inmediata de la Release `v4.3.4` de GitHub, preservando `v4.3.3-stable` (V4) como la versión oficial en producción.
     2. **Aviso en Portada de `README.md`**: Notificación visible de auditoría y corrección en curso, dirigiendo a los usuarios a la V4 estable.
-  - **Solución Técnica Diseñada para V5**:
+  - **Solución Técnica Diseñada e Implementada**:
     1. En `runOnce()`, al llegar a $T=0$, modificar `config.lora` directamente y forzar `nodeDB->saveToDisk(SEGMENT_CONFIG)` en Flash antes de programar el reinicio.
     2. En `firstRunDone` (post-boot), si `panic_trial_active == 1`, inicializar `panic_trial_deadline_ms = millis() + (prefs.panic_rollback_mins * 60000)` relativo al nuevo arranque.
     3. Limpiar `panic_active = 0` y `panic_target_time_ms = 0` atómicamente antes de reiniciar.
     4. Emitir un mensaje de texto claro por difusión en `Navadmin`: `[Panico] EVACUACION a <PRESET> en X min. Rollback en Y min.` y garantizar su retransmisión multi-salto con prioridad `ALERT`.
+- **L40 — Invarianza de Offsets en Estructuras de Memoria Flash y Sanitización Criptográfica Universal**:
+  - **Problema Forense**: Al ampliar en V5 `autoFavIds[16]` a `autoFavIds[32]` en mitad de `ResiliencePrefs`, se provocó un desplazamiento de 64 bytes en todos los campos posteriores (`keySlot1`, `keySlot2`, `keySlot0Own`, `cliChannelSlot`, etc.). Al leer un `/resilience.bin` antiguo de V4, `cliChannelSlot = 1` cayó sobre `keySlot2[0] = 0x01`, generando la clave corrupta `AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=` (`0x01` + 31 ceros) e inyectando datos residuales en los flags de control de pánico.
+  - **Solución Integral Implementada**:
+    1. **Invarianza Estricta de Offsets**: Se restauró `autoFavIds[16]` a su posición original (offset 76) y la extensión `extraAutoFavIds[16]` se situó al final absoluto del struct. Se crearon los helpers `getAutoFavId()` y `setAutoFavId()` para indexar los 32 slots de forma transparente.
+    2. **Filtro Criptográfico `navaKeyIsValid()`**: Valida que las claves públicas posean entropía real en sus 32 bytes y purga automáticamente secuencias con ceros o bytes repetidos sin tocar claves legítimas.
+    3. **Auto-Sanación al Boot**: `loadResiliencePrefs()` detecta y purga cualquier clave residual corrupta, desactiva bucles de pánico fantasma y reescribe `/resilience.bin` a formato estándar `NAV6` limpio.
+
 

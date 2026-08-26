@@ -203,3 +203,32 @@ $$\text{MasterNode (!dd3ff7b2 / COM24)} \quad \longleftrightarrow \quad \text{GP
 3. Ejecutar `python -u _archivo/trace_runner.py !43ca4c27 10` desde `MasterNode` para certificar la ruta de 3 saltos:
    $$\text{MasterNode} \longrightarrow \text{GPS} \longrightarrow \text{015a} \longrightarrow \text{Slave}$$
 4. Iniciar la ejecución de la batería de pruebas de las funciones V5.
+
+---
+
+## 📌 5.1 SUBNOTA CRÍTICA DE HANDOVER Y REGISTRO DE ERRORES OPERATIVOS (26/08/2026)
+
+> **⚠️ ATENCIÓN AGENTE ENTRANTE — LEE ESTA SUBNOTA ANTES DE TOCAR LA AUDITORÍA**:
+> Esta subnota documenta los errores cometidos en la sesión del 25-26/08/2026 para que **NO SE VUELVAN A REPETIR**.
+
+### 1. Frecuencia Canónica de la Red Real:
+* **Frecuencia OFICIAL y ÚNICA**: **`869.618 MHz`** (`override_frequency = 869.618f`, `channel_num = 4`, `bandwidth = 62` [62.5 kHz], `spread_factor = 7`, `coding_rate = 5` [CR 4/5], región `EU_868`).
+* **Error cometido**: Se utilizó temporalmente una frecuencia experimental de laboratorio (`869.545 MHz`) en scripts de Python, desalineando a `MasterNode` y a los nodos de prueba respecto a la red real de nodos existentes (donde hay nodos en V4 y versiones previas escuchando en `869.618 MHz`).
+* **Estado actual verificado**: Los 4 nodos (`MasterNode !dd3ff7b2`, `Pasillo !56bde788`, `015a !8289015a`, `Slave !43ca4c27`) han sido migrados y están **100% activos y respondiendo en `869.618 MHz`**.
+
+### 2. Sustitución de Hardware del Nodo Pasillo:
+* La Faketec `!5cfaaca9` (que sufría reinicios cíclicos por fallo GNSS) fue reemplazada por la Faketec sana `!56bde788` (`NetChecker T` / `NetT`).
+* Su clave privada original (`YOVQA+7/KvTsEVE4Su79Aum4pGmgCwBDAygs4uqm4GU=`) fue restaurada, regenerando su clave pública canónica (`WmBErJtuR567KiDvqmoTRplc9PzAvlAB7dy89o2TKAQ=`). Cero reinicios desde entonces.
+
+### 3. Protocolo del Botón del Pánico (`/nava panic`) — REGLA OPERATIVA DE DIFUSIÓN:
+* **Error cometido**: El agente intentó disparar el protocolo de pánico mediante Direct Message (DM) individual a un nodo.
+* **Comportamiento real y regla de diseño**:
+  - El comando `/nava panic <preset|sfnarrow> [minutos] [rollback_mins]` **DEBE transmitirse por difusión en el Canal 1 (`Navadmin`)**.
+  - Al enviarse por `Navadmin`, **todos los nodos de la malla en escucha capturan la orden simultáneamente**, inician su cuenta atrás interna a $T=0$ y comienzan a emitir pulsos binarios periódicos `NavaPanicPulse` (`PANC`) de alta prioridad (`Priority_ALERT`) para propagar el aviso a cualquier nodo lejano.
+  - Al llegar a $T=0$, todos los nodos conmutan simultáneamente su módem LoRa (por ejemplo a `MEDIUM_FAST` en `869.525 MHz`).
+  - Durante la ventana de rollback (ej. 5-6 minutos), un administrador puede consolidar con `/nava panic_ok` en difusión o dejar que el temporizador revierta automáticamente a `SFNarrow` (`869.618 MHz`).
+
+### 4. Propagación RF en Entorno Doméstico:
+* Debido a la extraordinaria sensibilidad del receptor SX1262 en SFNarrow ($-127\text{ dBm}$), las señales de `MasterNode` rebotan y penetran paredes con extrema facilidad en interiores, respondiendo en 0 saltos directos.
+* Para auditar las funciones lógicas de la V5 (**Botón del Pánico**, **Drenaje de 6s Pre-Reboot**, **Persistencia v6** y **Nombres persistentes**), la malla real en difusión sobre **`869.618 MHz`** es 100% suficiente y no requiere forzar aislamiento físico extremo en interiores.
+
