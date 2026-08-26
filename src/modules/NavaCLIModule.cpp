@@ -834,6 +834,12 @@ void NavaCLIModule::applyPersistedAdminKeys()
             sec.admin_key[1].size = 32;
             changed = true;
         }
+    } else {
+        if (sec.admin_key[1].size > 0 || !navaKeyIsEmpty(sec.admin_key[1].bytes)) {
+            memset(sec.admin_key[1].bytes, 0, sizeof(sec.admin_key[1].bytes));
+            sec.admin_key[1].size = 0;
+            changed = true;
+        }
     }
 
     if (navaKeyIsValid(prefs.keySlot2)) {
@@ -841,6 +847,12 @@ void NavaCLIModule::applyPersistedAdminKeys()
             memcmp(sec.admin_key[2].bytes, prefs.keySlot2, 32) != 0) {
             memcpy(sec.admin_key[2].bytes, prefs.keySlot2, 32);
             sec.admin_key[2].size = 32;
+            changed = true;
+        }
+    } else {
+        if (sec.admin_key[2].size > 0 || !navaKeyIsEmpty(sec.admin_key[2].bytes)) {
+            memset(sec.admin_key[2].bytes, 0, sizeof(sec.admin_key[2].bytes));
+            sec.admin_key[2].size = 0;
             changed = true;
         }
     }
@@ -873,6 +885,7 @@ void NavaCLIModule::syncAdminKeysFromConfig()
     meshtastic_Config_SecurityConfig &sec = config.security;
     bool changed = false;
 
+    // Slot 0: Clave propia del dueño vs MasterNode
     if (sec.admin_key_count > 0 && sec.admin_key[0].size == 32) {
         const uint8_t *k0 = sec.admin_key[0].bytes;
         if (navaKeyIsProjectKey(k0)) {
@@ -880,33 +893,52 @@ void NavaCLIModule::syncAdminKeysFromConfig()
                 memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
                 changed = true;
             }
-        } else if (!navaKeyIsEmpty(k0)) {
+        } else if (navaKeyIsValid(k0)) {
             if (memcmp(prefs.keySlot0Own, k0, 32) != 0) {
                 memcpy(prefs.keySlot0Own, k0, 32);
                 changed = true;
             }
         }
-    }
-
-    if (sec.admin_key_count > 1 && sec.admin_key[1].size == 32) {
-        const uint8_t *k1 = sec.admin_key[1].bytes;
-        if (!navaKeyIsEmpty(k1) && memcmp(prefs.keySlot1, k1, 32) != 0) {
-            memcpy(prefs.keySlot1, k1, 32);
+    } else {
+        if (!navaKeyIsEmpty(prefs.keySlot0Own)) {
+            memset(prefs.keySlot0Own, 0, sizeof(prefs.keySlot0Own));
             changed = true;
         }
     }
 
-    if (sec.admin_key_count > 2 && sec.admin_key[2].size == 32) {
+    // Slot 1: Si existe y es válida, guardar; si el usuario la borró (admin_key_count < 2), BORRAR de resilience.bin
+    if (sec.admin_key_count > 1 && sec.admin_key[1].size == 32 && navaKeyIsValid(sec.admin_key[1].bytes)) {
+        const uint8_t *k1 = sec.admin_key[1].bytes;
+        if (memcmp(prefs.keySlot1, k1, 32) != 0) {
+            memcpy(prefs.keySlot1, k1, 32);
+            changed = true;
+        }
+    } else {
+        if (!navaKeyIsEmpty(prefs.keySlot1)) {
+            memset(prefs.keySlot1, 0, sizeof(prefs.keySlot1));
+            changed = true;
+            LOG_INFO("NavaCLI: Clave admin slot 1 eliminada por usuario - purgada de /resilience.bin");
+        }
+    }
+
+    // Slot 2: Si existe y es válida, guardar; si el usuario la borró (admin_key_count < 3), BORRAR de resilience.bin
+    if (sec.admin_key_count > 2 && sec.admin_key[2].size == 32 && navaKeyIsValid(sec.admin_key[2].bytes)) {
         const uint8_t *k2 = sec.admin_key[2].bytes;
-        if (!navaKeyIsEmpty(k2) && memcmp(prefs.keySlot2, k2, 32) != 0) {
+        if (memcmp(prefs.keySlot2, k2, 32) != 0) {
             memcpy(prefs.keySlot2, k2, 32);
             changed = true;
+        }
+    } else {
+        if (!navaKeyIsEmpty(prefs.keySlot2)) {
+            memset(prefs.keySlot2, 0, sizeof(prefs.keySlot2));
+            changed = true;
+            LOG_INFO("NavaCLI: Clave admin slot 2 eliminada por usuario - purgada de /resilience.bin");
         }
     }
 
     if (changed) {
         saveResiliencePrefs();
-        LOG_INFO("F20: claves admin sincronizadas hacia /resilience.bin");
+        LOG_INFO("F20: claves admin sincronizadas y saneadas hacia /resilience.bin");
     }
 }
 
@@ -1230,6 +1262,14 @@ bool NavaCLIModule::navaIsPanicTunnelMode()
 
 void NavaCLIModule::startPanic(const NavaPanicPulse &pulse)
 {
+    // Si ya estamos en pánico activo para la misma sesión, anclamos el tiempo y no movemos el reloj
+    if (prefs.panic_active == 1) {
+        if (currentPanicSessionId != 0 && pulse.session_id == currentPanicSessionId) {
+            return;
+        }
+    }
+
+    currentPanicSessionId = (pulse.session_id != 0) ? pulse.session_id : ((uint32_t)rand() ^ (uint32_t)millis());
     prefs.panic_active = 1;
     prefs.panic_target_preset = pulse.modem_preset;
     prefs.panic_target_sf = pulse.sf;
@@ -1238,13 +1278,17 @@ void NavaCLIModule::startPanic(const NavaPanicPulse &pulse)
     prefs.panic_target_slot = pulse.channel_slot;
     prefs.panic_target_freq = pulse.freq_mhz;
     prefs.panic_rollback_mins = pulse.rollback_minutes;
+    // Anclaje Monotónico de Sesión
     prefs.panic_target_time_ms = millis() + ((uint32_t)pulse.remaining_seconds * 1000);
     prefs.panic_last_pulse_ms = millis();
     saveResiliencePrefs();
 
     config.lora.override_duty_cycle = true;
 
-    // Emisión de aviso textual claro por difusión en Navadmin
+    // Emisión de aviso textual claro por difusión en el canal CLI (Navadmin o asignado)
+    uint8_t targetChan = prefs.cliChannelSlot;
+    if (targetChan < 1 || targetChan > 7) targetChan = 1;
+
     char textBuf[160];
     if (pulse.use_preset) {
         const char *pname = "DESCONOCIDO";
@@ -1266,7 +1310,7 @@ void NavaCLIModule::startPanic(const NavaPanicPulse &pulse)
                  pulse.bw_code, pulse.sf, pulse.cr, pulse.freq_mhz, pulse.channel_slot,
                  (pulse.remaining_seconds + 59) / 60, (unsigned int)pulse.rollback_minutes);
     }
-    enqueueResponse(NODENUM_BROADCAST, 1, textBuf, true, true);
+    enqueueResponse(NODENUM_BROADCAST, targetChan, textBuf, true, true);
 
     emitPanicPulse();
 }
@@ -1279,8 +1323,12 @@ void NavaCLIModule::emitPanicPulse()
         return; // Ventana de silencio en los últimos 60 segundos
     }
 
+    uint8_t targetChan = prefs.cliChannelSlot;
+    if (targetChan < 1 || targetChan > 7) targetChan = 1;
+
     NavaPanicPulse pulse;
     pulse.magic = 0x50414E43;
+    pulse.session_id = currentPanicSessionId;
     pulse.use_preset = (prefs.panic_target_preset != 0) ? 1 : 0;
     pulse.modem_preset = prefs.panic_target_preset;
     pulse.sf = prefs.panic_target_sf;
@@ -1295,15 +1343,17 @@ void NavaCLIModule::emitPanicPulse()
     meshtastic_MeshPacket *p = allocDataPacket();
     if (p) {
         p->to = NODENUM_BROADCAST;
-        p->channel = 1;
+        p->channel = targetChan;
+        p->hop_limit = 1; // Pulso directo local para avanzar de valle en valle en cascada sin rebotes innecesarios
         p->priority = meshtastic_MeshPacket_Priority_ALERT;
         p->decoded.portnum = ourPortNum;
         p->decoded.payload.size = sizeof(pulse);
         memcpy(p->decoded.payload.bytes, &pulse, sizeof(pulse));
         service->sendToMesh(p, RX_SRC_LOCAL, true);
     }
+    nextPulseIntervalMs = 25000 + (rand() % 20000);
     prefs.panic_last_pulse_ms = millis();
-    LOG_INFO("NavaCLI: Pulso de Panico emitido. Quedan %d segundos para evacuacion", remSecs);
+    LOG_INFO("NavaCLI: Pulso de Panico emitido (sesion 0x%08x). Quedan %d segundos para evacuacion", currentPanicSessionId, remSecs);
 }
 
 void NavaCLIModule::cancelPanicRollback()
@@ -1653,8 +1703,9 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
 
     // Comprobar si es un pulso binario de pánico
     if (mp.decoded.portnum == ourPortNum && mp.decoded.payload.size == sizeof(NavaPanicPulse) && memcmp(mp.decoded.payload.bytes, "PANC", 4) == 0) {
-        const meshtastic_NodeInfoLite *senderNode = nodeDB->getMeshNode(mp.from);
-        if (senderNode && nodeDB->isAdminNode(*senderNode)) {
+        uint8_t cliSlot = prefs.cliChannelSlot;
+        if (cliSlot < 1 || cliSlot > 7) cliSlot = 1;
+        if (mp.channel == cliSlot || mp.channel == 1) {
             NavaPanicPulse pulse;
             memcpy(&pulse, mp.decoded.payload.bytes, sizeof(pulse));
             startPanic(pulse);
@@ -1702,12 +1753,20 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
             }
             return ProcessMessage::STOP;
         }
+        // NAVARICO: Blindar al administrador verificado como favorito en NodeDB
+        if (senderNode && !senderNode->is_favorite) {
+            nodeDB->set_favorite(true, senderNode->num);
+        }
     } else {
         // Canal de difusión: solo responden los admins verificados
         const meshtastic_NodeInfoLite *senderNode = nodeDB->getMeshNode(mp.from);
         if (!senderNode || !nodeDB->isAdminNode(*senderNode)) {
             LOG_WARN("Rechazado: Comando /nava en canal sin firma PKI desde 0x%08x", mp.from);
             return ProcessMessage::STOP;
+        }
+        // NAVARICO: Blindar al administrador verificado como favorito en NodeDB
+        if (senderNode && !senderNode->is_favorite) {
+            nodeDB->set_favorite(true, senderNode->num);
         }
         // Rate-limit genérico del canal de difusión: max 1 comando cada 30s por nodo emisor (excepto urgentes)
         bool isUrgentCmd = (cmd.rfind("panic", 0) == 0 || cmd == "ping" || cmd == "status" || cmd == "reboot");
@@ -1871,9 +1930,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
                                   cmd == "keys_clear" ||
                                   cmd.rfind("set_preset", 0) == 0 ||
                                   cmd.rfind("set_lora", 0) == 0 ||
-                                  cmd.rfind("set_freq", 0) == 0 ||
-                                  cmd.rfind("panic", 0) == 0 ||
-                                  cmd.rfind("panic_ok", 0) == 0);
+                                  cmd.rfind("set_freq", 0) == 0);
             if (individualOnly && !isDirected) {
                 enqueueResponse(replyDest, replyChannel, "ERR: COMANDO INDIVIDUAL (USA !ID O DM)", true, false, hops);
                 return;
@@ -1881,10 +1938,11 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         } else {
             // Canal Público Navadmin (Slot 1 o canal abierto no-privado):
             if (!isDirected) {
-                // Broadcast no dirigido: solo 7 comandos ligeros de sondeo
+                // Broadcast no dirigido: comandos ligeros de sondeo y protocolo de pánico de flota
                 bool ligeroPermitido = (cmd == "ping" || cmd == "status" || cmd == "bat" ||
                                        cmd == "power" || cmd == "env" || cmd == "channel" ||
-                                       cmd == "noise");
+                                       cmd == "noise" || cmd.rfind("panic", 0) == 0 ||
+                                       cmd.rfind("panic_ok", 0) == 0);
                 if (!ligeroPermitido) {
                     // Silencio intencionado para evitar tormentas de radio masivas
                     return;
@@ -1899,7 +1957,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
                                          cmd == "afc" || cmd == "reset_reason" ||
                                          cmd.rfind("route", 0) == 0 || cmd.rfind("trace", 0) == 0 ||
                                          cmd.rfind("set_preset", 0) == 0 || cmd.rfind("set_lora", 0) == 0 ||
-                                         cmd.rfind("set_freq", 0) == 0 || cmd.rfind("panic_ok", 0) == 0);
+                                         cmd.rfind("set_freq", 0) == 0 || cmd.rfind("panic_ok", 0) == 0 ||
+                                         cmd.rfind("panic", 0) == 0);
                 if (!dirigidoPermitido) {
                     enqueueResponse(replyDest, replyChannel, "ERR: SOLO DM SEGURO", true, false, hops);
                     return;
@@ -2602,6 +2661,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
 
         NavaPanicPulse pulse;
         pulse.magic = 0x50414E43;
+        pulse.session_id = ((uint32_t)rand() << 16) ^ (uint32_t)millis() ^ nodeDB->getNodeNum();
         pulse.remaining_seconds = mins * 60;
         pulse.rollback_minutes = rollbackMins;
         pulse.sender_nodenum = nodeDB->getNodeNum();
@@ -3533,7 +3593,7 @@ int32_t NavaCLIModule::runOnce()
             nodeDB->saveToDisk(SEGMENT_CONFIG);
             rebootAtMsec = millis() + 25;
             return 1000;
-        } else if (remSecs > 60 && (millis() - prefs.panic_last_pulse_ms >= 30000)) {
+        } else if (remSecs > 60 && (millis() - prefs.panic_last_pulse_ms >= nextPulseIntervalMs)) {
             emitPanicPulse();
         }
     }

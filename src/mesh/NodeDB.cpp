@@ -199,6 +199,17 @@ void NodeDB::checkAndRegisterRAMAutoFavorite(meshtastic_NodeInfoLite *info)
         return; // Auto-favoriteo desactivado por /nava fav auto off
     }
     if (info && info->has_user) {
+        // NAVARICO: Si el nodo está verificado como administrador, blindarlo como favorito de inmediato (cualquier rol)
+        if (isAdminNode(*info)) {
+            if (!info->is_favorite) {
+                LOG_INFO("Auto-Favorite: Marking verified admin 0x%08x as favorite", info->num);
+                info->is_favorite = true;
+                sortMeshDB();
+                saveNodeDatabaseToDisk();
+            }
+            return;
+        }
+
         if (info->has_hops_away && info->hops_away == 0) {
             if (IS_ONE_OF(info->user.role, 
                           meshtastic_Config_DeviceConfig_Role_ROUTER, 
@@ -2128,6 +2139,7 @@ bool NodeDB::updateUser(uint32_t nodeId, meshtastic_User &p, uint8_t channelInde
             (config.security.admin_key[2].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[2].bytes, 32) == 0);
         if (firstKeyIsAdmin) {
             info->bitfield |= NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+            info->is_favorite = true;
         }
     }
 #endif

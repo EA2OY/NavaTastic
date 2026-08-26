@@ -52,9 +52,10 @@ struct NavaLogEntry {
     char msg[48];
 };
 
-// NAVARICO V5: Pulso binario ultracorto para Protocolo "Botón del Pánico" (exactamente 24 Bytes)
+// NAVARICO V5: Pulso binario ultracorto para Protocolo "Botón del Pánico" (exactamente 28 Bytes)
 struct __attribute__((packed)) NavaPanicPulse {
     uint32_t magic;             // 0x50414E43 ("PANC")
+    uint32_t session_id;        // Identificador único de sesión de pánico (Monotonic Session Anchor)
     uint8_t use_preset;         // 1=Preset estándar, 0=Custom
     uint8_t modem_preset;       // 0..13 enum meshtastic_Config_LoRaConfig_ModemPreset
     uint8_t sf;                 // Spreading Factor (5..12)
@@ -295,6 +296,8 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     void emitPanicPulse();
     void cancelPanicRollback();
     void handlePanicPulse(const meshtastic_MeshPacket &mp);
+    uint32_t currentPanicSessionId = 0;
+    uint32_t nextPulseIntervalMs = 30000;
 
     // NAVARICO F20 (fix banco 2a): full_reset debe resetear los semi-persistentes a
     // defaults de perfil CONSERVANDO las 3 claves admin persistidas (no borrar el fichero).
