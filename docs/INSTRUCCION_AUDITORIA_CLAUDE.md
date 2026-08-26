@@ -83,8 +83,9 @@ El auditor debe entender el contexto operativo real: repetidores solares en cumb
 
 2. **Clave de fábrica "MasterNode" y recuperación de nodos huérfanos**:
    - **Propósito**: Pilar Anti-Lockout / Mando de Rescate. Si un nodo en cumbre sufre una corrupción grave o un `wipe`, jamás debe quedarse huérfano o brickeado obligando a una expedición física con nieve para reprogramarlo por USB. La clave MasterNode compartida en la Infraestructura General permite al operador de Navarra (EA2OY) rescatar y reconfigurar el nodo por radio.
-   - **Aislamiento para redes privadas**: Para usuarios que deseen aislamiento criptográfico total sin compartir clave de rescate, existe la **Rama Propia (R2IP / R1IP)**, que inyecta claves privadas únicas del operador en compilación.
-   - **NO es un fallo de seguridad**: Es la garantía de supervivencia en montaña de la Infraestructura General.
+   - **Desautorización inmediata por el usuario (Procedimiento de Manual)**: El Manual de Usuario de NavaTastic instruye y aconseja expresamente que, nada más desplegar un repetidor, el operador configure sus claves públicas personales en los slots de administración (Slot 0 / Slot 1). Al establecer una clave propia en el Slot 0 (`keySlot0Own`), la clave de fábrica MasterNode queda **automáticamente desautorizada y revocada** (regla "Slot 0 = clave propia del usuario"). La clave de fábrica solo actúa como red de seguridad temporal antes del aprovisionamiento o en caso de un borrado total deliberado (`wipe`).
+   - **Aislamiento para redes privadas**: Para usuarios que deseen aislamiento criptográfico total sin compartir clave de rescate en ningún momento, existe la **Rama Propia (R2IP / R1IP)**, que inyecta claves privadas únicas del operador en compilación.
+   - **NO es un fallo de seguridad**: Es la garantía de supervivencia en montaña de la Infraestructura General combinada con revocación inmediata por parte del usuario final.
 
 3. **Comandos grupales en el "Canal Privado de Flota" (Slots 2..7)**:
    - **Propósito**: Operatividad táctica colectiva mediante canales cifrados simétricos (AES-128 / AES-256). Permite enviar órdenes simultáneas a una constelación de repetidores.
