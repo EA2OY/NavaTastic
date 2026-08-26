@@ -848,10 +848,19 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     - Estructura limpia de alto impacto: 5 pasos visuales, 6 ventajas clave, avisos de ciclo solar, comandos rápidos, descargas directas de los 12 builds y enlaces a PDFs oficiales.
   - **Publicación Pública como Fork Auditable (Squash sobre upstream `54e0d8d`)**:
     - La rama pública `main` en GitHub (`https://github.com/EA2OY/NavaTastic`) se basa directamente en el commit oficial de Meshtastic 2.7.26 (`54e0d8d0a`) con un único commit limpio encima.
-    - Permite auditoría instantánea en 1 clic en la interfaz web de GitHub (la pestaña "Files changed" muestra única y exclusivamente los 104 archivos modificados / +15.402 líneas de NavaTastic), resolviendo la petición de la comunidad de Telegram sin exponer el historial local.
-  - **Compilación de PDFs Oficiales**: Los 7 documentos PDF de `docs/pdf/` compilados con Pandoc y XeLaTeX (0 errores).
-  - **Documento Maestro de Arquitectura**: Creado `docs/DIFERENCIAS_VS_UPSTREAM.md` para desarrolladores y auditores técnicos.
-  - **Repositorio 100% Limpio y Sincronizado**: `master` local con árbol de trabajo limpio y distribuibles listos.
+- **Estado Consolidado (26/08/2026, Auditoría Forense V5 y Suspensión Temporal en GitHub)**:
+  - **Acción Inmediata de Seguridad en Producción**:
+    1. **Eliminación de Release `v4.3.4` de GitHub**: Purgada la Release preliminar para proteger a los usuarios de la red. La versión oficial y 100% estable en producción permanece fijada en **NavaTastic V4 (v4.3.3-stable)**.
+    2. **Banner de Suspensión en Portada `README.md`**: Publicado en `main` y `master` el aviso formal de auditoría y corrección en curso, con enlaces directos a la versión V4 estable.
+  - **Hallazgo Forense Crítico — Bucle de Reinicios Post-Rollback (Lección L39)**:
+    - **Causa Raíz**: Al iniciar el protocolo de pánico (`/nava panic`), `prefs.panic_active = 1` y `panic_target_time_ms` se persistían en `/resilience.bin`. Al cumplirse $T=0$, el nodo reiniciaba hacia `panic_trial_active = 1`. Debido a que `millis()` se reinicia en cero tras el reboot, el deadline de prueba absoluto (`panic_trial_deadline_ms`) provocaba que `(int32_t)(millis() - deadline) >= 0` se evaluara inmediatamente como expirado en cada ciclo de arranque, ejecutando `nodeDB->factoryReset(false)` y un nuevo reinicio cada pocos minutos.
+    - **Falta de Persistencia de Radio en Flash**: Al saltar a $T=0$, los parámetros de modulación se guardaban en `/resilience.bin` pero no se forzaban en `config.lora` (`/prefs/config.proto`) antes del reinicio, provocando que el chip SX1262 en `setup()` inicializara la radio con los valores antiguos.
+  - **Plan de Corrección Técnica para V5**:
+    1. Grabar `config.lora` directamente con `nodeDB->saveToDisk(SEGMENT_CONFIG)` antes de reiniciar en $T=0$.
+    2. En `firstRunDone` (post-boot), si `panic_trial_active == 1`, rearmar el plazo relativo al tiempo de arranque fresco: `panic_trial_deadline_ms = millis() + (rollback_mins * 60000)`.
+    3. Purgar flags de pánico residuales (`panic_active = 0`, `panic_target_time_ms = 0`) atómicamente antes del reboot.
+    4. Emitir un mensaje de texto claro por difusión en `Navadmin`: `[Panico] Evacuacion a <PRESET> en X min. Rollback en Y min.` y garantizar su retransmisión multi-salto con prioridad `ALERT`.
+
 
 
 

@@ -1229,3 +1229,17 @@ es byte-idéntico. Si se quiere zip idéntico, habría que fijar `progname` por 
     1. **`memset` Integral Previo**: `memset(&prefs, 0, sizeof(prefs))` antes de cualquier lectura de disco, asegurando que campos nuevos siempre arranquen en cero.
     2. **Inicialización Explícita en `if (legacy)`**: Limpieza forzada de `custom_long_name` y `custom_short_name` a ceros.
     3. **Auto-Sanación y Validación de Integridad**: Comprobación estricta de caracteres ASCII/UTF-8 imprimibles válidos antes de aplicar cualquier nombre. Si se detectan caracteres de control o basura de flashes anteriores, se purga a vacío automáticamente y se preserva el nombre legítimo de `NodeDB`.
+- **L39 — Falla de Máquina de Estados del Protocolo de Pánico (Botón del Pánico) y Bucle de Reinicios Post-Rollback**:
+  - **Problema Detectado en Auditoría**:
+    1. **Bucle de Reinicios Cíclicos**: Al alcanzar $T=0$, el nodo ejecuta el salto de pánico y programa un reinicio diferido hacia `panic_trial_active = 1`. Al reiniciar, `millis()` se pone a cero. Si `prefs.panic_trial_deadline_ms` o `prefs.panic_target_time_ms` se guardaron con valores absolutos previos al reboot, la condición `(millis() - deadline) >= 0` se evalúa como verdadera de inmediato en cada arranque, ejecutando `nodeDB->factoryReset(false)` y un nuevo reinicio en bucle cada pocos minutos.
+    2. **Falta de Persistencia Atómica en Flash en $T=0$**: Los nuevos parámetros de LoRa se guardaban en `/resilience.bin`, pero no se aplicaban a `config.lora` (`/prefs/config.proto`) antes del reboot. Dado que el transceptor SX1262 se inicializa en `setup()` antes del inicio de módulos, el hardware arrancaba con la modulación antigua.
+    3. **Ausencia de Difusión Textual y Multi-Salto**: El pulso se transmitía exclusivamente como struct binario `NavaPanicPulse` (`PANC`) y la cola se purgaba en `startPanic()`, impidiendo que los clientes de la red y apps recibieran un aviso de texto claro de la evacuación.
+  - **Acción Operativa Inmediata**:
+    1. **Suspensión de Publicación de V5 en GitHub**: Eliminación inmediata de la Release `v4.3.4` de GitHub, preservando `v4.3.3-stable` (V4) como la versión oficial en producción.
+    2. **Aviso en Portada de `README.md`**: Notificación visible de auditoría y corrección en curso, dirigiendo a los usuarios a la V4 estable.
+  - **Solución Técnica Diseñada para V5**:
+    1. En `runOnce()`, al llegar a $T=0$, modificar `config.lora` directamente y forzar `nodeDB->saveToDisk(SEGMENT_CONFIG)` en Flash antes de programar el reinicio.
+    2. En `firstRunDone` (post-boot), si `panic_trial_active == 1`, inicializar `panic_trial_deadline_ms = millis() + (prefs.panic_rollback_mins * 60000)` relativo al nuevo arranque.
+    3. Limpiar `panic_active = 0` y `panic_target_time_ms = 0` atómicamente antes de reiniciar.
+    4. Emitir un mensaje de texto claro por difusión en `Navadmin`: `[Panico] EVACUACION a <PRESET> en X min. Rollback en Y min.` y garantizar su retransmisión multi-salto con prioridad `ALERT`.
+
