@@ -6,14 +6,14 @@
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
 [![Auditoría V4](https://img.shields.io/badge/Auditor%C3%ADa%20V4-100%25%20PASS%20(Hardware%20Real)-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)
-[![NavaTastic V5](https://img.shields.io/badge/NavaTastic%20V5-v4.3.4%20(Estable)-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.4)
+[![NavaTastic V4](https://img.shields.io/badge/Versi%C3%B3n%20Estable-v4.3.3%20(V4)-green?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)
 
 </div>
 
-> 🚀 **Generación NavaTastic V5 (v4.3.4) — 25/08/2026**:  
-> NavaTastic V5 incorpora **Sincronización Bidireccional Transparente de la App Oficial**, **Hop-Aware Timing y Desacople de Traceroute en Malla**, **Persistencia Blindada de Capa LoRa y Canal 0 Primario (`NAV6`)**, **Protocolo Botón del Pánico para Evacuación de Malla**, **Ventana de Gracia Pre-Reboot de 6s** y **32 Auto-Favoritos**.  
-> 📜 **[Ver README Histórico de V4](docs/README_V4.md)** · 🛡️ **[Informe de Auditoría V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** · 📋 **[Leer Auditoría en GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)**  
-> 📄 **[Manual de Comandos V5 (PDF)](docs/pdf/Manual_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_NavaTastic.md)) · 📘 **[Guía de Uso V5 (PDF)](docs/pdf/Manual_uso_NavaTastic.pdf)** ([Leer en GitHub](docs/Manual_uso_NavaTastic.md))
+> ⚠️ **AVISO IMPORTANTE (26/08/2026) — PUBLICACIÓN DE V5 EN SUSPENSIÓN TÉCNICA**:  
+> La versión **NavaTastic V5 (v4.3.4)** se encuentra actualmente **suspendida temporalmente y en proceso de auditoría y corrección técnica en banco de pruebas** tras detectarse anomalías en la máquina de estados del protocolo de evacuación/resiliencia.  
+> La versión de producción oficial, 100% auditada y recomendada para todos los repetidores e infraestructura es **[NavaTastic V4 (v4.3.3)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)**.  
+> 📦 **[Descargar NavaTastic V4 Estable (v4.3.3)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)** · 📜 **[Ver README Histórico de V4](docs/README_V4.md)** · 🛡️ **[Informe de Auditoría V4 (PDF)](docs/pdf/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.pdf)** · 📋 **[Leer Auditoría en GitHub](docs/INFORME_AUDITORIA_ULTRA_EXHAUSTIVA_NAVATASTIC_V4.md)**
 
 ---
 
