@@ -72,6 +72,28 @@ Navadmin va **sin cifrar por diseño** (PSK pública, solo lectura) — tampoco 
 - **T114**: LPCOMP activo en el fork (Meshtastic lo desactiva por fuga 2.9mA, issue #8801) —
   decisión de diseño del operador, no "corregirlo".
 
+## 2bis. Decisiones arquitectónicas y filosofía de supervivencia en montaña (VECTORES ASUMIDOS POR DISEÑO)
+
+El auditor debe entender el contexto operativo real: repetidores solares en cumbres de montaña a 1.500m de altitud, aislados por nieve o climatología severa. En este escenario, **la recuperabilidad y supervivencia del nodo prima sobre el aislamiento paranoico**. Los siguientes puntos son decisiones de diseño conscientes y aceptadas:
+
+1. **Canal "Navadmin" con PSK pública estándar `{0x01}` (`AQ==`)**:
+   - **Propósito**: Es el canal de guardia, socorro, diagnóstico y auxilio público de la montaña. Permite que cualquier montañero o radioaficionado con un equipo Meshtastic de serie pueda pedir auxilio, consultar telemetría básica o coordinar comunicaciones sin requerir una clave privada previa.
+   - **Salvaguarda**: En este canal rige un **whitelist estricto de solo lectura** (`ping`, `status`, `bat`, `power`, `env`, `channel`, `noise`). Todos los comandos de configuración, reconfiguración o destructivos (`wipe`, `factory_reset`, `reboot`, `set_lora`, `ch_set`) están **absolutamente prohibidos y bloqueados**.
+   - **NO es un fallo de seguridad**: Es la puerta de rescate abierta de la red.
+
+2. **Clave de fábrica "MasterNode" y recuperación de nodos huérfanos**:
+   - **Propósito**: Pilar Anti-Lockout / Mando de Rescate. Si un nodo en cumbre sufre una corrupción grave o un `wipe`, jamás debe quedarse huérfano o brickeado obligando a una expedición física con nieve para reprogramarlo por USB. La clave MasterNode compartida en la Infraestructura General permite al operador de Navarra (EA2OY) rescatar y reconfigurar el nodo por radio.
+   - **Aislamiento para redes privadas**: Para usuarios que deseen aislamiento criptográfico total sin compartir clave de rescate, existe la **Rama Propia (R2IP / R1IP)**, que inyecta claves privadas únicas del operador en compilación.
+   - **NO es un fallo de seguridad**: Es la garantía de supervivencia en montaña de la Infraestructura General.
+
+3. **Comandos grupales en el "Canal Privado de Flota" (Slots 2..7)**:
+   - **Propósito**: Operatividad táctica colectiva mediante canales cifrados simétricos (AES-128 / AES-256). Permite enviar órdenes simultáneas a una constelación de repetidores.
+   - **Salvaguarda**: Si se requiere administración nuclear con no-repudio individual, se utiliza Mensaje Directo (DM) con autenticación asimétrica por PKI (Curve25519) y comprobación de clave pública registrada.
+
+4. **Protocolo "Botón del Pánico" (Evacuación de Flota)**:
+   - **Propósito**: Salto sincronizado de toda la red a una frecuencia/preset de emergencia ante interferencias o catástrofes.
+   - **Salvaguarda**: La orden inicial textual `/nava panic` **exige obligatoriamente DM cifrado por PKI** (clave privada del administrador). Una vez verificada criptográficamente, el repetidor emite el paquete binario mágico (`NavaPanicPulse` "PANC") por el canal Navadmin para que la flota propague la evacuación en cascada de valle en valle.
+
 ## 3. Candidatos YA ANOTADOS (no son novedad si los encuentras)
 
 F16c `fav rm` substr(8) · F16d jitter quick muerto (cosmético) · F16e whitelist canal 1 sin
