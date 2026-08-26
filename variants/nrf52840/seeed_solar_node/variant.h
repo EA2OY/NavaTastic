@@ -95,6 +95,16 @@ static const uint8_t SCL = PIN_WIRE_SCL;
 #define SX126X_RXEN D5               // RX enable control
 #define SX126X_TXEN RADIOLIB_NC
 #define SX126X_DIO2_AS_RF_SWITCH // This Line is really necessary for SX1262  to work with RF switch or will loss TX power
+
+// NAVARICO: bloque incorporado desde el repo Seed (General/Propia): reset de arranque, limites de
+// potencia SX1262, LPCOMP de fabrica y activacion del divisor de bateria durante el sueño.
+#define FIX_NATIVE_CORE_RESET
+#define SX126X_MAX_POWER 22
+#define HARDWARE_TX_POWER_LIMIT 22
+#define BATTERY_LPCOMP_INPUT NRF_LPCOMP_INPUT_7
+#define BATTERY_LPCOMP_THRESHOLD NRF_LPCOMP_REF_SUPPLY_3_8
+#define ADC_CTRL BAT_READ
+#define ADC_CTRL_ENABLED LOW
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  Power Management
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -106,7 +116,7 @@ static const uint8_t SCL = PIN_WIRE_SCL;
 #define ADC_MULTIPLIER 3.3
 #define BATTERY_PIN PIN_VBAT // PIN_A7
 #define AREF_VOLTAGE 3.3
-#define OCV_ARRAY 4200, 3986, 3922, 3812, 3734, 3645, 3527, 3420, 3281, 3087, 2786
+#define OCV_ARRAY 4200, 3986, 3922, 3812, 3734, 3645, 3527, 3420, 3400, 3400, 3400 // NAVARICO: clamp a 3.4V (3400mV)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  GPS L76KB
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1,4 +1,5 @@
 #include "Router.h"
+#include <algorithm>
 #include "Channels.h"
 #include "CryptoEngine.h"
 #include "MeshRadio.h"
@@ -12,6 +13,7 @@
 #include "mesh-pb-constants.h"
 #include "meshUtils.h"
 #include "modules/RoutingModule.h"
+#include "modules/NavaCLIModule.h"
 #if !MESHTASTIC_EXCLUDE_MQTT
 #include "mqtt/MQTT.h"
 #endif
@@ -104,8 +106,12 @@ bool Router::shouldDecrementHopLimit(const meshtastic_MeshPacket *p)
         if (!node)
             continue;
 
-        // Check 1: is_favorite (cheapest - single bool)
-        if (!node->is_favorite)
+        // Check 1: is_favorite (flash) OR present in RAM auto-favorite registry
+        bool isFav = node->is_favorite;
+        if (!isFav) {
+            isFav = (std::find(activeDirectRouters.begin(), activeDirectRouters.end(), node->num) != activeDirectRouters.end());
+        }
+        if (!isFav)
             continue;
 
         // Check 2: has_user (cheap - single bool)
@@ -340,8 +346,11 @@ ErrorCode Router::send(meshtastic_MeshPacket *p)
 
     p->relay_node = nodeDB->getLastByteOfNodeNum(getNodeNum()); // set the relayer to us
     // If we are the original transmitter, set the hop limit with which we start
-    if (isFromUs(p))
+    if (isFromUs(p)) {
         p->hop_start = p->hop_limit;
+    } else {
+        NavaCLIModule::recordRoutedPacket();
+    }
 
     // If the packet hasn't yet been encrypted, do so now (it might already be encrypted if we are just forwarding it)
 
@@ -776,6 +785,27 @@ void Router::handleReceived(meshtastic_MeshPacket *p, RxSource src)
                        meshtastic_PortNum_STORE_FORWARD_APP, meshtastic_PortNum_TRACEROUTE_APP,
                        meshtastic_PortNum_STORE_FORWARD_PLUSPLUS_APP)) {
             LOG_DEBUG("Ignore packet on non-standard portnum for CORE_PORTNUMS_ONLY");
+            cancelSending(p->from, p->id);
+            skipHandle = true;
+        }
+
+        // NAVARICO F21: Mute temporal en RAM (silencio temporal de retransmisión LoRa para auditoría)
+        if (!isFromUs(p) && NavaCLIModule::navaIsMuteActive()) {
+            LOG_DEBUG("NavaCLI: Mute activo, cancelando reenvio de paquete");
+            cancelSending(p->from, p->id);
+            skipHandle = true;
+        }
+
+        // NAVARICO V5: Modo Túnel del Protocolo Botón del Pánico (suspende reenvío ordinario ajeno)
+        if (!isFromUs(p) && NavaCLIModule::navaIsPanicTunnelMode() && p->priority != meshtastic_MeshPacket_Priority_ALERT) {
+            LOG_DEBUG("NavaCLI: Modo Tunel de Panico activo, cancelando reenvio de paquete ordinario");
+            cancelSending(p->from, p->id);
+            skipHandle = true;
+        }
+
+        // NAVARICO F22: Lista negra global persistente (ign)
+        if (!isFromUs(p) && NavaCLIModule::isNodeIgnored(p->from)) {
+            LOG_DEBUG("NavaCLI: Paquete ignorado de nodo en lista negra 0x%x", p->from);
             cancelSending(p->from, p->id);
             skipHandle = true;
         }
