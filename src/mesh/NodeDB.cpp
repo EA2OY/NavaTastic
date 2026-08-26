@@ -205,7 +205,6 @@ void NodeDB::checkAndRegisterRAMAutoFavorite(meshtastic_NodeInfoLite *info)
                 LOG_INFO("Auto-Favorite: Marking verified admin 0x%08x as favorite", info->num);
                 info->is_favorite = true;
                 sortMeshDB();
-                saveNodeDatabaseToDisk();
             }
             return;
         }
@@ -219,7 +218,6 @@ void NodeDB::checkAndRegisterRAMAutoFavorite(meshtastic_NodeInfoLite *info)
                     LOG_INFO("Auto-Favorite: Marking direct router 0x%08x as favorite", info->num);
                     info->is_favorite = true;
                     sortMeshDB();
-                    saveNodeDatabaseToDisk();
                 }
                 auto &adr = router->activeDirectRouters;
                 if (std::find(adr.begin(), adr.end(), info->num) == adr.end()) {

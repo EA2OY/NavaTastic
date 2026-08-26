@@ -14,11 +14,9 @@
 #define NAVATASTIC_BUILD "V5"
 #endif
 
-// NAVARICO F21/F22/V5: marcador de formato del struct ResiliencePrefs. Bump V5 (0x4E415636,
-// "NAV6"): soporte para persistencia blindada de Capa Física LoRa (Preset/Custom),
-// Canal 0 Primario, Protocolo "Botón del Pánico" y ampliación a 32 auto-favoritos.
-// Ficheros previos ("NAV5" / "NAV4" / "NAV3" / "NAVS") migran con defaults seguros.
-#define NAVS_RESILIENCE_VERSION 0x4E415636
+// NAVARICO V5 (NAV7): formato atómico con validación CRC32 y protección spiLock.
+// Ficheros previos migran limpiamente con defaults seguros (Clean Slate).
+#define NAVS_RESILIENCE_VERSION 0x4E415637
 
 struct NavaResponse {
     NodeNum dest;
@@ -149,6 +147,7 @@ struct ResiliencePrefs {
 
     // Bloque E - Extensión de Auto-Favoritos (slots 16..31)
     uint32_t extraAutoFavIds[16];        // Slots 16-31 de auto-favoritos
+    uint32_t crc32;                      // Verificación de integridad matemática CRC32 (NAV7)
 };
 
 enum NavaDeferredAction {

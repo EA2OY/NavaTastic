@@ -6,6 +6,8 @@
 #include "main.h"
 #include "memGet.h"
 #include "FSCommon.h"
+#include "SPILock.h"
+#include <ErriezCRC32.h>
 #include "power.h"
 #include "sleep.h"
 #include "modules/TraceRouteModule.h"
@@ -66,35 +68,47 @@ void NavaCLIModule::loadResiliencePrefs() {
     memset(&prefs, 0, sizeof(prefs));
     bool validExisting = false;
 
-    if (FSCom.exists("/resilience.bin")) {
-        File f = FSCom.open("/resilience.bin", FILE_O_READ);
-        if (f) {
-            size_t fileSize = f.size();
-            if (fileSize == sizeof(ResiliencePrefs)) {
-                size_t bytesRead = f.read((uint8_t*)&prefs, sizeof(prefs));
-                if (bytesRead == sizeof(ResiliencePrefs) && prefs.magic == 0x52455349 && prefs.version == NAVS_RESILIENCE_VERSION) {
-                    bool fieldsSane = (prefs.chemistry <= 3 &&
-                        prefs.vbat_cutoff >= 2400 && prefs.vbat_cutoff <= 3600 &&
-                        prefs.vwake_level >= 1 && prefs.vwake_level <= 5 &&
-                        prefs.tx_disabled <= 1 && prefs.ble_disabled <= 1 && prefs.auto_fav <= 1 &&
-                        (prefs.role <= meshtastic_Config_DeviceConfig_Role_ROUTER || prefs.role == 0xFF) &&
-                        prefs.autoFavCount <= 32 && prefs.sleepMsgs <= 1 && prefs.wasInSleep <= 1 &&
-                        prefs.cliChannelSlot >= 1 && prefs.cliChannelSlot <= 7 && prefs.navadminMuted <= 1 &&
-                        prefs.ignoredCount <= 8);
+    {
+        concurrency::LockGuard g(spiLock);
+        if (FSCom.exists("/resilience.bin")) {
+            File f = FSCom.open("/resilience.bin", FILE_O_READ);
+            if (f) {
+                size_t fileSize = f.size();
+                if (fileSize == sizeof(ResiliencePrefs)) {
+                    size_t bytesRead = f.read((uint8_t*)&prefs, sizeof(prefs));
+                    if (bytesRead == sizeof(ResiliencePrefs) && prefs.magic == 0x52455349 && prefs.version == NAVS_RESILIENCE_VERSION) {
+                        uint32_t calcCrc = crc32Buffer(&prefs, offsetof(ResiliencePrefs, crc32));
+                        if (calcCrc == prefs.crc32) {
+                            bool fieldsSane = (prefs.chemistry <= 3 &&
+                                prefs.vbat_cutoff >= 2400 && prefs.vbat_cutoff <= 3600 &&
+                                prefs.vwake_level >= 1 && prefs.vwake_level <= 5 &&
+                                prefs.tx_disabled <= 1 && prefs.ble_disabled <= 1 && prefs.auto_fav <= 1 &&
+                                (prefs.role <= meshtastic_Config_DeviceConfig_Role_ROUTER || prefs.role == 0xFF) &&
+                                prefs.autoFavCount <= 32 && prefs.sleepMsgs <= 1 && prefs.wasInSleep <= 1 &&
+                                prefs.cliChannelSlot >= 1 && prefs.cliChannelSlot <= 7 && prefs.navadminMuted <= 1 &&
+                                prefs.ignoredCount <= 8);
 
-                    if (fieldsSane) {
-                        validExisting = true;
+                            if (fieldsSane) {
+                                validExisting = true;
+                            }
+                        }
                     }
                 }
+                f.close();
             }
-            f.close();
         }
     }
 
     if (!validExisting) {
-        if (FSCom.exists("/resilience.bin")) {
-            LOG_WARN("NavaCLI: /resilience.bin no conforme o corrupto detectado. Purgando a limpio (Clean Slate)...");
-            FSCom.remove("/resilience.bin");
+        {
+            concurrency::LockGuard g(spiLock);
+            if (FSCom.exists("/resilience.bin")) {
+                LOG_WARN("NavaCLI: /resilience.bin no conforme o corrupto detectado. Purgando a limpio (Clean Slate)...");
+                FSCom.remove("/resilience.bin");
+            }
+            if (FSCom.exists("/resilience.tmp")) {
+                FSCom.remove("/resilience.tmp");
+            }
         }
         installSurvivalBaseline();
         return;
@@ -683,11 +697,19 @@ bool NavaCLIModule::handleLowBatteryEvent()
 void NavaCLIModule::saveResiliencePrefs() {
     prefs.magic = 0x52455349;
     prefs.version = NAVS_RESILIENCE_VERSION;
-    FSCom.remove("/resilience.bin");
-    File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
+    prefs.crc32 = crc32Buffer(&prefs, offsetof(ResiliencePrefs, crc32));
+
+    concurrency::LockGuard g(spiLock);
+    File f = FSCom.open("/resilience.tmp", FILE_O_WRITE);
     if (f) {
-        f.write((uint8_t*)&prefs, sizeof(prefs));
+        size_t written = f.write((const uint8_t*)&prefs, sizeof(prefs));
         f.close();
+        if (written == sizeof(prefs)) {
+            FSCom.remove("/resilience.bin");
+            FSCom.rename("/resilience.tmp", "/resilience.bin");
+        } else {
+            FSCom.remove("/resilience.tmp");
+        }
     }
 }
 
@@ -713,7 +735,7 @@ std::string NavaCLIModule::buildEnergyLine()
     char buf[128];
     uint16_t adcV = powerStatus->getBatteryVoltageMv();
 #if HAS_TELEMETRY && !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR && __has_include(<Adafruit_INA219.h>)
-    uint16_t inaMv = ina219Sensor.getBusVoltageMv();
+    uint16_t inaMv = (ina219Sensor.hasSensor()) ? ina219Sensor.getBusVoltageMv() : 0;
     if (inaMv > 0) {
         int16_t inamA = ina219Sensor.getCurrentMa();
         float inaV = inaMv / 1000.0f;
@@ -758,8 +780,14 @@ bool NavaCLIModule::navaKeyIsProjectKey(const uint8_t *key)
 bool NavaCLIModule::navaKeyIsValid(const uint8_t *key)
 {
     if (!key || navaKeyIsEmpty(key)) return false;
-    // Detección de claves corruptas o bytes residuales / 1-byte PSKs (como AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=)
-    // Una clave pública X25519 válida tiene entropía real en sus 32 bytes.
+
+    // Rechazar claves corruptas o residuales de shift con más de 10 ceros
+    size_t zeroCount = 0;
+    for (size_t i = 0; i < 32; i++) {
+        if (key[i] == 0) zeroCount++;
+    }
+    if (zeroCount > 10) return false;
+
     // Si bytes 1..31 son todos cero, o si todos los bytes son iguales, es un valor corrupto/inválido.
     bool allZerosAfterFirst = true;
     for (size_t i = 1; i < 32; i++) {
@@ -1499,6 +1527,7 @@ void NavaCLIModule::reconcileAutoFavs()
     }
     if (changed) {
         saveResiliencePrefs();
+        nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
     }
 }
 
@@ -1753,9 +1782,12 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
             }
             return ProcessMessage::STOP;
         }
-        // NAVARICO: Blindar al administrador verificado como favorito en NodeDB
+        // NAVARICO: Blindar al administrador verificado como favorito en NodeDB (en RAM)
         if (senderNode && !senderNode->is_favorite) {
-            nodeDB->set_favorite(true, senderNode->num);
+            meshtastic_NodeInfoLite *lite = nodeDB->getMeshNode(senderNode->num);
+            if (lite) {
+                lite->is_favorite = true;
+            }
         }
     } else {
         // Canal de difusión: solo responden los admins verificados
@@ -1764,12 +1796,15 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
             LOG_WARN("Rechazado: Comando /nava en canal sin firma PKI desde 0x%08x", mp.from);
             return ProcessMessage::STOP;
         }
-        // NAVARICO: Blindar al administrador verificado como favorito en NodeDB
+        // NAVARICO: Blindar al administrador verificado como favorito en NodeDB (en RAM)
         if (senderNode && !senderNode->is_favorite) {
-            nodeDB->set_favorite(true, senderNode->num);
+            meshtastic_NodeInfoLite *lite = nodeDB->getMeshNode(senderNode->num);
+            if (lite) {
+                lite->is_favorite = true;
+            }
         }
         // Rate-limit genérico del canal de difusión: max 1 comando cada 30s por nodo emisor (excepto urgentes)
-        bool isUrgentCmd = (cmd.rfind("panic", 0) == 0 || cmd == "ping" || cmd == "status" || cmd == "reboot");
+        bool isUrgentCmd = (cmd == "ping" || cmd == "status" || cmd == "reboot");
         static std::map<NodeNum, uint32_t> lastBroadcastCmd;
         auto it = lastBroadcastCmd.find(mp.from);
         if (!isUrgentCmd && it != lastBroadcastCmd.end() && (int32_t)(millis() - it->second) < 30000) {
@@ -1938,11 +1973,10 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         } else {
             // Canal Público Navadmin (Slot 1 o canal abierto no-privado):
             if (!isDirected) {
-                // Broadcast no dirigido: comandos ligeros de sondeo y protocolo de pánico de flota
+                // Broadcast no dirigido: comandos ligeros de sondeo
                 bool ligeroPermitido = (cmd == "ping" || cmd == "status" || cmd == "bat" ||
                                        cmd == "power" || cmd == "env" || cmd == "channel" ||
-                                       cmd == "noise" || cmd.rfind("panic", 0) == 0 ||
-                                       cmd.rfind("panic_ok", 0) == 0);
+                                       cmd == "noise" || cmd.rfind("panic_ok", 0) == 0);
                 if (!ligeroPermitido) {
                     // Silencio intencionado para evitar tormentas de radio masivas
                     return;
@@ -1957,8 +1991,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
                                          cmd == "afc" || cmd == "reset_reason" ||
                                          cmd.rfind("route", 0) == 0 || cmd.rfind("trace", 0) == 0 ||
                                          cmd.rfind("set_preset", 0) == 0 || cmd.rfind("set_lora", 0) == 0 ||
-                                         cmd.rfind("set_freq", 0) == 0 || cmd.rfind("panic_ok", 0) == 0 ||
-                                         cmd.rfind("panic", 0) == 0);
+                                         cmd.rfind("set_freq", 0) == 0 || cmd.rfind("panic_ok", 0) == 0);
                 if (!dirigidoPermitido) {
                     enqueueResponse(replyDest, replyChannel, "ERR: SOLO DM SEGURO", true, false, hops);
                     return;
@@ -2827,7 +2860,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         char buf[200];
         uint16_t adcV = powerStatus->getBatteryVoltageMv();
 #if HAS_TELEMETRY && !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR && __has_include(<Adafruit_INA219.h>)
-        uint16_t inaMv = ina219Sensor.getBusVoltageMv();
+        uint16_t inaMv = (ina219Sensor.hasSensor()) ? ina219Sensor.getBusVoltageMv() : 0;
         if (inaMv > 0) {
             int16_t inamA = ina219Sensor.getCurrentMa();
             float inaV = inaMv / 1000.0f;
@@ -3632,6 +3665,7 @@ int32_t NavaCLIModule::runOnce()
         switch (act) {
             case NAVA_DEFERRED_REBOOT:
                 LOG_INFO("Ejecutando reinicio diferido...");
+                nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
                 rebootAtMsec = millis() + 25;
                 return 1000;
             case NAVA_DEFERRED_FACTORY_RESET:

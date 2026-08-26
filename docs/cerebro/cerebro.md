@@ -877,6 +877,19 @@ Fork de Meshtastic v2.7.26 optimizado para repetidores solares de infraestructur
     - Rama `master` actualizada con el historial de commits.
     - Rama `main` regenerada y forzada sobre el commit oficial de Meshtastic 2.7.26 (`54e0d8d0a`), permitiendo la comparación directa de forks en 1 clic para la comunidad de Telegram y auditores externos.
 
+- **Estado Consolidado (26/08/2026 19:30, V5.1 / NAV7 — Blindaje Total Post-Auditoría Claude & Fix Definitivo de Reinicios)**:
+  - **Causa Raíz de Reinicios Resuelta**:
+    1. `buildEnergyLine()` y `/nava power`: protegidas con `if (ina219Sensor.hasSensor())`. Evita consultas I2C no seguras a la dirección 0x40 en nodos con pantalla OLED y sin sensor INA219 físico, eliminando el cuelgue/reinicio al minuto 2 (120s del aviso `[Boot]`).
+    2. `NodeDB::checkAndRegisterRAMAutoFavorite()`: eliminadas las llamadas síncronas a `saveNodeDatabaseToDisk()`. Los favoritos se marcan en RAM al vuelo (`is_favorite = true`), desacoplando la escritura a Flash LittleFS del hilo de interrupción de radio SX1262 y evitando colisiones de bus SPI. El guardado a Flash se preserva de forma asíncrona en el hilo principal (`runOnce`) y obligatoriamente antes de cualquier reinicio (`NAVA_DEFERRED_REBOOT`).
+  - **Resolución de Auditoría Claude (Seguridad y Persistencia Aeronáutica)**:
+    1. **Protección SPI y Escritura Atómica**: `loadResiliencePrefs()` y `saveResiliencePrefs()` blindadas con `concurrency::LockGuard g(spiLock)`. La persistencia de `/resilience.bin` se realiza ahora de manera atómica escribiendo primero en `/resilience.tmp` y ejecutando `rename` atómico tras verificar escritura completa.
+    2. **Validación Matemática CRC32 y Bump a NAV7 (`0x4E415637`)**: añadido campo `uint32_t crc32` a `ResiliencePrefs` verificado con `crc32Buffer()`. Se garantiza la purga limpia (Clean Slate) ante cualquier residuo de versiones previas.
+    3. **Endurecimiento Criptográfico de Pánico**: el comando textual `/nava panic` se restringe exclusivamente a DM cifrado asimétricamente por PKI Curve25519. Una vez autenticado, el nodo genera y propaga el paquete mágico binario (`NavaPanicPulse` "PANC") a toda la red por el canal `Navadmin` en cascada.
+    4. **Filtro Estricto de Claves Admin**: `navaKeyIsValid()` rechaza claves corruptas con más de 10 ceros residuales de corrimientos de memoria antiguos.
+  - **Compilaciones de Prueba en Banco**:
+    - `navarrico_promicro_e22p_r2ig`: Compilación limpia SUCCESS.
+    - `navarrico_faketec_sx1262_r2ig`: Compilación limpia SUCCESS.
+
 
 
 
