@@ -34,6 +34,9 @@ class Router : protected concurrency::OSThread, protected PacketHistory
      * Currently we only allow one interface, that may change in the future
      */
     void addInterface(std::unique_ptr<RadioInterface> _iface) { iface = std::move(_iface); }
+    RadioInterface* getInterface() { return iface.get(); }
+
+    std::vector<NodeNum> activeDirectRouters;
 
     /**
      * do idle processing

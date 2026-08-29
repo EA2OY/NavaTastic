@@ -35,8 +35,12 @@
 #include "mesh/generated/meshtastic/config.pb.h"
 #include "meshUtils.h"
 #include "modules/Modules.h"
+#include "modules/NavaCLIModule.h"
 #include "sleep.h"
 #include "target_specific.h"
+#ifdef NRF52840_XXAA
+extern uint16_t navaGetLpcompWakeMv(); // V2: tension teorica de despertar por LPCOMP (mV)
+#endif
 #include <memory>
 #include <utility>
 #if HAS_SCREEN
@@ -529,6 +533,68 @@ void setup()
     power->setStatusHandler(powerStatus);
     powerStatus->observe(&power->newStatus);
     power->setup(); // Must be after status handler is installed, so that handler gets notified of the initial configuration
+
+#if defined(USERPREFS_LOW_BATTERY_LOWPOWER_ENABLED) && USERPREFS_LOW_BATTERY_LOWPOWER_ENABLED
+    {
+#ifdef USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV
+        const uint16_t lowBattSleepMv = USERPREFS_LOW_BATTERY_SLEEP_THRESHOLD_MV;
+#else
+        const uint16_t lowBattSleepMv = 3500;
+#endif
+#ifdef USERPREFS_LOW_BATTERY_READINGS_COUNT
+        const uint8_t lowBattReadingsNeeded = USERPREFS_LOW_BATTERY_READINGS_COUNT;
+#else
+        const uint8_t lowBattReadingsNeeded = 5;
+#endif
+        // V2.4 (15/08): al venir de sueno por bateria (wasInSleep), el gate es el corte OCV
+        // (no el LPCOMP): si V >= corte el nodo puede OPERAR con normalidad. Tres bandas:
+        //   V < corte - 100 mV       -> re-sueno silencioso (proteccion brownout)
+        //   [corte-100, corte)       -> [Vivo] al canal Navadmin + re-sueno tras el envio
+        //   V >= corte               -> boot normal ([Listo] lo manda NavaCLI)
+        // El despertar por LPCOMP (~3.71V) siempre cae en la banda normal (V >= corte).
+        bool navaFromSleep = NavaCLIModule::peekWasInSleep();
+        uint16_t lowGateMv = lowBattSleepMv;
+        auto isLowNow = [&]() -> bool {
+            // V2.2: force=true -> lecturas ADC REALES consecutivas (sin el throttle
+            // de 5s de Power.cpp), para que la decision y el valor reportado en
+            // [Vivo]/[Listo] no usen cache de una unica medida.
+            power->readPowerStatus(true);
+            int mv = powerStatus->getBatteryVoltageMv();
+            return powerStatus->getHasBattery() && !powerStatus->getHasUSB() && mv > 0 && mv < lowGateMv;
+        };
+        // V2.2: asentamiento tras el reset (inrush del MCU) antes de la primera medida
+        delay(500);
+        uint8_t consecutiveLow = 0;
+        int lastLowMv = 0;
+        for (uint8_t i = 0; i < lowBattReadingsNeeded; i++) {
+            if (!isLowNow()) {
+                break;
+            }
+            lastLowMv = powerStatus->getBatteryVoltageMv();
+            consecutiveLow++;
+            delay(200);
+        }
+        if (consecutiveLow >= lowBattReadingsNeeded) {
+            NavaCLIModule::navaSetWasInSleep(true);
+            if (NavaCLIModule::peekSleepMsgsEnabled()) {
+                if (lastLowMv >= (int)lowBattSleepMv - 100) {
+                    // V2.4 / V3: reset con bateria en la banda [corte-100, corte):
+                    // permitir boot para mandar [Vivo] (Nivel 1) y re-dormir tras 8 lecturas.
+                    LOG_WARN("Battery %d mV in [cutoff-100, cutoff): boot for [Vivo] message, re-sleep after monitor cycle",
+                             lastLowMv);
+                    NavaCLIModule::navaSetVivoPending();
+                } else {
+                    // V3: reset con bateria en reserva profunda (< corte-100):
+                    // permitir boot para mandar [Reserva] (Nivel 2) y re-dormir tras 8 lecturas.
+                    // Garantiza el apagado canónico de la radio por SPI en doDeepSleep (0.4 mA).
+                    LOG_WARN("Battery %d mV < cutoff-100: boot for [Reserva] message, re-sleep after monitor cycle",
+                             lastLowMv);
+                    NavaCLIModule::navaSetReservaPending();
+                }
+            }
+        }
+    }
+#endif
 
 #if !MESHTASTIC_EXCLUDE_I2C
     // We need to scan here to decide if we have a screen for nodeDB.init() and because power has been applied to

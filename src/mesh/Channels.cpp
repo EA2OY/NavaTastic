@@ -93,6 +93,35 @@ void Channels::initDefaultLoraConfig()
 #ifdef USERPREFS_LORACONFIG_CHANNEL_NUM
     loraConfig.channel_num = USERPREFS_LORACONFIG_CHANNEL_NUM;
 #endif
+
+#ifdef FIX_NATIVE_CORE_RESET
+    loraConfig.region = meshtastic_Config_LoRaConfig_RegionCode_EU_868;
+    loraConfig.use_preset = false;
+    loraConfig.bandwidth = 62;
+    loraConfig.spread_factor = 7;
+    loraConfig.coding_rate = 5;
+    loraConfig.channel_num = 4;
+#ifdef NAVARICO_AUDIT_LAB_869545
+    loraConfig.override_frequency = 869.545f; // NAVARICO AUDIT: laboratorio (env _labaudit, fuera de malla)
+#else
+    loraConfig.override_frequency = 869.618f; // NAVARICO: SFNarrow canonico Espana
+#endif
+    // NAVARICO: potencia TX por radio. E22P -> 8 dBm conservador (subible con /nava set_txpower);
+    // SX1262 (HT-RA62, Xiao Kit, Seed, T114) -> 22 dBm. Lo decide el env navarrico_*_e22p_* o *_sx1262_*.
+#ifdef NAVARICO_RADIO_E22P
+    loraConfig.tx_power = 8; // Default safety limit for E22P / DIY Pro Micro TCXO
+#else
+#if defined(NAVARICO_AUDIT_LAB_869545) || defined(NAVARICO_AUDIT_LAB2)
+    loraConfig.tx_power = 1; // NAVARICO AUDIT: 1 dBm (banco, reglas L14/L18/L29)
+#else
+    loraConfig.tx_power = 22; // Default for SX1262 (HT-RA62 / Xiao Kit / Seed / T114)
+#endif
+#endif
+#ifdef NAVARICO_AUDIT_LAB2
+    loraConfig.override_duty_cycle = true; // NAVARICO AUDIT (env _labaudit2): duty siempre ON en banco
+    loraConfig.hop_limit = 1; // NAVARICO AUDIT (env _labaudit2): 1 salto, minimo ruido en malla real
+#endif
+#endif
 }
 
 bool Channels::ensureLicensedOperation()
@@ -144,6 +173,11 @@ void Channels::initDefaultChannel(ChannelIndex chIndex)
 
     switch (chIndex) {
     case 0:
+#ifdef FIX_NATIVE_CORE_RESET
+        strcpy(channelSettings.name, "SFNarrow");
+        channelSettings.psk.bytes[0] = 0x01;
+        channelSettings.psk.size = 1;
+#else
 #ifdef USERPREFS_CHANNEL_0_PSK
         static const uint8_t defaultpsk0[] = USERPREFS_CHANNEL_0_PSK;
         memcpy(channelSettings.psk.bytes, defaultpsk0, sizeof(defaultpsk0));
@@ -151,6 +185,7 @@ void Channels::initDefaultChannel(ChannelIndex chIndex)
 #endif
 #ifdef USERPREFS_CHANNEL_0_NAME
         strcpy(channelSettings.name, (const char *)USERPREFS_CHANNEL_0_NAME);
+#endif
 #endif
 #ifdef USERPREFS_CHANNEL_0_PRECISION
         channelSettings.module_settings.position_precision = USERPREFS_CHANNEL_0_PRECISION;

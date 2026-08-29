@@ -38,6 +38,7 @@
 #include "modules/PowerStressModule.h"
 #endif
 #include "modules/RoutingModule.h"
+#include "modules/NavaCLIModule.h"
 #include "modules/TextMessageModule.h"
 #if !MESHTASTIC_EXCLUDE_TRACEROUTE
 #include "modules/TraceRouteModule.h"
@@ -133,6 +134,7 @@ void setupModules()
     waypointModule = new WaypointModule();
 #endif
 #if !MESHTASTIC_EXCLUDE_TEXTMESSAGE
+    navaCLIModule = new NavaCLIModule();
     textMessageModule = new TextMessageModule();
 #endif
 #if !MESHTASTIC_EXCLUDE_TRACEROUTE
