@@ -343,3 +343,5 @@ class RadioLibInterface : public RadioInterface, protected concurrency::Notified
 
     void checkRxDoneIrqFlag();
 };
+
+extern float lastRxFrequencyError;

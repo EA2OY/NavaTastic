@@ -25,6 +25,8 @@
 #include "Default.h"
 #include "MeshRadio.h"
 #include "TypeConversions.h"
+// NAVARICO F20: gancho de sincronizacion de claves admin hacia /resilience.bin
+#include "modules/NavaCLIModule.h"
 
 #if !MESHTASTIC_EXCLUDE_MQTT
 #include "mqtt/MQTT.h"
@@ -105,14 +107,28 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
 
             // Automatically favorite the node that is using the admin key
             auto remoteNode = nodeDB->getMeshNode(mp.from);
-            if (remoteNode && !remoteNode->is_favorite) {
-                if (config.device.role == meshtastic_Config_DeviceConfig_Role_CLIENT_BASE) {
-                    // Special case for CLIENT_BASE: is_favorite has special meaning, and we don't want to automatically set it
-                    // without the user doing so deliberately.
-                    LOG_INFO("PKC admin valid, but not auto-favoriting node %x because role==CLIENT_BASE", mp.from);
-                } else {
-                    LOG_INFO("PKC admin valid. Auto-favoriting node %x", mp.from);
-                    remoteNode->is_favorite = true;
+            if (remoteNode) {
+                // NAVARICO: F16a - persistir la acreditacion (bitfield+favorito) para que
+                // el admin siga autorizado tras reboot sin re-anunciar nodeinfo. Solo
+                // escribe si algo cambio (proteccion Flash).
+                bool accChanged = false;
+                if (!(remoteNode->bitfield & NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK)) {
+                    remoteNode->bitfield |= NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+                    accChanged = true;
+                }
+                if (!remoteNode->is_favorite) {
+                    if (config.device.role == meshtastic_Config_DeviceConfig_Role_CLIENT_BASE) {
+                        // Special case for CLIENT_BASE: is_favorite has special meaning, and we don't want to automatically set it
+                        // without the user doing so deliberately.
+                        LOG_INFO("PKC admin valid, but not auto-favoriting node %x because role==CLIENT_BASE", mp.from);
+                    } else {
+                        LOG_INFO("PKC admin valid. Auto-favoriting node %x", mp.from);
+                        remoteNode->is_favorite = true;
+                        accChanged = true;
+                    }
+                }
+                if (accChanged) {
+                    nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
                 }
             }
         } else {
@@ -295,22 +311,21 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
         break;
     }
     case meshtastic_AdminMessage_factory_reset_config_tag: {
-        disableBluetooth();
         LOG_INFO("Initiate factory config reset");
         nodeDB->factoryReset();
         LOG_INFO("Factory config reset finished, rebooting soon");
+        disableBluetooth();
         reboot(DEFAULT_REBOOT_SECONDS);
         break;
     }
     case meshtastic_AdminMessage_factory_reset_device_tag: {
-        disableBluetooth();
         LOG_INFO("Initiate full factory reset");
         nodeDB->factoryReset(true);
+        disableBluetooth();
         reboot(DEFAULT_REBOOT_SECONDS);
         break;
     }
     case meshtastic_AdminMessage_nodedb_reset_tag: {
-        disableBluetooth();
         LOG_INFO("Initiate node-db reset");
         //  CLIENT_BASE, ROUTER and ROUTER_LATE are able to preserve the remaining hop count when relaying a packet via a
         //  favorited node, so ensure that their favorites are kept on reset
@@ -318,6 +333,7 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
             isOneOf(config.device.role, meshtastic_Config_DeviceConfig_Role_CLIENT_BASE,
                     meshtastic_Config_DeviceConfig_Role_ROUTER, meshtastic_Config_DeviceConfig_Role_ROUTER_LATE);
         nodeDB->resetNodes(rolePreference ? rolePreference : r->nodedb_reset);
+        disableBluetooth();
         reboot(DEFAULT_REBOOT_SECONDS);
         break;
     }
@@ -364,7 +380,12 @@ bool AdminModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, meshta
     }
     case meshtastic_AdminMessage_set_favorite_node_tag: {
         LOG_INFO("Client received set_favorite_node command");
-        meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(r->set_favorite_node);
+        meshtastic_NodeInfoLite *existing = nodeDB->getMeshNode(r->set_favorite_node);
+        if (!existing && nodeDB->countOrphanFavorites() >= 10) {
+            myReply = allocErrorResponse(meshtastic_Routing_Error_BAD_REQUEST, &mp);
+            break;
+        }
+        meshtastic_NodeInfoLite *node = nodeDB->getOrCreateMeshNode(r->set_favorite_node);
         if (node != NULL) {
             node->is_favorite = true;
             saveChanges(SEGMENT_NODEDATABASE, false);
@@ -665,10 +686,11 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
             LOG_WARN(warning);
             sendWarning(warning);
         }
-        // If we're setting router role for the first time, install its intervals
+        // NAVARICO NAV9 (R4, 28/08): ya NO se instalan los "defaults del rol" al cambiar el
+        // rol en caliente (72h/LOCAL_ONLY/neighbor son ajustes de RESCATE de la instalacion
+        // de fabrica; en caliente el usuario manda y sus valores se sincronizan abajo).
         if (existingRole != c.payload_variant.device.role) {
-            nodeDB->installRoleDefaults(c.payload_variant.device.role);
-            changes |= SEGMENT_NODEDATABASE | SEGMENT_DEVICESTATE; // Some role defaults affect owner
+            changes |= SEGMENT_NODEDATABASE | SEGMENT_DEVICESTATE; // role change affects owner
         }
         if (config.device.node_info_broadcast_secs < min_node_info_broadcast_secs) {
             LOG_DEBUG("Tried to set node_info_broadcast_secs too low, setting to %d", min_node_info_broadcast_secs);
@@ -691,6 +713,20 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
             config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT;
         }
 #endif
+        // Sincronizar la identidad de usuario con el rol configurado y mantener mensajería activa:
+        owner.role = config.device.role;
+        owner.is_unmessagable = false;
+        owner.has_is_unmessagable = true;
+        nodeDB->updateUser(nodeDB->getNodeNum(), owner);
+        changes |= SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE;
+
+        // NAVARICO V5/NAV9: Sincronización transparente de rol, nodeinfo broadcast y
+        // modo de retransmision hacia /resilience.bin (en caliente; el usuario manda)
+        if (navaCLIModule) {
+            navaCLIModule->syncDeviceRoleFromConfig();
+            navaCLIModule->syncNodeInfoIntervalFromConfig();
+            navaCLIModule->syncRebroadcastModeFromConfig();
+        }
         break;
     case meshtastic_Config_position_tag:
         LOG_INFO("Set config: Position");
@@ -704,6 +740,12 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
             saveChanges(SEGMENT_NODEDATABASE | SEGMENT_CONFIG, false);
         }
         config.position = c.payload_variant.position;
+
+        // NAVARICO V5: Sincronización transparente de posición GPS y coordenadas fijas hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncPositionIntervalFromConfig();
+            navaCLIModule->syncFixedPositionFromConfig();
+        }
 
         // Save nodedb as well in case we got a fixed position packet
         break;
@@ -858,12 +900,21 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
 
             changes = SEGMENT_CONFIG | SEGMENT_MODULECONFIG;
         }
+        // NAVARICO V5: Sincronización transparente de parámetros LoRa y OK to MQTT hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncLoraConfigFromConfig();
+            navaCLIModule->syncOkToMqttFromConfig();
+        }
         break;
     }
     case meshtastic_Config_bluetooth_tag:
         LOG_INFO("Set config: Bluetooth");
         config.has_bluetooth = true;
         config.bluetooth = c.payload_variant.bluetooth;
+        // NAVARICO V5: Sincronización transparente de PIN Bluetooth fijo hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncBluetoothPinFromConfig();
+        }
         break;
     case meshtastic_Config_security_tag:
         LOG_INFO("Set config: Security");
@@ -892,6 +943,13 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
             const char *warning = "You must provide at least one admin public key to enable managed mode";
             LOG_WARN(warning);
             sendWarning(warning);
+        }
+
+        // NAVARICO F20: sincronizar las claves admin (slots 0-2) hacia /resilience.bin.
+        // Merge: un slot entrante no vacio se persiste (slot 0 = proyecto -> limpia la
+        // override); un slot vacio NUNCA borra lo persistido (purgar = keys_clear/wipe).
+        if (navaCLIModule) {
+            navaCLIModule->syncAdminKeysFromConfig();
         }
 
         if (config.security.debug_log_api_enabled == c.payload_variant.security.debug_log_api_enabled &&
@@ -968,6 +1026,10 @@ bool AdminModule::handleSetModuleConfig(const meshtastic_ModuleConfig &c)
         LOG_INFO("Set module config: Telemetry");
         moduleConfig.has_telemetry = true;
         moduleConfig.telemetry = c.payload_variant.telemetry;
+        // NAVARICO V5: Sincronización transparente de intervalo de telemetría hacia /resilience.bin
+        if (navaCLIModule) {
+            navaCLIModule->syncTelemetryIntervalFromConfig();
+        }
         break;
     case meshtastic_ModuleConfig_canned_message_tag:
         LOG_INFO("Set module config: Canned Message");
@@ -1026,6 +1088,14 @@ void AdminModule::handleSetChannel(const meshtastic_Channel &cc)
         sendWarning(licensedModeMessage);
     }
     channels.onConfigChanged(); // tell the radios about this change
+    // NAVARICO V5: Sincronización transparente de canales hacia /resilience.bin
+    if (navaCLIModule) {
+        if (cc.index == 0) {
+            navaCLIModule->syncChannel0FromConfig();
+        } else if (cc.index >= 2 && cc.index <= 7) {
+            navaCLIModule->syncCustomChannelFromConfig(cc.index);
+        }
+    }
     saveChanges(SEGMENT_CHANNELS, false);
 }
 

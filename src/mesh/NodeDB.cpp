@@ -11,6 +11,9 @@
 #include "MeshService.h"
 #include "MessageStore.h"
 #include "NodeDB.h"
+#if defined(ARCH_NRF52)
+#include <nrf_sdm.h>
+#endif
 #include "PacketHistory.h"
 #include "PowerFSM.h"
 #include "RTC.h"
@@ -55,6 +58,9 @@
 #include <bluefruit.h>
 #include <utility/bonding.h>
 #endif
+
+// Flag global controlado por /nava fav auto (definido en NavaCLIModule.cpp)
+extern bool navaAutoFavoriteEnabled;
 
 #if defined(ARCH_ESP32) && !MESHTASTIC_EXCLUDE_WIFI
 #include <MeshtasticOTA.h>
@@ -165,9 +171,16 @@ bool meshtastic_NodeDatabase_callback(pb_istream_t *istream, pb_ostream_t *ostre
     if (ostream) {
         std::vector<meshtastic_NodeInfoLite> const *vec = (std::vector<meshtastic_NodeInfoLite> *)field->pData;
         for (auto item : *vec) {
-            if (!pb_encode_tag_for_field(ostream, field))
-                return false;
-            pb_encode_submessage(ostream, meshtastic_NodeInfoLite_fields, &item);
+            // ONLY serialize our own node OR admin-flagged nodes (favorites, ignored, verified)
+            if (item.num == nodeDB->getNodeNum() || 
+                item.is_favorite || 
+                item.is_ignored || 
+                (item.bitfield & NODEINFO_BITFIELD_IS_KEY_MANUALLY_VERIFIED_MASK)) {
+                
+                if (!pb_encode_tag_for_field(ostream, field))
+                    return false;
+                pb_encode_submessage(ostream, meshtastic_NodeInfoLite_fields, &item);
+            }
         }
     }
     if (istream) {
@@ -178,6 +191,58 @@ bool meshtastic_NodeDatabase_callback(pb_istream_t *istream, pb_ostream_t *ostre
             vec->push_back(node);
     }
     return true;
+}
+
+void NodeDB::checkAndRegisterRAMAutoFavorite(meshtastic_NodeInfoLite *info)
+{
+    if (!navaAutoFavoriteEnabled) {
+        return; // Auto-favoriteo desactivado por /nava fav auto off
+    }
+    if (info && info->has_user) {
+        // NAVARICO: Si el nodo está verificado como administrador, blindarlo como favorito de inmediato (cualquier rol)
+        if (isAdminNode(*info)) {
+            if (!info->is_favorite) {
+                LOG_INFO("Auto-Favorite: Marking verified admin 0x%08x as favorite", info->num);
+                info->is_favorite = true;
+                sortMeshDB();
+            }
+            return;
+        }
+
+        if (info->has_hops_away && info->hops_away == 0) {
+            if (IS_ONE_OF(info->user.role, 
+                          meshtastic_Config_DeviceConfig_Role_ROUTER, 
+                          meshtastic_Config_DeviceConfig_Role_ROUTER_LATE, 
+                          meshtastic_Config_DeviceConfig_Role_CLIENT_BASE)) {
+                if (!info->is_favorite) {
+                    LOG_INFO("Auto-Favorite: Marking direct router 0x%08x as favorite", info->num);
+                    info->is_favorite = true;
+                    sortMeshDB();
+                }
+                auto &adr = router->activeDirectRouters;
+                if (std::find(adr.begin(), adr.end(), info->num) == adr.end()) {
+                    adr.push_back(info->num);
+                }
+            }
+        }
+    }
+}
+
+bool NodeDB::isAdminNode(const meshtastic_NodeInfoLite &n)
+{
+    return (n.bitfield & NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK) != 0;
+}
+
+
+int NodeDB::countOrphanFavorites()
+{
+    int count = 0;
+    for (const auto &n : nodeDatabase.nodes) {
+        if (n.is_favorite && n.last_heard == 0) {
+            count++;
+        }
+    }
+    return count;
 }
 
 /** The current change # for radio settings.  Starts at 0 on boot and any time the radio settings
@@ -506,6 +571,45 @@ void NodeDB::resetRadioConfig(bool is_fresh_install)
     initRegion();
 }
 
+#ifdef FIX_NATIVE_CORE_RESET
+bool NodeDB::factoryReset(bool eraseBleBonds)
+{
+    LOG_INFO("Perform factory reset!");
+    // first, remove the "/prefs" (this removes most prefs)
+    spiLock->lock();
+    rmDir("/prefs"); // this uses spilock internally...
+
+#ifdef FSCom
+    if (FSCom.exists("/static/rangetest.csv") && !FSCom.remove("/static/rangetest.csv")) {
+        LOG_ERROR("Could not remove rangetest.csv file");
+    }
+#endif
+    spiLock->unlock();
+    // second, install default state (this will deal with the duplicate mac address issue)
+    installDefaultNodeDatabase();
+    installDefaultDeviceState();
+    installDefaultConfig(!eraseBleBonds); // Also preserve the private key if we're not erasing BLE bonds
+    installDefaultModuleConfig();
+    installDefaultChannels();
+    // third, write everything to disk
+    saveToDisk();
+    if (eraseBleBonds) {
+        LOG_INFO("Erase BLE bonds");
+#ifdef ARCH_ESP32
+        // This will erase what's in NVS including ssl keys, persistent variables and ble pairing
+        nvs_flash_erase();
+#endif
+#ifdef ARCH_NRF52
+        LOG_INFO("Clear bluetooth bonds!");
+        bond_print_list(BLE_GAP_ROLE_PERIPH);
+        bond_print_list(BLE_GAP_ROLE_CENTRAL);
+        Bluefruit.Periph.clearBonds();
+        Bluefruit.Central.clearBonds();
+#endif
+    }
+    return true;
+}
+#else
 bool NodeDB::factoryReset(bool eraseBleBonds)
 {
     LOG_INFO("Perform factory reset!");
@@ -551,6 +655,26 @@ bool NodeDB::factoryReset(bool eraseBleBonds)
 #endif
     }
     return true;
+}
+#endif
+
+// NAVARICO I20 (30/08): aplica los defaults del perfil sin borrar /prefs. En ESP32,
+// rmDir("/prefs") + la primera escritura LittleFS posterior cuelga el loopTask
+// (MessageStore::clearAllMessages) -> WDT reboot en bucle. Esta ruta sobrescribe los
+// ficheros con escrituras normales (mismo resultado en disco que factoryReset).
+// Definida fuera del #ifdef FIX_NATIVE_CORE_RESET: la referencia desde el deploy
+// (ARCH_ESP32) debe enlazar en CUALQUIER build ESP32, tenga o no la macro.
+void NodeDB::applyProfileDefaults(bool preserveKey)
+{
+    installDefaultNodeDatabase();
+    installDefaultDeviceState();
+    installDefaultConfig(preserveKey);
+    installDefaultModuleConfig();
+    installDefaultChannels();
+    if (transmitHistory) {
+        transmitHistory->clear();
+    }
+    saveToDisk();
 }
 
 void NodeDB::installDefaultNodeDatabase()
@@ -602,16 +726,19 @@ void NodeDB::installDefaultConfig(bool preserveKey = false)
 #endif
 
 #ifdef USERPREFS_CONFIG_DEVICE_ROLE
-    // Restrict ROUTER*, LOST AND FOUND roles for security reasons
-    if (IS_ONE_OF(USERPREFS_CONFIG_DEVICE_ROLE, meshtastic_Config_DeviceConfig_Role_ROUTER,
-                  meshtastic_Config_DeviceConfig_Role_ROUTER_LATE, meshtastic_Config_DeviceConfig_Role_LOST_AND_FOUND)) {
-        LOG_WARN("ROUTER roles are restricted, falling back to CLIENT role");
-        config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT;
-    } else {
-        config.device.role = USERPREFS_CONFIG_DEVICE_ROLE;
-    }
+    config.device.role = USERPREFS_CONFIG_DEVICE_ROLE;
+#else // NAVARICO: rol por defecto via perfil (R2=ROUTER, R1=CLIENT en el jsonc). Fallback solo si falta la macro.
+    config.device.role = meshtastic_Config_DeviceConfig_Role_ROUTER; // Default to router. NAVARICO: R1 usa CLIENT desde el perfil
+#endif
+
+// NAVARICO NAV9 (28/08): modo de retransmision por defecto (rescate) DESDE EL PERFIL.
+// Antes esta macro era configuracion MUERTA (0 refs en src); el default real salia de
+// installRoleDefaults. Ahora el usuario manda en caliente (sync a /resilience.bin) y
+// este es el valor que se reinyecta tras catastrofe/primera instalacion.
+#ifdef USERPREFS_CONFIG_DEVICE_REBROADCAST_MODE
+    config.device.rebroadcast_mode = USERPREFS_CONFIG_DEVICE_REBROADCAST_MODE;
 #else
-    config.device.role = meshtastic_Config_DeviceConfig_Role_CLIENT; // Default to client.
+    config.device.rebroadcast_mode = meshtastic_Config_DeviceConfig_RebroadcastMode_ALL;
 #endif
 
 #ifdef USERPREFS_CONFIG_LORA_REGION
@@ -660,6 +787,28 @@ void NodeDB::installDefaultConfig(bool preserveKey = false)
     }
 #endif
     config.security.admin_key_count = numAdminKeys;
+
+#ifdef FIX_NATIVE_CORE_RESET
+    // Hardcode baseline admin keys from userPrefs at compile time
+    #ifdef USERPREFS_USE_ADMIN_KEY_0
+        static const uint8_t default_admin_key_0[] = USERPREFS_USE_ADMIN_KEY_0;
+        memcpy(config.security.admin_key[0].bytes, default_admin_key_0, 32);
+        config.security.admin_key[0].size = 32;
+        if (config.security.admin_key_count < 1) config.security.admin_key_count = 1;
+    #endif
+    #ifdef USERPREFS_USE_ADMIN_KEY_1
+        static const uint8_t default_admin_key_1[] = USERPREFS_USE_ADMIN_KEY_1;
+        memcpy(config.security.admin_key[1].bytes, default_admin_key_1, 32);
+        config.security.admin_key[1].size = 32;
+        if (config.security.admin_key_count < 2) config.security.admin_key_count = 2;
+    #endif
+    #ifdef USERPREFS_USE_ADMIN_KEY_2
+        static const uint8_t default_admin_key_2[] = USERPREFS_USE_ADMIN_KEY_2;
+        memcpy(config.security.admin_key[2].bytes, default_admin_key_2, 32);
+        config.security.admin_key[2].size = 32;
+        if (config.security.admin_key_count < 3) config.security.admin_key_count = 3;
+    #endif
+#endif
 
     if (shouldPreserveKey) {
         config.security.private_key.size = 32;
@@ -791,10 +940,8 @@ void NodeDB::installDefaultConfig(bool preserveKey = false)
     }
 #endif
 
-#ifdef USERPREFS_CONFIG_DEVICE_ROLE
-    // Apply role-specific defaults when role is set via user preferences
+    // Apply role-specific defaults
     installRoleDefaults(config.device.role);
-#endif
 
     initConfigIntervals();
     variantDefaultConfig();
@@ -949,12 +1096,24 @@ void NodeDB::installDefaultModuleConfig()
 void NodeDB::installRoleDefaults(meshtastic_Config_DeviceConfig_Role role)
 {
     if (role == meshtastic_Config_DeviceConfig_Role_ROUTER) {
+        uint32_t userScreenOn = config.display.screen_on_secs;
         initConfigIntervals();
+        if (userScreenOn > 1) {
+            config.display.screen_on_secs = userScreenOn;
+        }
         initModuleConfigIntervals();
         moduleConfig.telemetry.device_update_interval = default_telemetry_broadcast_interval_secs;
-        config.device.rebroadcast_mode = meshtastic_Config_DeviceConfig_RebroadcastMode_CORE_PORTNUMS_ONLY;
+        // NAVARICO NAV9 (28/08): el modo de retransmision NO se fuerza aqui — es decision
+        // del usuario (App o /nava set_rebroadcast) y se sincroniza en /resilience.bin.
+        // El default de fabrica (rescate) lo pone la macro USERPREFS_CONFIG_DEVICE_REBROADCAST_MODE
+        // en installDefaultConfig (LOCAL_ONLY en los perfiles).
         owner.has_is_unmessagable = true;
-        owner.is_unmessagable = true;
+        owner.is_unmessagable = false; // NAVARICO: los repetidores/routers permanecen mensajables para administracion
+
+        // Custom defaults for repeaters/routers
+        config.device.node_info_broadcast_secs = 72 * 60 * 60;          // 72 hours
+        config.position.position_broadcast_secs = 72 * 60 * 60;         // 72 hours
+        config.position.position_broadcast_smart_enabled = false;       // Smart Position OFF
     } else if (role == meshtastic_Config_DeviceConfig_Role_ROUTER_LATE) {
         moduleConfig.telemetry.device_update_interval = ONE_DAY;
         owner.has_is_unmessagable = true;
@@ -1337,6 +1496,35 @@ void NodeDB::loadFromDisk()
     // Make sure we load hard coded admin keys even when the configuration file has none.
     // Initialize admin_key_count to zero
     byte numAdminKeys = 0;
+
+#ifdef FIX_NATIVE_CORE_RESET
+    // Ensure default admin keys are loaded if sum is 0
+    uint16_t local_sum = 0;
+    for (uint8_t b = 0; b < 32; b++) {
+        local_sum += config.security.admin_key[0].bytes[b];
+    }
+    if (local_sum == 0) {
+        #ifdef USERPREFS_USE_ADMIN_KEY_0
+            static const uint8_t default_admin_key_0[] = USERPREFS_USE_ADMIN_KEY_0;
+            memcpy(config.security.admin_key[0].bytes, default_admin_key_0, 32);
+            config.security.admin_key[0].size = 32;
+            if (numAdminKeys < 1) numAdminKeys = 1;
+        #endif
+        #ifdef USERPREFS_USE_ADMIN_KEY_1
+            static const uint8_t default_admin_key_1[] = USERPREFS_USE_ADMIN_KEY_1;
+            memcpy(config.security.admin_key[1].bytes, default_admin_key_1, 32);
+            config.security.admin_key[1].size = 32;
+            if (numAdminKeys < 2) numAdminKeys = 2;
+        #endif
+        #ifdef USERPREFS_USE_ADMIN_KEY_2
+            static const uint8_t default_admin_key_2[] = USERPREFS_USE_ADMIN_KEY_2;
+            memcpy(config.security.admin_key[2].bytes, default_admin_key_2, 32);
+            config.security.admin_key[2].size = 32;
+            if (numAdminKeys < 3) numAdminKeys = 3;
+        #endif
+    }
+#endif
+
 #if defined(USERPREFS_USE_ADMIN_KEY_0) || defined(USERPREFS_USE_ADMIN_KEY_1) || defined(USERPREFS_USE_ADMIN_KEY_2)
     uint16_t sum = 0;
 #endif
@@ -1510,11 +1698,29 @@ bool NodeDB::saveChannelsToDisk()
 
 bool NodeDB::saveDeviceStateToDisk()
 {
+    static meshtastic_MyNodeInfo last_saved_my_node;
+    static meshtastic_User last_saved_owner;
+    static bool is_cached = false;
 
-    // do not try to save anything if power level is not safe. In many cases flash will be lock-protected
-    // and all writes will fail anyway. Device should be sleeping at this point anyway.
+    // Comparamos selectivamente SOLO los campos de identidad y configuración crítica usando sentencias if
+    bool critical_data_changed = false;
+    if (!is_cached) {
+        critical_data_changed = true;
+    } else if (memcmp(&devicestate.owner, &last_saved_owner, sizeof(meshtastic_User)) != 0) {
+        critical_data_changed = true;
+    } else if (devicestate.my_node.my_node_num != last_saved_my_node.my_node_num) {
+        critical_data_changed = true;
+    } else if (memcmp(devicestate.my_node.device_id.bytes, last_saved_my_node.device_id.bytes, 16) != 0) {
+        critical_data_changed = true;
+    }
+
+    if (!critical_data_changed) {
+        LOG_DEBUG("Bypass saveDeviceStateToDisk: Volatile state changes only. Write bypassed.");
+        return true; // Abortamos la escritura física, devolvemos éxito para estabilidad del FSM
+    }
+
     if (!powerHAL_isPowerLevelSafe()) {
-        LOG_ERROR("Error: trying to saveDeviceStateToDisk() on unsafe device power level.");
+        LOG_ERROR("Error: intentando saveDeviceStateToDisk() en nivel de energía inseguro.");
         return false;
     }
 
@@ -1523,14 +1729,22 @@ bool NodeDB::saveDeviceStateToDisk()
     FSCom.mkdir("/prefs");
     spiLock->unlock();
 #endif
-    // Note: if MAX_NUM_NODES=100 and meshtastic_NodeInfoLite_size=166, so will be approximately 17KB
-    // Because so huge we _must_ not use fullAtomic, because the filesystem is probably too small to hold two copies of this
-    return saveProto(deviceStateFileName, meshtastic_DeviceState_size, &meshtastic_DeviceState_msg, &devicestate, true);
+
+    bool success = saveProto(deviceStateFileName, meshtastic_DeviceState_size, &meshtastic_DeviceState_msg, &devicestate, true);
+
+    if (success) {
+        // Actualizamos caché de precisión
+        memcpy(&last_saved_owner, &devicestate.owner, sizeof(meshtastic_User));
+        last_saved_my_node.my_node_num = devicestate.my_node.my_node_num;
+        memcpy(last_saved_my_node.device_id.bytes, devicestate.my_node.device_id.bytes, 16);
+        is_cached = true;
+    }
+
+    return success;
 }
 
 bool NodeDB::saveNodeDatabaseToDisk()
 {
-
     // do not try to save anything if power level is not safe. In many cases flash will be lock-protected
     // and all writes will fail anyway. Device should be sleeping at this point anyway.
     if (!powerHAL_isPowerLevelSafe()) {
@@ -1543,9 +1757,59 @@ bool NodeDB::saveNodeDatabaseToDisk()
     FSCom.mkdir("/prefs");
     spiLock->unlock();
 #endif
+
+    // Filtered database copy to protect Flash memory from constant writes of indirect nodes
+    meshtastic_NodeDatabase filteredDatabase;
+    filteredDatabase.version = nodeDatabase.version;
+
+    // Add local node (always at index 0)
+    if (!nodeDatabase.nodes.empty()) {
+        filteredDatabase.nodes.push_back(nodeDatabase.nodes[0]);
+    }
+
+    // Filter and add only direct/critical nodes
+    for (size_t i = 1; i < numMeshNodes && i < nodeDatabase.nodes.size(); i++) {
+        const auto &node = nodeDatabase.nodes[i];
+        bool shouldSave = false;
+
+        // 1. Is favorite node (explicitly added / admin key)
+        if (node.is_favorite) {
+            shouldSave = true;
+        }
+        // 2. Is ignored node (important to keep across boots to avoid hearing them)
+        else if (node.is_ignored) {
+            shouldSave = true;
+        }
+        // 3. Is direct router (hops_away == 0 and router roles)
+        else if (node.has_hops_away && node.hops_away == 0 && node.has_user &&
+                 (node.user.role == meshtastic_Config_DeviceConfig_Role_ROUTER ||
+                  node.user.role == meshtastic_Config_DeviceConfig_Role_ROUTER_LATE ||
+                  node.user.role == meshtastic_Config_DeviceConfig_Role_CLIENT_BASE)) {
+            shouldSave = true;
+        }
+        // 4. Is in RAM auto-favorite active list
+        else if (router != nullptr) {
+            const auto &adr = router->activeDirectRouters;
+            if (std::find(adr.begin(), adr.end(), node.num) != adr.end()) {
+                shouldSave = true;
+            }
+        }
+        // 5. Is administrator node (matches any of the defined admin keys)
+        else if (isAdminNode(node)) {
+            shouldSave = true;
+        }
+
+        if (shouldSave) {
+            filteredDatabase.nodes.push_back(node);
+        }
+    }
+
     size_t nodeDatabaseSize;
-    pb_get_encoded_size(&nodeDatabaseSize, meshtastic_NodeDatabase_fields, &nodeDatabase);
-    return saveProto(nodeDatabaseFileName, nodeDatabaseSize, &meshtastic_NodeDatabase_msg, &nodeDatabase, false);
+    pb_get_encoded_size(&nodeDatabaseSize, meshtastic_NodeDatabase_fields, &filteredDatabase);
+    
+    LOG_INFO("Filtered saveNodeDatabaseToDisk: saving %d/%d nodes to flash", filteredDatabase.nodes.size(), numMeshNodes);
+
+    return saveProto(nodeDatabaseFileName, nodeDatabaseSize, &meshtastic_NodeDatabase_msg, &filteredDatabase, false);
 }
 
 bool NodeDB::saveToDiskNoRetry(int saveWhat)
@@ -1872,12 +2136,39 @@ bool NodeDB::updateUser(uint32_t nodeId, meshtastic_User &p, uint8_t channelInde
     if (info->user.public_key.size == 32) { // if we have a key for this user already, don't overwrite with a new one
         // if the key doesn't match, don't update nodeDB at all.
         if (p.public_key.size != 32 || (memcmp(p.public_key.bytes, info->user.public_key.bytes, 32) != 0)) {
-            LOG_WARN("Public Key mismatch, dropping NodeInfo");
-            return false;
+            // EXCEPCIÓN NAVARRICO: si la NUEVA clave coincide con una admin_key configurada,
+            // aceptamos el cambio de clave y marcamos el nodo como favorito. Esto resuelve el
+            // caso del nodo de rescate/mando que se filtró con una clave no autorizada antes de
+            // cargar la clave de administración correcta: al reenviar su NodeInfo con la clave
+            // correcta, el repetidor actualiza la DB y el siguiente DM PKI se descifra.
+            bool newKeyIsAdmin =
+                (config.security.admin_key[0].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[0].bytes, 32) == 0) ||
+                (config.security.admin_key[1].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[1].bytes, 32) == 0) ||
+                (config.security.admin_key[2].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[2].bytes, 32) == 0);
+            if (newKeyIsAdmin) {
+                LOG_WARN("Public Key mismatch, but NEW key matches an admin key. Accepting and re-favoriting node.");
+                info->is_favorite = true;
+                // Auditoria 26/08: el bit de admin NO se concede por NodeInfo (no firmado). Solo se
+                // acredita como admin tras un DM PKI descifrado (NavaCLIModule::handleReceived).
+                // Permitir que el flujo continúe y sobreescriba info->user (incluida la nueva clave)
+            } else {
+                LOG_WARN("Public Key mismatch, dropping NodeInfo");
+                return false;
+            }
         }
         LOG_INFO("Public Key set for node, not updating!");
     } else if (p.public_key.size == 32) {
         LOG_INFO("Update Node Pubkey!");
+        // H3 FIX (opcional a2, 2026-08-12): si la PRIMERA clave que anuncia un nodo coincide con admin_key,
+        // acreditarlo directamente (misma equivalencia de validacion que (a)).
+        bool firstKeyIsAdmin =
+            (config.security.admin_key[0].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[0].bytes, 32) == 0) ||
+            (config.security.admin_key[1].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[1].bytes, 32) == 0) ||
+            (config.security.admin_key[2].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[2].bytes, 32) == 0);
+        if (firstKeyIsAdmin) {
+            // Auditoria 26/08: favorito si, bit de admin NO (ver rama (a) arriba: solo por DM PKI).
+            info->is_favorite = true;
+        }
     }
 #endif
 
@@ -1897,6 +2188,7 @@ bool NodeDB::updateUser(uint32_t nodeId, meshtastic_User &p, uint8_t channelInde
     LOG_DEBUG("Update changed=%d user %s/%s, id=0x%08x, channel=%d", changed, info->user.long_name, info->user.short_name, nodeId,
               info->channel);
     info->has_user = true;
+    checkAndRegisterRAMAutoFavorite(info);
 
     if (changed) {
         updateGUIforNode = info;
@@ -1946,6 +2238,7 @@ void NodeDB::updateFrom(const meshtastic_MeshPacket &mp)
             info->has_hops_away = true;
             info->hops_away = hopsAway;
         }
+        checkAndRegisterRAMAutoFavorite(info);
         sortMeshDB();
     }
 }
@@ -2127,6 +2420,29 @@ meshtastic_NodeInfoLite *NodeDB::getOrCreateMeshNode(NodeNum n)
                     meshNodes->at(i) = meshNodes->at(i + 1);
                 }
                 (numMeshNodes)--;
+            } else {
+                // LÍMITE ALCANZADO: Buscamos el favorito más antiguo que NO sea administrador para borrarlo
+                uint32_t oldestFav = UINT32_MAX;
+                int oldestFavIndex = -1;
+                for (int i = 1; i < numMeshNodes; i++) {
+                    if (meshNodes->at(i).is_favorite && 
+                        !isAdminNode(meshNodes->at(i)) &&
+                        meshNodes->at(i).last_heard < oldestFav) {
+                        oldestFav = meshNodes->at(i).last_heard;
+                        oldestFavIndex = i;
+                    }
+                }
+                if (oldestFavIndex != -1) {
+                    LOG_INFO("NodeDB full of protected nodes: evicting oldest non-admin favorite router 0x%08x", meshNodes->at(oldestFavIndex).num);
+                    for (int i = oldestFavIndex; i < numMeshNodes - 1; i++) {
+                        meshNodes->at(i) = meshNodes->at(i + 1);
+                    }
+                    (numMeshNodes)--;
+                } else {
+                    // Caso extremo de bloqueo (ej. 80 administradores)
+                    LOG_ERROR("NodeDB is full of administrators/ignored nodes; rejecting new node 0x%08x to prevent crash!", n);
+                    return NULL;
+                }
             }
         }
         // add the node at the end

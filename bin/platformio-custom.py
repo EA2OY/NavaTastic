@@ -2,6 +2,7 @@
 # trunk-ignore-all(ruff/F821)
 # trunk-ignore-all(flake8/F821): For SConstruct imports
 import sys
+import os
 from os.path import join
 import subprocess
 import json
@@ -201,6 +202,12 @@ Import("projenv")
 
 prefsLoc = projenv["PROJECT_DIR"] + "/version.properties"
 verObj = readProps(prefsLoc)
+# NAVARICO: override opcional de la version embebida (variable NAVARICO_APP_VERSION) para
+# reproducir byte a byte builds anteriores (p. ej. "2.7.26.54e0d8d"). Sin la variable, la
+# version es la normal del repo (2.7.26.<sha de git>). Lo usa verificar_paridad.ps1.
+navarico_ver = os.environ.get("NAVARICO_APP_VERSION")
+if navarico_ver:
+    verObj["long"] = navarico_ver
 print(f"Using meshtastic platformio-custom.py, firmware version {verObj['long']} on {env.get('PIOENV')}")
 
 # get repository owner if git is installed
@@ -215,11 +222,36 @@ except subprocess.CalledProcessError:
     repo_owner = "unknown"
 
 jsonLoc = env["PROJECT_DIR"] + "/userPrefs.jsonc"
+# NAVARICO: cada env puede apuntar a su perfil de claves/canales (custom_meshtastic_prefs en navarrico.ini).
+# Si no se define, se usa el userPrefs.jsonc de la raiz (comportamiento original de Meshtastic).
+custom_prefs = env.GetProjectOption("custom_meshtastic_prefs", "")
+if custom_prefs:
+    jsonLoc = custom_prefs if os.path.isabs(custom_prefs) else join(env["PROJECT_DIR"], custom_prefs)
 with open(jsonLoc) as f:
     jsonStr = re.sub("//.*","", f.read(), flags=re.MULTILINE)
     userPrefs = json.loads(jsonStr)
 
 pref_flags = []
+# NAVARICO: builds Propia (R2IP/R1IP) — las claves del operador y el PIN BT se piden por
+# variables de entorno y NUNCA se almacenan en el repo. Los envs Propia extienden los de
+# General y activan la opcion custom_meshtastic_propia_keys; aqui sus macros sobrescriben
+# las del perfil General. Sin las variables el build aborta con instrucciones.
+nav_propia_raw = env.GetProjectOption("custom_meshtastic_propia_keys", "")
+nav_propia_on = str(nav_propia_raw).strip().lower() in ("1", "true", "yes", "on")
+if nav_propia_on:
+    def nav_propia_required(var):
+        val = os.environ.get(var, "").strip()
+        if not val:
+            print("NAVARICO ERROR: build Propia requiere la variable de entorno " + var)
+            print("  Define NAVARICO_PROPIA_KEY_0 y NAVARICO_PROPIA_KEY_1 (hex entre llaves,")
+            print("  p. ej. '{ 0xaa, 0xbb, ... }') y NAVARICO_PROPIA_BT (PIN de 6 digitos).")
+            print("  O usa build_propia.ps1, que las pide de forma interactiva SIN guardarlas.")
+            sys.exit(1)
+        return val
+    userPrefs["USERPREFS_USE_ADMIN_KEY_0"] = nav_propia_required("NAVARICO_PROPIA_KEY_0")
+    userPrefs["USERPREFS_USE_ADMIN_KEY_1"] = nav_propia_required("NAVARICO_PROPIA_KEY_1")
+    userPrefs["USERPREFS_FIXED_BLUETOOTH"] = nav_propia_required("NAVARICO_PROPIA_BT")
+    print("NAVARICO: build Propia — claves y PIN inyectados desde variables de entorno (no se almacenan)")
 # Pre-process the userPrefs
 for pref in userPrefs:
     if userPrefs[pref].startswith("{"):
@@ -236,13 +268,24 @@ for pref in userPrefs:
 
 # General options that are passed to the C and C++ compilers
 # Calculate unix epoch for current day (midnight)
-current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-build_epoch = int(current_date.timestamp())
+# NAVARICO: BUILD_EPOCH por defecto = medianoche de hoy (comportamiento original de Meshtastic).
+# Para reproducciones byte-idénticas de un build anterior, definir la variable de entorno
+# NAVARICO_BUILD_EPOCH con el epoch Unix del día original (lo hace verificar_paridad.ps1).
+navarico_epoch = os.environ.get("NAVARICO_BUILD_EPOCH")
+if navarico_epoch:
+    build_epoch = int(navarico_epoch)
+else:
+    current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    build_epoch = int(current_date.timestamp())
+
+# NAVARICO: los envs navarrico_* reportan el APP_ENV canónico de la placa (custom_meshtastic_app_env)
+# para que el binario sea idéntico al build original (p. ej. Faketec reporta nrf52_promicro_diy_tcxo).
+app_env = env.GetProjectOption("custom_meshtastic_app_env", "") or env.get("PIOENV")
 
 flags = [
         "-DAPP_VERSION=" + verObj["long"],
         "-DAPP_VERSION_SHORT=" + verObj["short"],
-        "-DAPP_ENV=" + env.get("PIOENV"),
+        "-DAPP_ENV=" + app_env,
         "-DAPP_REPO=" + repo_owner,
         "-DBUILD_EPOCH=" + str(build_epoch),
     ] + pref_flags
@@ -254,6 +297,45 @@ for flag in flags:
 projenv.Append(
     CCFLAGS=flags,
 )
+
+# NAVARICO: mapeo de ruta de libdeps para paridad byte-a-byte.
+# El parser de build_flags de PlatformIO elimina los backslash, asi que el
+# -ffile-prefix-map se inyecta aqui (Python) con la ruta completa real.
+# El binario embebe rutas ".pio\libdeps\<PIOENV>\..." en bibliotecas que usan
+# __FILE__ (p. ej. arduino-fsm). Con este mapa, todos los envs embeben la ruta
+# canonica (custom_meshtastic_libdeps_map) del build original, y el MD5 deja de
+# depender del nombre del env. Inerte si la opcion no existe.
+nav_libdeps_map = env.GetProjectOption("custom_meshtastic_libdeps_map", "")
+if nav_libdeps_map:
+    src_prefix = ".pio\\libdeps\\" + env.get("PIOENV")
+    canonical = nav_libdeps_map.replace("/", "\\")
+    map_flag = "-ffile-prefix-map=" + src_prefix + "=" + canonical
+    # NOTA: las librerias se compilan en envs propios (lib builders), NO en projenv ni en env.
+    # Se inyecta el flag en cada una para que su __FILE__ (ruta de libdeps con el nombre del env)
+    # quede remapeado a la ruta canonica del build original (paridad byte-a-byte).
+    for lb in env.GetLibBuilders():
+        lb.env.Append(CCFLAGS=[map_flag])
+    env.Append(CCFLAGS=[map_flag])
+    print(f"NAVARICO: -ffile-prefix-map {src_prefix} -> {canonical}")
+
+# NAVARICO: override de la marca temporal embebida (Crypto/RNG y RadioLib/Module usan __TIME__/__DATE__).
+# Sin las variables de entorno, comportamiento original (marca de hoy). Con ellas
+# (verificar_paridad.ps1) se reproduce la marca del build de referencia byte a byte.
+navarico_btime = os.environ.get("NAVARICO_BUILD_TIME", "")
+navarico_bdate = os.environ.get("NAVARICO_BUILD_DATE", "")
+if navarico_btime or navarico_bdate:
+    stamp_flags = []
+    if navarico_btime:
+        # Comillas escapadas (\\"): el parser de linea de comandos de Windows (CommandLineToArgvW)
+        # eliminaria las comillas simples, dejando __TIME__ sin comillas (error de compilacion).
+        stamp_flags.append('-D__TIME__=\\"' + navarico_btime + '\\"')
+    if navarico_bdate:
+        stamp_flags.append('-D__DATE__=\\"' + navarico_bdate + '\\"')
+    for lb in env.GetLibBuilders():
+        lb.env.Append(CCFLAGS=stamp_flags)
+    env.Append(CCFLAGS=stamp_flags)
+    projenv.Append(CCFLAGS=stamp_flags)
+    print(f"NAVARICO: marca temporal override {navarico_btime} {navarico_bdate}")
 
 for lb in env.GetLibBuilders():
     if lb.name == "meshtastic-device-ui":

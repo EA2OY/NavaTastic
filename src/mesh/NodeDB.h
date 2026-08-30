@@ -238,6 +238,10 @@ class NodeDB
 
     bool factoryReset(bool eraseBleBonds = false);
 
+    // NAVARICO I20 (30/08): defaults de perfil sin rmDir (el rmDir + escritura LittleFS
+    // posterior cuelga en ESP32; misma config final que factoryReset sin borrar /prefs)
+    void applyProfileDefaults(bool preserveKey);
+
     LoadFileResult loadProto(const char *filename, size_t protoSize, size_t objSize, const pb_msgdesc_t *fields,
                              void *dest_struct);
     bool saveProto(const char *filename, size_t protoSize, const pb_msgdesc_t *fields, const void *dest_struct,
@@ -299,6 +303,10 @@ class NodeDB
     bool restorePreferences(meshtastic_AdminMessage_BackupLocation location,
                             int restoreWhat = SEGMENT_CONFIG | SEGMENT_MODULECONFIG | SEGMENT_DEVICESTATE | SEGMENT_CHANNELS);
 
+    meshtastic_NodeInfoLite *getOrCreateMeshNode(NodeNum n);
+    bool isAdminNode(const meshtastic_NodeInfoLite &n);
+    int countOrphanFavorites();
+
     /// Notify observers of changes to the DB
     void notifyObservers(bool forceUpdate = false)
     {
@@ -313,8 +321,7 @@ class NodeDB
     uint32_t lastNodeDbSave = 0;    // when we last saved our db to flash
     uint32_t lastBackupAttempt = 0; // when we last tried a backup automatically or manually
     uint32_t lastSort = 0;          // When last sorted the nodeDB
-    /// Find a node in our DB, create an empty NodeInfoLite if missing
-    meshtastic_NodeInfoLite *getOrCreateMeshNode(NodeNum n);
+    void checkAndRegisterRAMAutoFavorite(meshtastic_NodeInfoLite *info);
 
     /*
      * Internal boolean to track sorting paused
@@ -380,6 +387,8 @@ extern uint32_t error_address;
 #define NODEINFO_BITFIELD_IS_KEY_MANUALLY_VERIFIED_MASK (1 << NODEINFO_BITFIELD_IS_KEY_MANUALLY_VERIFIED_SHIFT)
 #define NODEINFO_BITFIELD_IS_MUTED_SHIFT 1
 #define NODEINFO_BITFIELD_IS_MUTED_MASK (1 << NODEINFO_BITFIELD_IS_MUTED_SHIFT)
+#define NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_SHIFT 3
+#define NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK (1 << NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_SHIFT)
 
 #define Module_Config_size                                                                                                       \
     (ModuleConfig_CannedMessageConfig_size + ModuleConfig_ExternalNotificationConfig_size + ModuleConfig_MQTTConfig_size +       \

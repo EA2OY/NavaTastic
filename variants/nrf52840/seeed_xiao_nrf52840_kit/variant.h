@@ -146,7 +146,14 @@ static const uint8_t A5 = PIN_A5;
 #define SX126X_DIO1 D1
 #define SX126X_BUSY D3
 #define SX126X_RESET D2
+// NAVARICO: EJE RADIO. Env navarrico_xiao_kit_sx1262_* = radio original (SX1262, RXEN en D5).
+// Env navarrico_xiao_e22p_* = modulo E22P: D5 pasa a ser ALIMENTACION de la radio (RXEN sin usar).
+#ifdef NAVARICO_RADIO_E22P
+#define SX126X_RXEN RADIOLIB_NC
+#define RADIO_POWER_ENABLE_PIN D5
+#else
 #define SX126X_RXEN D5
+#endif
 #endif // defined(SEEED_XIAO_NRF_WIO_BTB)
 #endif // defined(XIAO_BLE_LEGACY_PINOUT)
 
@@ -264,6 +271,34 @@ static const uint8_t SCL = PIN_WIRE_SCL; // Not sure if this is needed
 
 #if defined(SEEED_XIAO_NRF_WIO_BTB)
 #define BUTTON_PIN D5
+#endif
+
+// NAVARICO: bloque comun de hardware Navarrico (portado desde los repos XiaoKitI2c y XiaoKitI2c+E22P).
+// Solo difiere la potencia y la curva de bateria segun la radio elegida por el env.
+#ifdef NAVARICO_RADIO_E22P
+// NAVARICO: E22P -> 12 dBm maximo y clamp de descarga a 3.5V (3500mV)
+#define FIX_NATIVE_CORE_RESET
+#define SX126X_MAX_POWER 12
+#define HARDWARE_TX_POWER_LIMIT 12
+#else
+// NAVARICO: Xiao Kit SX1262 -> 22 dBm maximo y clamp de descarga a 3.4V (3400mV)
+#define FIX_NATIVE_CORE_RESET
+#define SX126X_MAX_POWER 22
+#define HARDWARE_TX_POWER_LIMIT 22
+#endif
+// NAVARICO: LPCOMP comun (ambas radios) - divisor de fabrica 1M/510k (ADC_MULTIPLIER 3)
+#define BATTERY_LPCOMP_INPUT NRF_LPCOMP_INPUT_7
+#define BATTERY_LPCOMP_THRESHOLD NRF_LPCOMP_REF_SUPPLY_3_8
+// NAVARICO: curva de descarga por radio (E22P 3500 / SX1262 3400)
+#ifdef NAVARICO_RADIO_E22P
+#define OCV_ARRAY 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3500, 3500, 3500
+#else
+#define OCV_ARRAY 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3400, 3400, 3400
+#endif
+
+// NAVARICO: salvaguarda - si un env olvida elegir radio, el build falla de forma explicita.
+#if !defined(NAVARICO_RADIO_E22P) && !defined(NAVARICO_RADIO_SX1262)
+#error "NAVARICO: define NAVARICO_RADIO_E22P o NAVARICO_RADIO_SX1262 (ver variants/nrf52840/navarrico.ini)"
 #endif
 
 #ifdef __cplusplus
