@@ -14,6 +14,9 @@
  * For more information, see: https://meshtastic.org/
  */
 #include "power.h"
+#if defined(ARCH_NRF52)
+#include <nrf_sdm.h>
+#endif
 #include "MessageStore.h"
 #include "NodeDB.h"
 #include "PowerFSM.h"
@@ -22,6 +25,7 @@
 #include "configuration.h"
 #include "main.h"
 #include "meshUtils.h"
+#include "modules/NavaCLIModule.h"
 #include "power/PowerHAL.h"
 #include "power/SGM41562.h"
 #include "sleep.h"
@@ -29,6 +33,13 @@
 #if defined(ARCH_PORTDUINO)
 #include "api/WiFiServerAPI.h"
 #include "input/LinuxInputImpl.h"
+#endif
+
+// NAVARICO F18: contador de lecturas bajas unificado para TODAS las placas (8, ~160s).
+// La macro la inyecta el perfil (USERPREFS_LOW_BATTERY_READINGS_COUNT); el fallback
+// cubre envs sin perfil navarrico (p. ej. tests native).
+#ifndef USERPREFS_LOW_BATTERY_READINGS_COUNT
+#define USERPREFS_LOW_BATTERY_READINGS_COUNT 8
 #endif
 
 // Working USB detection for powered/charging states on the RAK platform
@@ -39,6 +50,7 @@
 #if defined(ARCH_NRF52)
 #include "Nrf52SaadcLock.h"
 #include "concurrency/LockGuard.h"
+#include <nrf_nvic.h>
 #endif
 
 #if defined(DEBUG_HEAP_MQTT) && !MESHTASTIC_EXCLUDE_MQTT
@@ -163,7 +175,7 @@ class HasBatteryLevel
     /**
      * The raw voltage of the battery or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() { return 0; }
+    virtual uint16_t getBattVoltage(bool force = false) { (void)force; return 0; }
 
     /**
      * return true if there is a battery installed in this unit
@@ -172,6 +184,8 @@ class HasBatteryLevel
 
     virtual bool isVbusIn() { return false; }
     virtual bool isCharging() { return false; }
+    virtual void updateOcvCurve(uint16_t cutoff) {}
+    virtual void setChemistryProfile(uint8_t chem) {}
 };
 #endif
 
@@ -291,7 +305,7 @@ class AnalogBatteryLevel : public HasBatteryLevel
     /**
      * The raw voltage of the batteryin millivolts or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override
+    virtual uint16_t getBattVoltage(bool force = false) override
     {
 
 #if HAS_TELEMETRY && defined(HAS_RAKPROT) && !defined(HAS_PMU) && !MESHTASTIC_EXCLUDE_ENVIRONMENTAL_SENSOR
@@ -320,9 +334,9 @@ class AnalogBatteryLevel : public HasBatteryLevel
         // Override variant or default ADC_MULTIPLIER if we have the override pref
         float operativeAdcMultiplier =
             config.power.adc_multiplier_override > 0 ? config.power.adc_multiplier_override : ADC_MULTIPLIER;
-        // Do not call analogRead() often.
+        // Do not call analogRead() often (force=true salta el throttle: lecturas reales consecutivas)
         const uint32_t min_read_interval = 5000;
-        if (!initial_read_done || !Throttle::isWithinTimespanMs(last_read_time_ms, min_read_interval)) {
+        if (force || !initial_read_done || !Throttle::isWithinTimespanMs(last_read_time_ms, min_read_interval)) {
             last_read_time_ms = millis();
 
             uint32_t raw = 0;
@@ -434,11 +448,11 @@ class AnalogBatteryLevel : public HasBatteryLevel
     virtual bool isBatteryConnect() override
     {
         int lastReading = digitalRead(ADC_V);
-        // 判断值是否变化
+        // åˆ¤æ–­å€¼æ˜¯å¦å˜åŒ–
         for (int i = 2; i < 500; i++) {
             int reading = digitalRead(ADC_V);
             if (reading != lastReading) {
-                return false; // 有变化，USB供电, 没接电池
+                return false; // æœ‰å˜åŒ–ï¼ŒUSBä¾›ç”µ, æ²¡æŽ¥ç”µæ± 
             }
         }
 
@@ -523,15 +537,45 @@ class AnalogBatteryLevel : public HasBatteryLevel
         return isVbusIn();
     }
 
+    virtual void updateOcvCurve(uint16_t cutoff) override
+    {
+        if (cutoff < 2400 || cutoff > 3600) return;
+        OCV[NUM_OCV_POINTS - 1] = cutoff;
+        OCV[NUM_OCV_POINTS - 2] = cutoff + 100;
+        OCV[NUM_OCV_POINTS - 3] = cutoff + 200;
+        noBatVolt = (OCV[NUM_OCV_POINTS - 1] - 500) * NUM_CELLS;
+        LOG_INFO("AnalogBatteryLevel OCV cutoff updated to %d mV", cutoff);
+    }
+
+    virtual void setChemistryProfile(uint8_t chem) override
+    {
+        if (chem == 0) { // LIPO
+            uint16_t lipo_ocv[11] = { 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3420, 3300, 3100 };
+            memcpy(OCV, lipo_ocv, sizeof(OCV));
+        } else if (chem == 1) { // NIMH
+            uint16_t nimh_ocv[11] = { 4300, 4100, 4000, 3900, 3800, 3700, 3600, 3500, 3450, 3400, 3400 };
+            memcpy(OCV, nimh_ocv, sizeof(OCV));
+        } else if (chem == 2) { // SODIUM
+            uint16_t sodium_ocv[11] = { 3950, 3800, 3700, 3600, 3500, 3400, 3200, 3000, 2800, 2600, 2500 };
+            memcpy(OCV, sodium_ocv, sizeof(OCV));
+        } else if (chem == 3) { // LIFEPO4
+            uint16_t lifepo4_ocv[11] = { 3650, 3550, 3450, 3380, 3320, 3270, 3220, 3170, 3100, 3000, 2800 };
+            memcpy(OCV, lifepo4_ocv, sizeof(OCV));
+        }
+        chargingVolt = (OCV[0] + 10) * NUM_CELLS;
+        noBatVolt = (OCV[NUM_OCV_POINTS - 1] - 500) * NUM_CELLS;
+        LOG_INFO("AnalogBatteryLevel chemistry profile updated to %d", chem);
+    }
+
   private:
     /// If we see a battery voltage higher than physics allows - assume charger is
     /// pumping in power
 
     /// For heltecs with no battery connected, the measured voltage is 2204, so
     // need to be higher than that, in this case is 2500mV (3000-500)
-    const uint16_t OCV[NUM_OCV_POINTS] = {OCV_ARRAY};
-    const float chargingVolt = (OCV[0] + 10) * NUM_CELLS;
-    const float noBatVolt = (OCV[NUM_OCV_POINTS - 1] - 500) * NUM_CELLS;
+    uint16_t OCV[NUM_OCV_POINTS] = {OCV_ARRAY};
+    float chargingVolt = (OCV[0] + 10) * NUM_CELLS;
+    float noBatVolt = (OCV[NUM_OCV_POINTS - 1] - 500) * NUM_CELLS;
     // Start value from minimum voltage for the filter to not start from 0
     // that could trigger some events.
     // This value is over-written by the first ADC reading, it the voltage seems
@@ -708,7 +752,7 @@ bool Power::setup()
 {
 #ifdef HAS_SGM41562
     // Initialize the charger early so AnalogBatteryLevel can read charging
-    // state from it. The charger does not provide battery voltage / percent —
+    // state from it. The charger does not provide battery voltage / percent â€”
     // those still come from the platform ADC via analogInit() below.
     initSGM41562(SGM41562_WIRE);
 #endif
@@ -765,7 +809,17 @@ void Power::reboot()
 #if defined(ARCH_ESP32)
     ESP.restart();
 #elif defined(ARCH_NRF52)
+#ifdef FIX_NATIVE_CORE_RESET
+    sd_softdevice_disable();
     NVIC_SystemReset();
+#else
+    extern bool useSoftDevice;
+    if (useSoftDevice) {
+        sd_nvic_SystemReset();
+    } else {
+        NVIC_SystemReset();
+    }
+#endif
 #elif defined(ARCH_RP2040)
     rp2040.reboot();
 #elif defined(ARCH_PORTDUINO)
@@ -840,7 +894,7 @@ void Power::shutdown()
 /// Reads power status to powerStatus singleton.
 //
 // TODO(girts): move this and other axp stuff to power.h/power.cpp.
-void Power::readPowerStatus()
+void Power::readPowerStatus(bool force)
 {
     int32_t batteryVoltageMv = -1; // Assume unknown
     int8_t batteryChargePercent = -1;
@@ -856,7 +910,7 @@ void Power::readPowerStatus()
         isChargingNow = batteryLevel->isCharging() ? OptTrue : OptFalse;
 #endif
         if (hasBattery) {
-            batteryVoltageMv = batteryLevel->getBattVoltage();
+            batteryVoltageMv = batteryLevel->getBattVoltage(force);
             // If the AXP192 returns a valid battery percentage, use it
             if (batteryLevel->getBatteryPercent() >= 0) {
                 batteryChargePercent = batteryLevel->getBatteryPercent();
@@ -964,14 +1018,26 @@ void Power::readPowerStatus()
     // have more than 10 low readings in a row. NOTE: min LiIon/LiPo voltage
     // is 2.0 to 2.5V, current OCV min is set to 3100 that is large enough.
     //
+    // V2.6: el contador SOLO cuenta en lecturas normales del monitor (force=false).
+    // Las lecturas forzadas del pre-check de arranque (force=true) no deben pre-cargar
+    // el contador: el nodo despertado con bateria baja debe OPERAR el ciclo completo
+    // de USERPREFS_LOW_BATTERY_READINGS_COUNT lecturas (8, ~160s) antes de dormir,
+    // como en Eclipse (el ADC puede dar lecturas puntuales erroneas en campo).
 
-    if (batteryLevel && powerStatus2.getHasBattery() && !powerStatus2.getHasUSB()) {
+    if (!force && batteryLevel && powerStatus2.getHasBattery() && !powerStatus2.getHasUSB()) {
         if (batteryLevel->getBattVoltage() < OCV[NUM_OCV_POINTS - 1]) {
             low_voltage_counter++;
-            LOG_DEBUG("Low voltage counter: %d/10", low_voltage_counter);
-            if (low_voltage_counter > 10) {
+            // NAVARICO F18: umbral unico desde el perfil (8 lecturas ~160s) para las 6 placas
+            LOG_DEBUG("Low voltage counter: %d/%d", low_voltage_counter, USERPREFS_LOW_BATTERY_READINGS_COUNT);
+            if (low_voltage_counter >= USERPREFS_LOW_BATTERY_READINGS_COUNT) {
                 LOG_INFO("Low voltage detected, trigger deep sleep");
-                powerFSM.trigger(EVENT_LOW_BATTERY);
+                // V2: con mensajes de sueno activos, NavaCLI envia [Sueno] al canal
+                // Navadmin y se duerme al drenar la cola; si no, flujo PowerFSM normal.
+                if (navaCLIModule && navaCLIModule->handleLowBatteryEvent()) {
+                    // control tomado por NavaCLI
+                } else {
+                    powerFSM.trigger(EVENT_LOW_BATTERY);
+                }
             }
         } else {
             low_voltage_counter = 0;
@@ -1458,7 +1524,7 @@ class MAX17048BatteryLevel : public HasBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override { return max17048->getBusVoltageMv(); }
+    virtual uint16_t getBattVoltage(bool force = false) override { (void)force; return max17048->getBusVoltageMv(); }
 
     /**
      * return true if there is a battery installed in this unit
@@ -1525,8 +1591,9 @@ class CW2015BatteryLevel : public AnalogBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override
+    virtual uint16_t getBattVoltage(bool force = false) override
     {
+        (void)force;
         uint16_t mv = 0;
         Wire.beginTransmission(CW2015_ADDR);
         Wire.write(0x02);
@@ -1670,7 +1737,7 @@ class LipoCharger : public HasBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override { return bq->getVoltage(); }
+    virtual uint16_t getBattVoltage(bool force = false) override { (void)force; return bq->getVoltage(); }
 
     /**
      * return true if there is a battery installed in this unit
@@ -1751,7 +1818,7 @@ class meshSolarBatteryLevel : public HasBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override { return meshSolarGetBattVoltage(); }
+    virtual uint16_t getBattVoltage(bool force = false) override { (void)force; return meshSolarGetBattVoltage(); }
 
     /**
      * return true if there is a battery installed in this unit
@@ -1823,7 +1890,7 @@ class SerialBatteryLevel : public HasBatteryLevel
     /**
      * The raw voltage of the battery in millivolts, or NAN if unknown
      */
-    virtual uint16_t getBattVoltage() override { return voltage * 1000; }
+    virtual uint16_t getBattVoltage(bool force = false) override { (void)force; return voltage * 1000; }
 
     /**
      * return true if there is a battery installed in this unit
@@ -1926,3 +1993,38 @@ bool Power::serialBatteryInit()
     return false;
 }
 #endif
+
+uint8_t currentWakeLevel = 3;
+
+void Power::updateOcvCurve(uint16_t cutoff) {
+    // Sincronizar TAMBIEN el array OCV de la clase Power: es el que usa
+    // readPowerStatus() como umbral de corte para el deep sleep por bateria.
+    if (cutoff >= 2400 && cutoff <= 3600) {
+        OCV[NUM_OCV_POINTS - 1] = cutoff;
+        OCV[NUM_OCV_POINTS - 2] = cutoff + 100;
+        OCV[NUM_OCV_POINTS - 3] = cutoff + 200;
+    }
+    if (batteryLevel) {
+        batteryLevel->updateOcvCurve(cutoff);
+    }
+}
+
+void Power::setChemistryProfile(uint8_t chem) {
+    // Sincronizar el OCV de la clase Power segun la quimica
+    if (chem == 0) {
+        uint16_t lipo_ocv[11] = { 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3420, 3300, 3100 };
+        memcpy(OCV, lipo_ocv, sizeof(OCV));
+    } else if (chem == 1) {
+        uint16_t nimh_ocv[11] = { 4300, 4100, 4000, 3900, 3800, 3700, 3600, 3500, 3450, 3400, 3400 };
+        memcpy(OCV, nimh_ocv, sizeof(OCV));
+    } else if (chem == 2) {
+        uint16_t sodium_ocv[11] = { 3950, 3800, 3700, 3600, 3500, 3400, 3200, 3000, 2800, 2600, 2500 };
+        memcpy(OCV, sodium_ocv, sizeof(OCV));
+    } else if (chem == 3) {
+        uint16_t lifepo4_ocv[11] = { 3650, 3550, 3450, 3380, 3320, 3270, 3220, 3170, 3100, 3000, 2800 };
+        memcpy(OCV, lifepo4_ocv, sizeof(OCV));
+    }
+    if (batteryLevel) {
+        batteryLevel->setChemistryProfile(chem);
+    }
+}

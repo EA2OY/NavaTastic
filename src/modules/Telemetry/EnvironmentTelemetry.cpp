@@ -5,6 +5,8 @@
 #include "../mesh/generated/meshtastic/telemetry.pb.h"
 #include "Default.h"
 #include "EnvironmentTelemetry.h"
+
+EnvironmentTelemetryModule *environmentTelemetryModule = nullptr;
 #include "MeshService.h"
 #include "NodeDB.h"
 #include "PowerFSM.h"
