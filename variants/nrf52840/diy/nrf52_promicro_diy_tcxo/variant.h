@@ -53,6 +53,14 @@ NRF52 PRO MICRO PIN ASSIGNMENT
 // Pin 13 enables 3.3V periphery. If the Lora module is on this pin, then it should stay enabled at all times.
 #define PIN_3V3_EN (0 + 13) // P0.13
 
+// NAVARICO: EJE RADIO. El env elegido define la radio (variants/nrf52840/navarrico.ini):
+//   - navarrico_promicro_e22p_*  -> E22P: P0.17 = ALIMENTACION de la radio (se apaga en deep sleep/storm, ~40mA)
+//   - navarrico_faketec_sx1262_* -> HT-RA62: P0.17 = RXEN (sin pin de alimentacion; la radio se apaga por SPI/driver)
+// Para cambiar de radio: usar el env navarrico_* correspondiente (no editar este archivo).
+#ifdef NAVARICO_RADIO_E22P
+#define RADIO_POWER_ENABLE_PIN (0 + 17) // P0.17 Radio Power Enable (E22P)
+#endif
+
 // Analog pins
 #define BATTERY_PIN (0 + 31) // P0.31 Battery ADC
 #define ADC_CHANNEL ADC1_GPIO4_CHANNEL
@@ -64,7 +72,7 @@ NRF52 PRO MICRO PIN ASSIGNMENT
 // Voltage divider value => 1.5M + 1M voltage divider on VBAT = (1.5M / (1M + 1.5M))
 #define VBAT_DIVIDER (0.6F)
 // Compensation factor for the VBAT divider
-#define VBAT_DIVIDER_COMP (1.73)
+#define VBAT_DIVIDER_COMP 2.0
 // Fixed calculation of milliVolt from compensation value
 #define REAL_VBAT_MV_PER_LSB (VBAT_DIVIDER_COMP * VBAT_MV_PER_LSB)
 #undef AREF_VOLTAGE
@@ -129,7 +137,13 @@ NRF52 PRO MICRO PIN ASSIGNMENT
 #define LORA_RESET (0 + 9) // P0.09 NRST
 
 // RX/TX for RFM95/SX127x
-#define RF95_RXEN (0 + 17)    // P0.17
+// NAVARICO: RXEN de RFM95 por radio. E22P -> sin usar; HT-RA62 (Faketec) -> P0.17 (como el original).
+#ifdef NAVARICO_RADIO_E22P
+// #define RF95_RXEN (0 + 17)    // P0.17
+#define RF95_RXEN RADIOLIB_NC
+#else
+#define RF95_RXEN (0 + 17)    // P0.17 (HT-RA62 / Faketec)
+#endif
 #define RF95_TXEN RADIOLIB_NC // Assuming that DIO2 is connected to TXEN pin. If not, TXEN must be connected.
 
 // SX126X CONFIG
@@ -139,7 +153,13 @@ NRF52 PRO MICRO PIN ASSIGNMENT
                                  // so it needs connecting externally if it is used in this way
 #define SX126X_BUSY (0 + 29)     // P0.29
 #define SX126X_RESET (0 + 9)     // P0.09
-#define SX126X_RXEN (0 + 17)     // P0.17
+// NAVARICO: RXEN por radio (ver bloque de alimentación arriba). E22P -> sin usar; HT-RA62 -> P0.17.
+#ifdef NAVARICO_RADIO_E22P
+// #define SX126X_RXEN (0 + 17)     // P0.17
+#define SX126X_RXEN RADIOLIB_NC
+#else
+#define SX126X_RXEN (0 + 17)     // P0.17 RXEN (HT-RA62 / Faketec)
+#endif
 #define SX126X_TXEN RADIOLIB_NC  // Assuming that DIO2 is connected to TXEN pin. If not, TXEN must be connected.
 
 // LR1121
@@ -155,7 +175,14 @@ NRF52 PRO MICRO PIN ASSIGNMENT
 #define LR11X0_DIO_AS_RF_SWITCH
 #endif
 
-// #define SX126X_MAX_POWER 8 set this if using a high-power board!
+// NAVARICO: potencia maxima por radio (E22P 12 dBm / HT-RA62 SX1262 22 dBm) - elegida por el env
+#ifdef NAVARICO_RADIO_E22P
+#define SX126X_MAX_POWER 12
+#define HARDWARE_TX_POWER_LIMIT 12
+#else
+#define SX126X_MAX_POWER 22
+#define HARDWARE_TX_POWER_LIMIT 22
+#endif
 
 /*
 On the SX1262, DIO3 sets the voltage for an external TCXO, if one is present. If one is not present, use TCXO_OPTIONAL to try both
@@ -189,6 +216,26 @@ settings.
 #define PIN_EINK_DC (32 + 2)
 #define PIN_EINK_RES (32 + 1)
 #define PIN_EINK_BUSY (32 + 6)
+
+// Configuración LPCOMP
+#define BATTERY_LPCOMP_INPUT NRF_LPCOMP_INPUT_7
+#define BATTERY_LPCOMP_THRESHOLD NRF_LPCOMP_REF_SUPPLY_9_16
+
+// NAVARICO: curva de descarga por radio. E22P -> clamp 3.5V (3500mV); HT-RA62 -> clamp 3.4V (3400mV)
+#ifdef NAVARICO_RADIO_E22P
+// Battery discharge curve clamping at 3.5V (3500mV) for cell protection
+#define OCV_ARRAY 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3500, 3500, 3500
+#else
+// Battery discharge curve clamping at 3.4V (3400mV) for Ni-MH/Li cell protection
+#define OCV_ARRAY 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3400, 3400, 3400
+#endif
+
+#define FIX_NATIVE_CORE_RESET
+
+// NAVARICO: salvaguarda - si un env olvida elegir radio, el build falla de forma explicita.
+#if !defined(NAVARICO_RADIO_E22P) && !defined(NAVARICO_RADIO_SX1262)
+#error "NAVARICO: define NAVARICO_RADIO_E22P o NAVARICO_RADIO_SX1262 (ver variants/nrf52840/navarrico.ini)"
+#endif
 
 #ifdef __cplusplus
 }

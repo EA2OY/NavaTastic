@@ -56,3 +56,15 @@ CMakeLists.txt
 .python3
 .claude/scheduled_tasks.lock
 userPrefs.jsonc.mcp-session-bak
+
+# NAVARICO: artefactos y morralla local (no subir a GitHub)
+_archivo/
+OldCompFiles/
+distribucion/
+Compilados/
+profiles/*R1IP*.jsonc
+profiles/*R2IP*.jsonc
+profiles/*Felix*.jsonc
+
+# NAVARICO: backups por marca de tiempo (norma 9/0.11) — pueden contener claves
+*.bak-*

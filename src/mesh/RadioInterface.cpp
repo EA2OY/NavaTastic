@@ -909,6 +909,15 @@ uint32_t RadioInterface::computeSlotTimeMsec()
  */
 void RadioInterface::limitPower(int8_t loraMaxPower)
 {
+#ifdef HARDWARE_TX_POWER_LIMIT
+    if (config.lora.tx_power > HARDWARE_TX_POWER_LIMIT) {
+        config.lora.tx_power = HARDWARE_TX_POWER_LIMIT;
+    }
+    if (loraMaxPower > HARDWARE_TX_POWER_LIMIT) {
+        loraMaxPower = HARDWARE_TX_POWER_LIMIT;
+    }
+#endif
+
     uint8_t maxPower = 255; // No limit
 
     if (myRegion->powerLimit)

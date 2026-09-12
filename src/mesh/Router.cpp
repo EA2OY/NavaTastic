@@ -1,4 +1,5 @@
 #include "Router.h"
+#include <algorithm>
 #include "Channels.h"
 #include "CryptoEngine.h"
 #include "MeshRadio.h"
@@ -12,6 +13,7 @@
 #include "mesh-pb-constants.h"
 #include "meshUtils.h"
 #include "modules/RoutingModule.h"
+#include "modules/NavaCLIModule.h"
 #if !MESHTASTIC_EXCLUDE_MQTT
 #include "mqtt/MQTT.h"
 #endif
@@ -104,8 +106,12 @@ bool Router::shouldDecrementHopLimit(const meshtastic_MeshPacket *p)
         if (!node)
             continue;
 
-        // Check 1: is_favorite (cheapest - single bool)
-        if (!node->is_favorite)
+        // Check 1: is_favorite (flash) OR present in RAM auto-favorite registry
+        bool isFav = node->is_favorite;
+        if (!isFav) {
+            isFav = (std::find(activeDirectRouters.begin(), activeDirectRouters.end(), node->num) != activeDirectRouters.end());
+        }
+        if (!isFav)
             continue;
 
         // Check 2: has_user (cheap - single bool)
@@ -340,8 +346,11 @@ ErrorCode Router::send(meshtastic_MeshPacket *p)
 
     p->relay_node = nodeDB->getLastByteOfNodeNum(getNodeNum()); // set the relayer to us
     // If we are the original transmitter, set the hop limit with which we start
-    if (isFromUs(p))
+    if (isFromUs(p)) {
         p->hop_start = p->hop_limit;
+    } else {
+        NavaCLIModule::recordRoutedPacket();
+    }
 
     // If the packet hasn't yet been encrypted, do so now (it might already be encrypted if we are just forwarding it)
 
@@ -857,6 +866,32 @@ void Router::perhapsHandleReceived(meshtastic_MeshPacket *p)
         LOG_DEBUG("Ignore msg, 0x%x is ignored", p->from);
         packetPool.release(p);
         return;
+    }
+
+    // NAVARICO F21/V5/F22 (moved here 28/08, O1): mute temporal, modo túnel de pánico y
+    // lista negra global se filtran ANTES del decode para que cubran también el flooding
+    // ciego de paquetes cifrados de canales ajenos (el reenvío pasa por
+    // RoutingModule::sniffReceived -> perhapsRebroadcast, que solo se dispara si este
+    // paquete llega a handleReceived). El `from` viaja en claro, así que es suficiente.
+    if (!isFromUs(p)) {
+        if (NavaCLIModule::navaIsMuteActive()) {
+            LOG_DEBUG("NavaCLI: Mute activo, descartando paquete ajeno");
+            packetPool.release(p);
+            return;
+        }
+        // Fix I19 (29/08): el tunel descarta SOLO el trafico ordinario ajeno; pasan los
+        // ALERT, los DMs dirigidos a este nodo, el canal de migracion (flota) y los
+        // comandos /nava por el canal de administracion (ver navaTunnelAllowsPacket)
+        if (NavaCLIModule::navaIsPanicTunnelMode() && !NavaCLIModule::navaTunnelAllowsPacket(p)) {
+            LOG_DEBUG("NavaCLI: Modo Tunel de Panico activo, descartando paquete ordinario ajeno");
+            packetPool.release(p);
+            return;
+        }
+        if (NavaCLIModule::isNodeIgnored(p->from)) {
+            LOG_DEBUG("NavaCLI: Paquete ignorado de nodo en lista negra 0x%x", p->from);
+            packetPool.release(p);
+            return;
+        }
     }
 
     if (p->from == NODENUM_BROADCAST) {
