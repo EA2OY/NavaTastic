@@ -213,8 +213,9 @@ No longer populated on PCB
 #define ADC_MULTIPLIER (4.916F)
 
 // rf52840 AIN2 = Pin 4
-// commented out due to power leakage of 2.9mA in shutdown state see reported issue #8801
-// #define BATTERY_LPCOMP_INPUT NRF_LPCOMP_INPUT_2 //UNSAFE
+// NAVARICO: el stock de Meshtastic lo deja comentado por fuga de 2.9mA en shutdown (issue #8801);
+// el fork lo reactiva a proposito para despertar por solar. La fuga solo ocurre DORMIDO. Coste aceptado.
+#define BATTERY_LPCOMP_INPUT NRF_LPCOMP_INPUT_2
 
 // We have AIN2 with a VBAT divider so AIN2 = VBAT * (100/490)
 // We have the device going deep sleep under 3.1V, which is AIN2 = 0.63V
@@ -222,6 +223,12 @@ No longer populated on PCB
 // Ratio 0.67/3.3 = 0.20, so we can pick a bit higher, 2/8 VDD, which means
 // VBAT=4.04V
 #define BATTERY_LPCOMP_THRESHOLD NRF_LPCOMP_REF_SUPPLY_2_8
+
+// NAVARICO: bloque incorporado desde el repo T114: clamp de descarga 3.4V + reset de arranque + limites de potencia.
+#define OCV_ARRAY 4190, 4050, 3990, 3890, 3800, 3720, 3630, 3530, 3400, 3400, 3400
+#define FIX_NATIVE_CORE_RESET
+#define SX126X_MAX_POWER 22
+#define HARDWARE_TX_POWER_LIMIT 22
 
 #ifdef __cplusplus
 }

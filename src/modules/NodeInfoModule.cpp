@@ -34,11 +34,20 @@ bool NodeInfoModule::handleReceivedProtobuf(const meshtastic_MeshPacket &mp, mes
     if (mp.decoded.want_response && !isFromUs(&mp)) {
         const NodeNum sender = getFrom(&mp);
         const uint32_t now = mp.rx_time ? mp.rx_time : getTime();
-        auto it = lastNodeInfoSeen.find(sender);
-        if (it != lastNodeInfoSeen.end()) {
-            uint32_t sinceLast = now >= it->second ? now - it->second : 0;
-            if (sinceLast < NodeInfoReplySuppressSeconds) {
-                suppressReplyForCurrentRequest = true;
+        
+        bool is_admin = false;
+        const meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(sender);
+        if (n && nodeDB->isAdminNode(*n)) {
+            is_admin = true;
+        }
+
+        if (!is_admin) {
+            auto it = lastNodeInfoSeen.find(sender);
+            if (it != lastNodeInfoSeen.end()) {
+                uint32_t sinceLast = now >= it->second ? now - it->second : 0;
+                if (sinceLast < NodeInfoReplySuppressSeconds) {
+                    suppressReplyForCurrentRequest = true;
+                }
             }
         }
         lastNodeInfoSeen[sender] = now;
@@ -132,32 +141,44 @@ meshtastic_MeshPacket *NodeInfoModule::allocReply()
                                              currentRequest->decoded.portnum == meshtastic_PortNum_NODEINFO_APP &&
                                              currentRequest->decoded.want_response && !isFromUs(currentRequest);
 
-    if (suppressReplyForCurrentRequest && isReplyingToExternalRequest) {
-        LOG_DEBUG("Skip send NodeInfo since we heard the requester <12h ago");
-        ignoreRequest = true;
-        suppressReplyForCurrentRequest = false;
-        return NULL;
+    bool is_admin = false;
+    if (currentRequest) {
+        const meshtastic_NodeInfoLite *n = nodeDB->getMeshNode(getFrom(currentRequest));
+        if (n && nodeDB->isAdminNode(*n)) {
+            is_admin = true;
+        }
     }
 
-    if (!airTime->isTxAllowedChannelUtil(false)) {
-        ignoreRequest = true; // Mark it as ignored for MeshModule
-        LOG_DEBUG("Skip send NodeInfo > 40%% ch. util");
-        return NULL;
+    if (!is_admin) {
+        if (suppressReplyForCurrentRequest && isReplyingToExternalRequest) {
+            LOG_DEBUG("Skip send NodeInfo since we heard the requester <12h ago");
+            ignoreRequest = true;
+            suppressReplyForCurrentRequest = false;
+            return NULL;
+        }
+
+        if (!airTime->isTxAllowedChannelUtil(false)) {
+            ignoreRequest = true; // Mark it as ignored for MeshModule
+            LOG_DEBUG("Skip send NodeInfo > 40%% ch. util");
+            return NULL;
+        }
+
+        // Use graduated scaling based on active mesh size (10 minute base, scales with congestion coefficient)
+        uint32_t timeoutMs = Default::getConfiguredOrDefaultMsScaled(0, 10 * 60, nodeStatus->getNumOnline());
+        uint32_t lastNodeInfo = transmitHistory ? transmitHistory->getLastSentToMeshMillis(meshtastic_PortNum_NODEINFO_APP) : 0;
+        if (!shorterTimeout && lastNodeInfo && Throttle::isWithinTimespanMs(lastNodeInfo, timeoutMs)) {
+            LOG_DEBUG("Skip send NodeInfo since we sent it <%us ago", timeoutMs / 1000);
+            ignoreRequest = true; // Mark it as ignored for MeshModule
+            return NULL;
+        } else if (shorterTimeout && lastNodeInfo && Throttle::isWithinTimespanMs(lastNodeInfo, 60 * 1000)) {
+            // For interactive/urgent requests (e.g., user-triggered or implicit requests), use a shorter 60s timeout
+            LOG_DEBUG("Skip send NodeInfo since we sent it <60s ago");
+            ignoreRequest = true;
+            return NULL;
+        }
     }
 
-    // Use graduated scaling based on active mesh size (10 minute base, scales with congestion coefficient)
-    uint32_t timeoutMs = Default::getConfiguredOrDefaultMsScaled(0, 10 * 60, nodeStatus->getNumOnline());
-    uint32_t lastNodeInfo = transmitHistory ? transmitHistory->getLastSentToMeshMillis(meshtastic_PortNum_NODEINFO_APP) : 0;
-    if (!shorterTimeout && lastNodeInfo && Throttle::isWithinTimespanMs(lastNodeInfo, timeoutMs)) {
-        LOG_DEBUG("Skip send NodeInfo since we sent it <%us ago", timeoutMs / 1000);
-        ignoreRequest = true; // Mark it as ignored for MeshModule
-        return NULL;
-    } else if (shorterTimeout && lastNodeInfo && Throttle::isWithinTimespanMs(lastNodeInfo, 60 * 1000)) {
-        // For interactive/urgent requests (e.g., user-triggered or implicit requests), use a shorter 60s timeout
-        LOG_DEBUG("Skip send NodeInfo since we sent it <60s ago");
-        ignoreRequest = true;
-        return NULL;
-    } else {
+    if (true) {
         ignoreRequest = false; // Don't ignore requests anymore
         meshtastic_User &u = owner;
 
@@ -207,6 +228,7 @@ NodeInfoModule::NodeInfoModule()
     : ProtobufModule("nodeinfo", meshtastic_PortNum_NODEINFO_APP, &meshtastic_User_msg), concurrency::OSThread("NodeInfo")
 {
     isPromiscuous = true; // We always want to update our nodedb, even if we are sniffing on others
+    currentGeneration = radioGeneration; // Navarrico NodeInfo storm protection: sync on boot to avoid asking replies
 
     setIntervalFromNow(setStartDelay()); // Send our initial owner announcement 30 seconds
                                          // after we start (to give network time to setup)

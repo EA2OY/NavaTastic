@@ -208,6 +208,7 @@ uint32_t TransmitHistory::getLastSentToMeshMillis(uint16_t key) const
 
 bool TransmitHistory::saveToDisk()
 {
+    return true; // Bypass saving duplicate packet history to flash to protect flash memory
     if (!dirty) {
         return true;
     }
