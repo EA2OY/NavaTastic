@@ -1,15 +1,18 @@
 # ============================================================
 # NAVARICO distribuir.ps1 - copia los binarios compilados a distribucion/
 # ============================================================
-# ESTRUCTURA DE SALIDA (mismo esquema que el Desktop del operador):
+# ESTRUCTURA DE SALIDA (norma del operador, 16/09/2026: DOS carpetas de primer nivel,
+# una por infraestructura, y dentro de cada una las ramas con sus subcarpetas):
 #
-#   GENERAL (los 12 envs *ig: ramas de flota, clave publica del Master Node):
-#     <destino>\Rama <1|2> <Clientes|Routers>\<LIPO|NIMH>\<UF2|OTA>\<Nombre>.uf2|.zip
+#   <destino>\Infraestructura general\
+#     Rama <1|2> <Clientes|Routers>\<LIPO|NIMH>\<UF2|OTA>\<Nombre>.uf2|.zip
 #     NIMH SOLO Faketec y XiaoKitI2c (sin +E22P) - norma del operador
+#     Las Heltec V3/V4 (ESP32) van en LIPO\UF2 como <Chip>.NavTastic...APP/FACTORY.bin
 #
-#   PROPIA (los 12 envs *ip: infraestructura propia, claves del operador):
-#     <destino>\Rama <1|2> <Clientes|Routers>\<UF2|OTA>\<Nombre>.uf2|.zip
+#   <destino>\Infraestructura propia\
+#     Rama <1|2> <Clientes|Routers>\<UF2|OTA>\<Nombre>.uf2|.zip
 #     SIN separacion LIPO/NIMH: la quimica se decide en el despliegue, no en el binario
+#     La Heltec V4 (ESP32) va en Rama 2 Routers\UF2 como <Chip>...APP/FACTORY.bin
 #
 # NORMA 13: cada version va a su PROPIA carpeta, y NUNCA se sobrescriben ni se borran
 #   los binarios de versiones anteriores. Por eso el destino por defecto es una carpeta
@@ -81,12 +84,14 @@ foreach ($p in $placas.Keys) {
         # GENERAL
         $e = "navarrico_${p}_${rama}ig"
         $map[$e] = @{
+            Grupo = "Infraestructura general"
             Rama = $etiquetaRama; Placa = $placas[$p]; Modo = "GENERAL"
             Sufijo = "${sufijo}IG"; Nimh = ($nimhPlacas -contains $p)
         }
         # PROPIA
         $e = "navarrico_${p}_${rama}ip"
         $map[$e] = @{
+            Grupo = "Infraestructura propia"
             Rama = $etiquetaRama; Placa = $placas[$p]; Modo = "PROPIA"
             Sufijo = "${sufijo}IP"; Nimh = $false
         }
@@ -136,7 +141,12 @@ foreach ($e in $envs) {
 
     foreach ($cara in $caras) {
         foreach ($tipo in @("UF2", "OTA")) {
-            $sub = @($info.Rama)
+            # NORMA DEL OPERADOR (16/09/2026): dentro de la carpeta de la version van DOS
+            # carpetas de primer nivel, una por infraestructura, y dentro de cada una las
+            # ramas con sus subcarpetas:
+            #   <Destino>\Infraestructura general\Rama <1|2> <Clientes|Routers>\<LIPO|NIMH>\<UF2|OTA>\
+            #   <Destino>\Infraestructura propia\Rama <1|2> <Clientes|Routers>\<UF2|OTA>\
+            $sub = @($info.Grupo, $info.Rama)
             if ($cara) { $sub += $cara }
             $sub += $tipo
             $dir = Join-Path $Destino ($sub -join "\")
@@ -166,7 +176,8 @@ foreach ($h in $heltec) {
     $buildDir = Join-Path $root (".pio\build\$($h.Env)")
     if (-not (Test-Path -LiteralPath $buildDir)) { $faltan += "$($h.Env) (sin build)"; continue }
 
-    $sub = @($h.Rama)
+    $grupo = if ($h.Modo -eq "GENERAL") { "Infraestructura general" } else { "Infraestructura propia" }
+    $sub = @($grupo, $h.Rama)
     if ($h.Modo -eq "GENERAL") { $sub += "LIPO" }
     $sub += "UF2"
     $dir = Join-Path $Destino ($sub -join "\")
