@@ -95,13 +95,28 @@ foreach ($p in $placas.Keys) {
 Write-Host ("Entornos en el mapa: {0} (12 General + 12 Propia)" -f $map.Count)
 Write-Host ""
 
+# ---------- 2bis. ESP32 (Heltec V3/V4): se entregan como .bin, NO como .uf2 ----------
+# Nombres segun la convencion usada desde V5.1:
+#   <Chip>.NavTastic.2.7.26.<V>.<ver>.<R1IG|R2IG|R2IP>.<APP|FACTORY>.bin
+# Van en la MISMA carpeta UF2 de su rama (General con LIPO; Propia sin quimica).
+$heltecMap = @(
+    @{ Env = "navarrico_heltec_v3_sx1262_r2ig"; Rama = "Rama 2 Routers";  Chip = "HeltecV3"; Sufijo = "R2IG"; Modo = "GENERAL" },
+    @{ Env = "navarrico_heltec_v3_sx1262_r1ig"; Rama = "Rama 1 Clientes"; Chip = "HeltecV3"; Sufijo = "R1IG"; Modo = "GENERAL" },
+    @{ Env = "navarrico_heltec_v4_sx1262_r2ig"; Rama = "Rama 2 Routers";  Chip = "HeltecV4"; Sufijo = "R2IG"; Modo = "GENERAL" },
+    @{ Env = "navarrico_heltec_v4_sx1262_r1ig"; Rama = "Rama 1 Clientes"; Chip = "HeltecV4"; Sufijo = "R1IG"; Modo = "GENERAL" },
+    @{ Env = "navarrico_heltec_v4_sx1262_r2ip"; Rama = "Rama 2 Routers";  Chip = "HeltecV4"; Sufijo = "R2IP"; Modo = "PROPIA"  }
+)
+
 # ---------- 3. Que entornos procesar ----------
 $envs = @()
+$heltec = @()
 if ($EnvName) {
     $envs = @($EnvName)
+    $heltec = @($heltecMap | Where-Object { $_.Env -eq $EnvName })
 } elseif ($Todo) {
     $envs = @($map.Keys | Where-Object { $_ -like "*ig" })
     if ($Propia) { $envs += @($map.Keys | Where-Object { $_ -like "*ip" }) }
+    $heltec = @($heltecMap | Where-Object { $_.Modo -eq "GENERAL" -or $Propia })
 } else {
     throw "Usa -EnvName <env>, -Todo (solo General) o -Todo -Propia (General + Propia)"
 }
@@ -143,6 +158,33 @@ foreach ($e in $envs) {
             Write-Host ("    MD5 {0}   (build {1})" -f $h, $src.LastWriteTime.ToString("dd/MM HH:mm"))
             $copiados++
         }
+    }
+}
+
+# ---------- 4bis. ESP32 (Heltec V3/V4): dos .bin por entorno ----------
+foreach ($h in $heltec) {
+    $buildDir = Join-Path $root (".pio\build\$($h.Env)")
+    if (-not (Test-Path -LiteralPath $buildDir)) { $faltan += "$($h.Env) (sin build)"; continue }
+
+    $sub = @($h.Rama)
+    if ($h.Modo -eq "GENERAL") { $sub += "LIPO" }
+    $sub += "UF2"
+    $dir = Join-Path $Destino ($sub -join "\")
+    New-Item -ItemType Directory -Path $dir -Force | Out-Null
+
+    foreach ($par in @(@{ Patron = "firmware-*.bin"; Etiqueta = "APP"; SoloApp = $true },
+                       @{ Patron = "*.factory.bin";   Etiqueta = "FACTORY"; SoloApp = $false })) {
+        $cand = Get-ChildItem -LiteralPath $buildDir -Filter $par.Patron -File -ErrorAction SilentlyContinue
+        if ($par.SoloApp) { $cand = $cand | Where-Object { $_.Name -notlike "*.factory.bin" } }
+        $src = $cand | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if (-not $src) { $faltan += "$($h.Env) ($($par.Patron))"; continue }
+        $nombre = "$($h.Chip).NavTastic.2.7.26.$NombreVersion.$VersionProyecto.$($h.Sufijo).$($par.Etiqueta).bin"
+        $dest = Join-Path $dir $nombre
+        Copy-Item -LiteralPath $src.FullName -Destination $dest -Force
+        $md5 = (Get-FileHash -LiteralPath $dest -Algorithm MD5).Hash
+        Write-Host ("OK  {0}" -f $dest.Substring($Destino.Length + 1))
+        Write-Host ("    MD5 {0}   (build {1})" -f $md5, $src.LastWriteTime.ToString("dd/MM HH:mm"))
+        $copiados++
     }
 }
 
