@@ -4,7 +4,11 @@
 #
 # REPO UNIFICADO (14/08/2026): portado desde 4.3
 #   (HerramientasPropiasIA\generar_pdf.ps1, SOLO LECTURA alli).
-#   Entrada: docs\ (manuales .md) | Salida: docs\pdf\ (gitignored).
+#   Entrada: docs\ (manuales .md) | Salida: docs\pdf\.
+#   NAVARICO 15/09/2026: OJO - los PDFs de docs\pdf\ SI estan TRACKEADOS en git (NO son
+#   gitignored, como decia esta cabecera). Consecuencia: si editas un manual .md HAY QUE
+#   REGENERAR SU PDF Y COMMITEARLO, o el PDF queda desincronizado del manual que representa
+#   (paso el 15/09: Manual_uso_NavaTastic.pdf seguia del 12/09 con el .md del 15/09).
 #   Plantilla intacta: plantilla_navatastic.tex (copia 1:1 de 4.3).
 #   Norma 11/08: solo manuales de firmware y comandos -> NO generar PDFs de
 #   contexto: transfer_context, guia_integracion, GUIA_AGENTE_NAVTASTIC,
@@ -26,7 +30,7 @@ param(
     [string]$Carpeta = "$PSScriptRoot\..\docs",
     [string]$Salida = "$PSScriptRoot\..\docs\pdf",
     [string]$Plantilla = "$PSScriptRoot\plantilla_navatastic.tex",
-    # NAVARICO 28/08 (criterio operador): lista blanca — SOLO los manuales de usuario.
+    # NAVARICO 28/08 (criterio operador): lista blanca - SOLO los manuales de usuario.
 # Los PDFs de desarrollo (APERTURA, informes, planes, matriz, FAQ...) no se generan.
 [string[]]$Incluir = @("Manual_NavaTastic.md", "Manual_uso_NavaTastic.md")
 )

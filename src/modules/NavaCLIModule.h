@@ -11,7 +11,7 @@
 // Bump manual en CADA release (visible en el commit). Se muestra en /nava status
 // y en el aviso [Boot]; permite saber por radio que version lleva un nodo.
 #ifndef NAVATASTIC_BUILD
-#define NAVATASTIC_BUILD "V5.1" // bump manual por release: V3 (4.3.2) -> V4 (4.3.3) -> V5 (4.3.4+, publicacion 29/08) -> V5.1 (09/09)
+#define NAVATASTIC_BUILD "V5.2" // bump manual por release: V3 (4.3.2) -> V4 (4.3.3) -> V5 (4.3.4+, publicacion 29/08) -> V5.1 (09/09) -> V5.2 (15/09)
 #endif
 
 // NAVARICO V5 (NAV8): formato atómico con validación CRC32 y protección spiLock.
@@ -188,7 +188,9 @@ enum NavaDeferredAction {
     NAVA_DEFERRED_TXOFF,
     NAVA_DEFERRED_KEYS_CLEAR,
     NAVA_DEFERRED_LORA_CHANGE,
-    NAVA_DEFERRED_PANIC_JUMP,
+    NAVA_DEFERRED_PANIC_JUMP, // RESERVADO, SIN USO: nadie asigna esta accion (el panico usa su
+                              // camino directo). Se conserva el enumerador para no renombrar el tipo
+                              // en todo el arbol ni cambiar valores ya persistidos en /pending.bin.
     NAVA_DEFERRED_MUTE
 };
 
@@ -253,6 +255,21 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     NavaDeferredAction deferredAction = NAVA_DEFERRED_NONE;
     bool preRebootArmed = false;
     uint32_t deferredExecutionTime = 0;
+
+    // D-7 (15/09/2026): la orden diferida se PERSISTE en /pending.bin para que no se pierda en
+    // silencio. Antes vivia solo en RAM: si llegaba otro comando, o el nodo se reiniciaba, o se iba
+    // la luz, la orden desaparecia. Y en set_freq/set_lora EL REINICIO ES lo que aplica el cambio,
+    // asi que el nodo se quedaba en la frecuencia vieja con la config nueva en disco y cambiaba de
+    // canal solo, semanas despues, sin que nadie lo hubiera tocado.
+    bool pendingLoaded = false; // la restauracion desde disco se intenta una sola vez, ya inicializado todo
+    static void savePendingAction(NavaDeferredAction act);
+    // Devuelve si el fichero ha quedado REALMENTE borrado: si no, no se puede afirmar que la orden
+    // se haya consumido (ver consumePendingAndReboot).
+    static bool clearPendingAction();
+    void loadPendingAction();
+    // Consume la orden persistida y arma el reinicio, siempre juntos (evita que un caso se deje el
+    // borrado sin hacer -> el fichero sobrevive al reinicio -> bucle infinito).
+    void consumePendingAndReboot();
 
     // V2: sueño diferido tras enviar [Sueño]/[Vivo]/[Reserva] (mismo patron que storm/reboot)
     bool sleepPending = false;
@@ -319,6 +336,9 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     static bool navaKeyIsEmpty(const uint8_t *key);
     static bool navaKeyIsProjectKey(const uint8_t *key);
     static bool navaKeyIsValid(const uint8_t *key);
+    // D-11: la clave publica indicada esta en config.security.admin_key[]? Se usa para REVALIDAR
+    // en cada comando, de modo que quitar una clave retire la autoridad de verdad.
+    static bool navaKeyIsAdminInConfig(const uint8_t *pubKey);
 
     // NAVARICO F21: Restauración y respaldo de canales secundarios
     void applyPersistedChannels();

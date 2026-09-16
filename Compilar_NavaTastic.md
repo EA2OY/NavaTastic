@@ -46,7 +46,13 @@ toolchains y las librerías; puede tardar bastante). Después:
 1. `Ctrl+Shift+P` (Windows) / `command+Shift+P` (Mac) → **PlatformIO: Pick Project
    Environment** → elige uno de los **12 entornos** `navarrico_<placa>_<radio>_<rama>`
    (6 placas/radios × 2 ramas: Rama 2 Routers / Rama 1 Clientes — tabla completa en el
-   [README](../README.md#los-12-builds)).
+   [README](README.md#los-12-builds)). Son los 12 de la rama **General** (claves públicas).
+
+> ℹ️ **Entornos totales del repositorio: 31.** Además de esos 12 hay: **12 entornos de la rama
+> Propia** (`..._r2ip` / `..._r1ip`, con tus propias claves y PIN, que **se piden al compilar** y no
+> se almacenan — ver más abajo), **5 de Heltec V3/V4** (ESP32-S3, sección siguiente) y **2 de banco**
+> (`..._labaudit`, `..._labaudit2`, frecuencia de laboratorio 869.545 MHz). **Los de banco no se
+> distribuyen nunca** y no se compilan sin `-e` explícito.
 2. **PlatformIO: Build** → genera el firmware en `.pio/build/<env>/` (`.uf2` y `.zip` OTA).
 
 O en línea de comandos, desde la raíz del repo:
@@ -79,7 +85,7 @@ comportamiento de plataforma.
 
 Con el nodo conectado por USB: **PlatformIO: Upload** (con el entorno correspondiente).
 Alternativa: copiar el `.uf2` a la unidad UF2 del bootloader si tu placa la monta en modo
-DFU. Detalles en la sección [Flashear del README](../README.md#flashear).
+DFU. Detalles en la sección [Flashear del README](README.md#flashear).
 
 ## Builds Propia (claves propias)
 
@@ -96,17 +102,17 @@ O con las variables de entorno `NAVARICO_PROPIA_KEY_0`, `NAVARICO_PROPIA_KEY_1` 
 ## Ajustes de hardware y otras placas
 
 NavaTastic está pensado para las **6 placas soportadas** (tabla del
-[README](../README.md#los-12-builds)). Los valores físicos (divisor ADC, potencia, LPCOMP)
+[README](README.md#los-12-builds)). Los valores físicos (divisor ADC, potencia, LPCOMP)
 viven en el `variant.h` de cada placa en `variants/nrf52840/...`; la selección por entorno
 usa las macros `NAVARICO_RADIO_E22P`/`NAVARICO_RADIO_SX1262` y el perfil
 `profiles/<RAMA>_<Placa>.jsonc`. **Aviso del divisor ADC** (factor 2.0 en las placas
-Promicro/Faketec): sección [Requisito de hardware del README](../README.md#requisito-de-hardware-divisor-adc-1m1m-factor-20).
+Promicro/Faketec): sección [Requisito de hardware del README](README.md#requisito-de-hardware-divisor-adc-1m1m-factor-20).
 
 ## Más documentación
 
-- [Guia_para_agente_sobre_NavaTastic.md](Guia_para_agente_sobre_NavaTastic.md) — mecánica completa del repo (orientada a agentes).
-- [transfer_context.md](transfer_context.md) — memoria técnica de comportamiento.
-- [cerebro/](cerebro/) — documentación de diseño (en español).
+- [Guia_para_agente_sobre_NavaTastic.md](docs/Guia_para_agente_sobre_NavaTastic.md) — mecánica completa del repo (orientada a agentes).
+- [transfer_context.md](docs/transfer_context.md) — memoria técnica de comportamiento.
+- [cerebro/](docs/cerebro/) — documentación de diseño (en español).
 
 ---
 
@@ -154,7 +160,7 @@ and libraries; this can take a while). Then:
 1. `Ctrl+Shift+P` (Windows) / `command+Shift+P` (Mac) → **PlatformIO: Pick Project
    Environment** → choose one of the **12 environments** `navarrico_<board>_<radio>_<branch>`
    (6 boards/radios × 2 branches: Branch 2 Routers / Branch 1 Clients — full table in the
-   [README](../README.md#the-12-builds)).
+   [README](README.md#the-12-builds)).
 2. **PlatformIO: Build** → generates the firmware in `.pio/build/<env>/` (`.uf2` and OTA
    `.zip`).
 
@@ -187,7 +193,7 @@ is nRF52-specific; on Heltec those commands are disabled or use platform behavio
 
 With the node connected over USB: **PlatformIO: Upload** (with the matching environment).
 Alternative: copy the `.uf2` to the UF2 bootloader drive if your board mounts one in DFU
-mode. Details in the [Flashing section of the README](../README.md#flashing).
+mode. Details in the [Flashing section of the README](README.md#flashing).
 
 ## Propia builds (own keys)
 
@@ -203,15 +209,15 @@ Or with the environment variables `NAVARICO_PROPIA_KEY_0`, `NAVARICO_PROPIA_KEY_
 
 ## Hardware adjustments and other boards
 
-NavaTastic is designed for the **6 supported boards** ([README table](../README.md#the-12-builds)).
+NavaTastic is designed for the **6 supported boards** ([README table](README.md#the-12-builds)).
 Physical values (ADC divider, power, LPCOMP) live in each board's `variant.h` under
 `variants/nrf52840/...`; per-environment selection uses the `NAVARICO_RADIO_E22P`/
 `NAVARICO_RADIO_SX1262` macros and the `profiles/<BRANCH>_<Board>.jsonc` profile.
 **ADC divider notice** (2.0 factor on Promicro/Faketec boards):
-[Hardware requirement section of the README](../README.md#hardware-requirement-adc-divider-1m1m-ratio-20).
+[Hardware requirement section of the README](README.md#hardware-requirement-adc-divider-1m1m-ratio-20).
 
 ## More documentation
 
-- [Guia_para_agente_sobre_NavaTastic.md](Guia_para_agente_sobre_NavaTastic.md) — full repo mechanics (agent-oriented).
-- [transfer_context.md](transfer_context.md) — technical behavior memory.
-- [cerebro/](cerebro/) — design documentation (Spanish).
+- [Guia_para_agente_sobre_NavaTastic.md](docs/Guia_para_agente_sobre_NavaTastic.md) — full repo mechanics (agent-oriented).
+- [transfer_context.md](docs/transfer_context.md) — technical behavior memory.
+- [cerebro/](docs/cerebro/) — design documentation (Spanish).

@@ -1700,10 +1700,15 @@ bool NodeDB::saveProto(const char *filename, size_t protoSize, const pb_msgdesc_
     if (!okay || !writeSucceeded) {
         LOG_ERROR("Can't write prefs!");
     }
+    // NAVARICO (15/09/2026): devolver el resultado REAL. Antes se devolvia solo 'okay' (el encode),
+    // asi que un fallo de ESCRITURA se reportaba como exito: el aviso de arriba se registraba y se
+    // descartaba, y el reintento de saveToDisk() nunca llegaba a ejecutarse. Devolver la verdad es
+    // lo que activa ese reintento, que ya existia y estaba muerto.
+    return okay && writeSucceeded;
 #else
     LOG_ERROR("ERROR: Filesystem not implemented");
+    return false;
 #endif
-    return okay;
 }
 
 bool NodeDB::saveChannelsToDisk()

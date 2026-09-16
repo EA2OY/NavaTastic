@@ -5,6 +5,7 @@
 #include "DisplayFormatters.h"
 #include "GPS.h"
 #include "MeshService.h"
+#include "modules/NavaCLIModule.h" // navaCLIModule->syncDeviceRoleFromConfig() (NAVARICO 15/09/2026)
 #include "RTC.h"
 #include "Router.h"
 #include "airtime.h"
@@ -227,6 +228,15 @@ static void applyDeviceRole(meshtastic_Config_DeviceConfig_Role role)
     nodeDB->saveToDisk(SEGMENT_CONFIG);
 
     service->reloadConfig(SEGMENT_CONFIG);
+
+    // NAVARICO (15/09/2026): sin esta llamada el cambio de rol desde el menu NO sobrevive al
+    // reinicio: la config se guardaba en /prefs, el nodo reiniciaba, y al arrancar
+    // loadResiliencePrefs() REIMPONIA el rol viejo de /resilience.bin (el usuario veia que "no
+    // hacia nada"). syncDeviceRoleFromConfig() persiste el rol en el respaldo, actualiza owner.role
+    // y recarga la identidad. Mismo patron que AdminModule (la app).
+    if (navaCLIModule) {
+        navaCLIModule->syncDeviceRoleFromConfig();
+    }
 
     // Notify UI that changes are being applied
     InkHUD::InkHUD::getInstance()->notifyApplyingChanges();
