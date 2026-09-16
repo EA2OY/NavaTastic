@@ -95,11 +95,23 @@ if ($SoloNotas) {
 
 # ---------- 3. Que se sube ----------
 if (-not (Test-Path -LiteralPath $Origen)) { throw "No existe la carpeta de origen: $Origen" }
-$candidatos = @()
+# Estructura nueva (16/09/2026): <origen>\Infraestructura general\Rama <1|2> ...
+# Se admite tambien la estructura antigua (las ramas directamente en la raiz) para poder
+# subir assets de carpetas de releases anteriores.
+$raices = @()
 foreach ($r in @("Rama 2 Routers", "Rama 1 Clientes")) {
-    $candidatos += Get-ChildItem -LiteralPath (Join-Path $Origen "$r\LIPO\UF2") -File -ErrorAction SilentlyContinue |
+    $nueva = Join-Path $Origen "Infraestructura general\$r"
+    if (Test-Path -LiteralPath $nueva) { $raices += $nueva }
+    $vieja = Join-Path $Origen $r
+    if (Test-Path -LiteralPath $vieja) { $raices += $vieja }
+}
+if ($raices.Count -eq 0) { throw "No encuentro las ramas dentro de $Origen" }
+Write-Host ("Ramas encontradas: {0}" -f $raices.Count)
+$candidatos = @()
+foreach ($r in $raices) {
+    $candidatos += Get-ChildItem -LiteralPath (Join-Path $r "LIPO\UF2") -File -ErrorAction SilentlyContinue |
         Where-Object { $_.Extension -in @(".uf2", ".bin") }
-    $candidatos += Get-ChildItem -LiteralPath (Join-Path $Origen "$r\LIPO\OTA") -File -Filter "*.zip" -ErrorAction SilentlyContinue
+    $candidatos += Get-ChildItem -LiteralPath (Join-Path $r "LIPO\OTA") -File -Filter "*.zip" -ErrorAction SilentlyContinue
 }
 foreach ($p in @("Manual_NavaTastic.pdf", "Manual_uso_NavaTastic.pdf")) {
     $f = Join-Path $root "docs\pdf\$p"
