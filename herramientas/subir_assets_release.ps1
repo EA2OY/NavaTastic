@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # NAVARICO 16/09/2026 - Publica una Release en GitHub con los binarios GENERAL y los
 # manuales en PDF. Reescrito para no repetir los errores de la version anterior:
 #
@@ -16,6 +16,7 @@
 #   .\subir_assets_release.ps1                       # lee la version del codigo y sube
 #   .\subir_assets_release.ps1 -Origen "C:\...\NavaTastic V5.2 4.3.9 160926"
 #   .\subir_assets_release.ps1 -QueSi               # solo ensena lo que subiria
+#   .\subir_assets_release.ps1 -SoloNotas           # escribe las notas en %TEMP% y sale
 #   .\subir_assets_release.ps1 -Reemplazar          # borra los assets previos y sube
 #
 # ANTES DE LANZARLO: que compile NO es prueba. La release no se publica sin
@@ -27,6 +28,7 @@ param(
     [string]$Origen = "",
     [string]$Rama = "main",
     [switch]$QueSi,
+    [switch]$SoloNotas,
     [switch]$Reemplazar
 )
 
@@ -64,23 +66,32 @@ $fecha = if ($delVersion[0].Line -match '\((\d{2}/\d{2}/\d{4})\)') { $Matches[1]
 $bloqueEN = if ($novedadesEN) { "`n**EN** -- What is new for the user:`n$novedadesEN`n" } else { "" }
 
 $notas = @"
-**NavaTastic Eclipse $NombreVersion** - $fecha - firmware sobre Meshtastic 2.7.26
+**NavaTastic Eclipse $NombreVersion** · $fecha · firmware sobre Meshtastic 2.7.26
 
-**ES** -- Novedades para el usuario:
+**ES** — Novedades para el usuario:
 $novedadesES
 $bloqueEN
 ### Contenido de esta release / What is in this release
 
-- **12 binarios ``.uf2``** para flasheo por USB y **12 paquetes ``.zip``** para actualizacion OTA, de las 6 placas nRF52840 (Promicro NRF52+E22P, Faketec, Seed Solar Node P1, Heltec T114, XiaoKitI2c y XiaoKitI2c+E22P), en **Rama 1 Clientes** y **Rama 2 Routers**.
-- **8 ficheros para las Heltec V3 y V4** (ESP32-S3) en ``.bin``: **APP** (actualizacion) y **FACTORY** (instalacion desde cero).
-- **Manual de uso** y **manual de administracion remota** en PDF.
+- **12 binarios ``.uf2``** para flasheo por USB y **12 paquetes ``.zip``** para actualización OTA, de las 6 placas nRF52840 (Promicro NRF52+E22P, Faketec, Seed Solar Node P1, Heltec T114, XiaoKitI2c y XiaoKitI2c+E22P), en **Rama 1 Clientes** y **Rama 2 Routers**.
+- **8 ficheros para las Heltec V3 y V4** (ESP32-S3) en ``.bin``: **APP** (actualización) y **FACTORY** (instalación desde cero).
+- **Manual de uso** y **manual de administración remota** en PDF.
 
-> Los ``.uf2`` se copian a la unidad que aparece al pulsar dos veces RESET; los ``.zip`` se instalan desde la App oficial de Meshtastic. La quimica de la bateria (LiPo o NiMH) se elige al desplegar, no en el binario.
+> Los ``.uf2`` se copian a la unidad que aparece al pulsar dos veces RESET; los ``.zip`` se instalan desde la App oficial de Meshtastic. La química de la batería (LiPo o NiMH) se elige al desplegar, no en el binario.
 "@
 
 Write-Host "Release      : $Tag  ($NombreVersion / v$VersionProyecto)"
 Write-Host "Origen       : $Origen"
 Write-Host ""
+
+# -SoloNotas: escribe el texto de las notas en un fichero y sale. Sirve para revisarlas o
+# para actualizar las notas de una release YA publicada sin volver a subir binarios.
+if ($SoloNotas) {
+    $destino = Join-Path $env:TEMP "navatastic_notas_release.md"
+    [System.IO.File]::WriteAllText($destino, $notas, (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host "Notas escritas en: $destino"
+    exit 0
+}
 
 # ---------- 3. Que se sube ----------
 if (-not (Test-Path -LiteralPath $Origen)) { throw "No existe la carpeta de origen: $Origen" }
