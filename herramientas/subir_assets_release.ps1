@@ -1,3 +1,15 @@
+# ============================================================
+# NAVARICO 16/09/2026 - AVISOS ANTES DE USARLO:
+#   1. Las NOTAS de la release que crea este script estan ESCRITAS A MANO para V5/v4.3.4
+#      (mas abajo, $releaseNotes). Para otra version hay que reescribirlas: si no, se
+#      publica una release con el texto de una version vieja.
+#   2. OJO: BORRA todos los assets que ya tenga esa release antes de subir (linea ~81).
+#      Si vuelves a lanzarlo con el mismo -Tag, se pierden los que hubiera.
+#   3. NO publicar una release sin verificacion en banco: que compile no es prueba y
+#      /nava status debe decir la version nueva en un nodo real (Reglas 3.5 y 4ter).
+#   4. Este script sube SOLO rutas General de distribucion\ + los PDF de docs\pdf\.
+#      NO ampliarlo a rutas *IP* (ramas de infraestructura propia): Reglas 4ter.
+# ============================================================
 param(
     [string]$Tag = "v4.3.4",
     [string]$Repo = "EA2OY/NavaTastic"
@@ -92,10 +104,13 @@ $filesToUpload = @()
 # Binarios de Rama 2 Routers
 $filesToUpload += Get-ChildItem "distribucion\Rama 2 Routers\LIPO\UF2\*.uf2"
 $filesToUpload += Get-ChildItem "distribucion\Rama 2 Routers\LIPO\OTA\*.zip"
+# Heltec V3/V4 (ESP32-S3): van como .bin (APP y FACTORY), no como .uf2
+$filesToUpload += Get-ChildItem "distribucion\Rama 2 Routers\LIPO\UF2\*.bin"
 
 # Binarios de Rama 1 Clientes
 $filesToUpload += Get-ChildItem "distribucion\Rama 1 Clientes\LIPO\UF2\*.uf2"
 $filesToUpload += Get-ChildItem "distribucion\Rama 1 Clientes\LIPO\OTA\*.zip"
+$filesToUpload += Get-ChildItem "distribucion\Rama 1 Clientes\LIPO\UF2\*.bin"
 
 # PDFs
 $filesToUpload += Get-ChildItem "docs\pdf\*.pdf"
