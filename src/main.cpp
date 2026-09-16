@@ -564,6 +564,9 @@ void setup()
         };
         // V2.2: asentamiento tras el reset (inrush del MCU) antes de la primera medida
         delay(500);
+        // NAVARICO: NO acortar el delay(200) ni cambiar el criterio por una mayoria. Es inmunidad
+        // al ruido de RF, no un antirrebote: un apagado falso deja el nodo MUDO
+        // (docs/cerebro/04_energia_bateria.md).
         uint8_t consecutiveLow = 0;
         int lastLowMv = 0;
         for (uint8_t i = 0; i < lowBattReadingsNeeded; i++) {

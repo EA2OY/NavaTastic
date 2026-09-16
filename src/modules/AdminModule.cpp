@@ -698,7 +698,17 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
         if (existingRole != c.payload_variant.device.role) {
             changes |= SEGMENT_NODEDATABASE | SEGMENT_DEVICESTATE; // role change affects owner
         }
-        if (config.device.node_info_broadcast_secs < min_node_info_broadcast_secs) {
+        // NAVARICO (15/09/2026, H17b): el 0 = APAGADO se respeta. Antes esta linea subia cualquier
+        // valor por debajo de 1 hora a 1 hora, INCLUIDO el 0, asi que apagar el aviso NodeInfo desde
+        // la App era imposible: el nodo lo volvia a encender solo. Es la regla del proyecto de que el
+        // usuario manda (y el firmware solo tiene tope MAXIMO para este ajuste, no minimo).
+        // Se avisa por consola, porque apagar este aviso deja al nodo SIN ANUNCIARSE en la malla:
+        // los demas no sabran que existe hasta que alguien lo oiga por otro trafico.
+        if (config.device.node_info_broadcast_secs == 0) {
+            LOG_WARN("NodeInfo broadcast APAGADO (0) por peticion del usuario: el nodo no se anunciara "
+                     "en la malla. Para volver a activarlo, pon un valor >= %d segundos.",
+                     min_node_info_broadcast_secs);
+        } else if (config.device.node_info_broadcast_secs < min_node_info_broadcast_secs) {
             LOG_DEBUG("Tried to set node_info_broadcast_secs too low, setting to %d", min_node_info_broadcast_secs);
             config.device.node_info_broadcast_secs = min_node_info_broadcast_secs;
         }

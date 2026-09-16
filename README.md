@@ -6,14 +6,15 @@
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
 [![Auditoría V5](https://img.shields.io/badge/Auditor%C3%ADa%20V5-Realizada%20en%20banco-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
-[![Última versión: V5.1](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.1%20(v4.3.8)-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases)
+[![Última versión: V5.2](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.2%20(v4.3.9)-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases)
 
 </div>
 
 > ℹ️ **Versiones disponibles — elige la que prefieras**: la más reciente es **NavaTastic Eclipse
-> V5.1 (v4.3.8)**, con las últimas mejoras (el nombre que pones con la App se recuerda, contador de
-> restablecimientos `FR`, trazado de rutas que devuelve el resultado, más robustez y salvaguardas).
-> También siguen publicadas la **[NavaTastic V4 (v4.3.3)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)**
+> V5.2 (v4.3.9)**, con las últimas mejoras (corrección sobre el fichero de resiliencia, el apagado
+> de avisos ya se respeta, los ajustes que cambias en la pantalla del nodo se recuerdan, y las claves
+> de administrador se pueden retirar de verdad). También siguen publicadas la
+> **[NavaTastic V4 (v4.3.3)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)**
 > —la más auditada— y versiones anteriores. Todas están en la página de
 > **[Releases](https://github.com/EA2OY/NavaTastic/releases)**; revisa las notas de cada una antes de elegir.  
 
@@ -21,7 +22,7 @@
 
 **NavaTastic** es un firmware optimizado y endurecido sobre la base de [Meshtastic](https://meshtastic.org) v2.7.26, diseñado específicamente para **repetidores solares autónomos de alta montaña e infraestructura fija** en la red LoRa de España (**SFNarrow / EU_868**).
 
-Con un solo código fuente genera **16 firmwares listos para usar** (6 tipos de placas/radios nRF52840 + **Heltec V3 y V4** ESP32-S3, en ramas de Routers y Clientes).
+Con un solo código fuente genera **24 firmwares listos para usar** (6 tipos de placas/radios nRF52840 + **Heltec V3 y V4** ESP32-S3, en ramas de Routers y Clientes) desde **31 entornos de compilación** en total.
 
 <div align="center">
 
@@ -76,6 +77,9 @@ desautoriza la de emergencia**: mientras tengas la tuya puesta, la de emergencia
 Solo se reinyecta sola en un caso — si el nodo sufre un fallo catastrófico de memoria o un
 restablecimiento total y se queda sin ninguna clave tuya. (Cómo hacerlo: guía rápida, paso 6.)
 
+🔑 **El respaldo interno solo entra cuando el nodo se queda sin ninguna clave tuya**: si borras
+una clave desde la App, el borrado se respeta al reiniciar — el nodo ya no la resucita.
+
 📊 **Buenas Prácticas aplicadas.** El nodo se configura con las recomendaciones de una de las
 mallas más grandes del mundo: prioridad y espacio para la mensajería de las personas. Los
 NodeInfos, las posiciones GPS y las telemetrías se ajustan a 72h/72h/12h para optimizar la red,
@@ -122,12 +126,17 @@ repetidor por el canal privado, aunque el mando solo tenga cobertura con uno.
   (72h/72h/12h) y **respeta las claves del dueño** si el nodo ya tenía alguna.
 * **Qué hacer**: nada. Espera un minuto tras flashear y el nodo queda operativo y configurado.
 
+> 🚫 **NO uses "Restaurar copia de seguridad" de la App de Meshtastic.** El nodo se blinda solo con
+> su respaldo interno y esa función **se ha llevado nodos por delante** (ha obligado a subir a la
+> montaña a repararlos). La restauración se deshace sola al reiniciar y puede dejar el nodo sin
+> responder. Detalle y alternativas: manual de uso, sección 6.
+
 ### 5️⃣ Paso 5: Añade el Canal `Navadmin` en tu Móvil Administrador
 * Para gestionar el repetidor por radio desde tu móvil o mando de campo, crea en tu App de Meshtastic un canal secundario con estos parámetros:
   * **Nombre del canal**: `Navadmin` (respetando mayúsculas/minúsculas).
   * **Clave (PSK)**: `AQ==` (clave por defecto de Meshtastic `{ 0x01 }` / Default).
 * ¡Listo! Ahora abre el canal `Navadmin` y envía `/nava ping` o abre la app oficial **[MeshNavarra](https://github.com/EA2OY/MeshNavarra)** para controlar tu repetidor con un solo toque.
-* 🔄 **Sincronización Bidireccional V5**: A partir de NavaTastic V5, cualquier cambio que hagas en la App Oficial de Meshtastic (rol, canales, posición fija, telemetría, LoRa preset o PIN) **se sincroniza automáticamente en `/resilience.bin`**, por lo que tus ajustes persisten limpiamente sin revertirse al reiniciar.
+* 🔄 **Sincronización Bidireccional V5**: A partir de NavaTastic V5, cualquier cambio que hagas en la App Oficial de Meshtastic (rol, canales, posición fija, telemetría, LoRa preset o PIN) **se sincroniza automáticamente con el respaldo interno del nodo**, por lo que tus ajustes persisten limpiamente sin revertirse al reiniciar.
 
 ### 🔐 6️⃣ Paso 6 (muy recomendado): haz tuyo el nodo — tus claves de administración
 
@@ -176,7 +185,7 @@ El repetidor informa a la red de su estado de salud en tiempo real a través del
 2. **`[Vivo]`** ($3.30\text{V} - 3.40\text{ V}$): Batería al límite (Nivel 1) $\rightarrow$ Anuncia *"sigo vivo, al límite de carga"* y opera 160s. Si la batería no remonta, vuelve a dormir.
 3. **`[Critico]`** ($< 3.30\text{ V}$): Capacidad crítica (Nivel 2) $\rightarrow$ Anuncia *"bateria en capacidad critica, operando 160s"* y se apaga limpiamente a **0.4 mA**. Permite al operador monitorizar día a día la rampa de recuperación solar en días nublados.
 4. **`[Sueño]`**: Corte de batería $\rightarrow$ Emite el aviso de despedida con la tensión exacta del ADC y la temperatura del chip, apagando la radio por bus SPI.
-5. **`[Boot]`**: Diagnóstico diferido a los 2 minutos de uptime exactos tras un reinicio en frío $\rightarrow$ Reporta la causa hardware del reinicio (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) y la versión `NAVA V5`. El retardo de 2 min actúa como anti-bucle de malla.
+5. **`[Boot]`**: Diagnóstico diferido a los **3 minutos** de uptime tras un reinicio en frío $\rightarrow$ Reporta la causa hardware del reinicio (`WDT`, `RESETPIN`, `SOFT`, `LPCOMP`, `VBUS`, etc.) y la versión `NAVA V5`. El retardo actúa como anti-bucle de malla.
 
 ---
 
@@ -197,7 +206,7 @@ Con un simple mensaje de texto (DM al repetidor o en canal privado de flota) man
 | **`set_ok_to_mqtt` · `ch_mqtt`** | Autorización global MQTT de la flota · conmutación granular de pasarela por canal | **Canal Privado (Lote) / DM** |
 | **`set_pos_tx` · `set_nodeinfo_tx` · `set_telem_tx`** | Control de difusión periódica de posición (72h/off) · NodeInfo de flota · cadencia telemetría | **Canal Privado (Lote) / DM** |
 | **`ign add/del/clear/ls`** | Lista negra persistente contra nodos saboteadores/spam (descarte inmediato en enrutador) | **Canal Privado (Lote) / DM** |
-| **`set_beacon` · `mute` · `test_tx` · `db_purge`** | Intervalo balizas · silenciado temporal de reenvío · ráfaga de prueba RF · purga de memoria RAM | **Canal Privado (Lote) / DM** |
+| **`mute` · `test_tx` · `db_purge`** | Silenciado temporal de reenvío · ráfaga de prueba RF · purga de memoria RAM | **Canal Privado (Lote) / DM** |
 | **`set_pos` · `pos_clear` · `set_name` · `set_pin`** | Coordenadas fijas persistentes · borrado de posición fija · nombre persistente a resets (`set_name flush`) · PIN BLE fijo | **Individual (`!ID`) / DM** |
 | **`set_chem` · `set_vbat` · `set_vwake`** | Cambio de química de batería (`lipo/nimh/sodium/lifepo4`) · umbral de corte mV · despertar LPCOMP | **Canal Privado / DM** |
 | **`set_txpower` · `set_hops` · `set_role` · `set_tz`** | Potencia de transmisión LoRa · límite de saltos · cambio de rol semi-permanente · zona horaria | **Canal Privado / DM** |
@@ -246,7 +255,7 @@ Si alguien, de manera **estrictamente voluntaria**, desea invitar a un café par
 
 # NavaTastic (English)
 
-Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://meshtastic.org) v2.7.26 fork for **solar-powered infrastructure repeaters** on the **SFNarrow** LoRa preset (EU_868). A single repository produces **16 different firmwares** (6 nRF52840 boards + **Heltec V3 and V4** ESP32-S3, × 2 branches: Routers / Clients).
+Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://meshtastic.org) v2.7.26 fork for **solar-powered infrastructure repeaters** on the **SFNarrow** LoRa preset (EU_868). A single repository produces **24 ready-to-use firmwares** (6 nRF52840 boards + **Heltec V3 and V4** ESP32-S3, × 2 branches: Routers / Clients) from **31 build environments** in total.
 
 <div align="center">
 
@@ -257,14 +266,15 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 <div align="center">
 
 [![Audit V5](https://img.shields.io/badge/Audit%20V5-Bench%20verified-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
-[![Latest version: V5.1](https://img.shields.io/badge/Latest%20version-V5.1%20(v4.3.8)-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases)
+[![Latest version: V5.2](https://img.shields.io/badge/Latest%20version-V5.2%20(v4.3.9)-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases)
 
 </div>
 
 > ℹ️ **Available versions — pick the one you prefer**: the most recent is **NavaTastic Eclipse
-> V5.1 (v4.3.8)**, with the latest improvements (the name you set with the app is remembered, a
-> factory-reset counter `FR`, route tracing that returns the result, more robustness and
-> safeguards). The **[NavaTastic V4 (v4.3.3)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)**
+> V5.2 (v4.3.9)**, with the latest improvements (fix to the resilience file, disabling
+> notices is actually respected, settings you change on the node's own screen are remembered, and
+> admin keys can truly be revoked). The
+> **[NavaTastic V4 (v4.3.3)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)**
 > — the most audited one — and older versions are also still published. All of them are on the
 > **[Releases](https://github.com/EA2OY/NavaTastic/releases)** page; check each one's notes before
 > choosing.
@@ -285,7 +295,7 @@ is decided by an analog hardware comparator (LPCOMP) when the battery has truly 
 (≥ 3.77 V), with no dawn lock-up loops. Then it wakes up and sends you another message saying it
 is ready to work.
 
-\U0001F4BE **Flash memory protection.** On a large mesh, all nodes send NodeInfos and messages; on the
+💾 **Flash memory protection.** On a large mesh, all nodes send NodeInfos and messages; on the
 official firmware that causes constant flash writes, shortening its lifespan — in the medium
 term it ends up irreparably breaking the microcontroller from wear. NavaTastic removes the
 unnecessary writes: the node database and the diagnostics (`stats`, `log`, `mute`, `test_tx`)
@@ -296,13 +306,13 @@ it sees directly and adds them to favorites (up to 32), taking advantage of Mesh
 *zero-hop* system so that infrastructure routers don't consume hops. Favorites can also be
 managed over the air (`/nava fav`), no cables needed.
 
-\U0001F4E1 **More than 50 commands for complete management without a computer.** No cable or CLI: see
+📡 **More than 50 commands for complete management without a computer.** No cable or CLI: see
 which nodes it sees directly, view or add favorites, ignore nodes that disturb the mesh, see
 real status, noise level, battery, climate and energy sensors... almost anything you might
 need. All over encrypted messages, with transparent sync with the official Meshtastic App and
 support for **MeshNavarra Utility**.
 
-\U0001F6E1️ **It recovers on its own from resets.** If the node suffers a fault that causes an unwanted
+🛡️ **It recovers on its own from resets.** If the node suffers a fault that causes an unwanted
 factory reset, it doesn't stay isolated waiting for you to go there physically: it returns to
 the mesh trying to respect the settings you already gave it — admin keys, secondary channels,
 radio settings and rescue parameters stay protected and survive any configuration reset —
@@ -315,14 +325,14 @@ while yours is in place, the emergency key has no power. It is only re-injected 
 one case — if the node suffers a catastrophic memory fault or a total reset and is left with
 none of your keys. (How to do it: Quick Start guide, step 6.)
 
-\U0001F4CA **Best Practices applied.** The node is configured with the recommendations of one of the
+📊 **Best Practices applied.** The node is configured with the recommendations of one of the
 largest meshes in the world: priority and space for people's messaging. NodeInfos, GPS
 positions and telemetry are set to 72h/72h/12h to optimize the network, and the
 acknowledgements that caused "NodeInfo storms" (every node trying to answer at once) are
 removed: the repeater announces its identity **without demanding an answer from the whole
 network**, keeping the channel clean.
 
-\U0001F6A8 **Panic Button.** With a single command, your whole mesh migrates to the LoRa preset you
+🚨 **Panic Button.** With a single command, your whole mesh migrates to the LoRa preset you
 choose (MediumFast, LongFast...), enabling on-demand isolation, temporary or permanent — with
 optional automatic reversal if you need it. The command propagates repeater to repeater over
 the private channel, even if the controller only has coverage with one node.
@@ -361,11 +371,16 @@ the private channel, even if the controller only has coverage with one node.
   **respects the owner's keys** if the node already had any.
 * **What to do**: nothing. Wait a minute after flashing and the node is ready and configured.
 
+> 🚫 **Do NOT use the Meshtastic App's "Restore backup".** The node protects itself with its internal
+> backup, and that feature **has taken nodes down** (forcing a trip up the mountain to repair them).
+> The restore undoes itself on reboot and can leave the node unresponsive. Details and alternatives:
+> user manual, section 6.
+
 ### 5️⃣ Step 5: Add the `Navadmin` Channel on Your Admin Device
 * Create a secondary channel on your mobile/controller app with:
   * **Channel Name**: `Navadmin` (case-sensitive).
   * **Pre-shared Key (PSK)**: `AQ==` (standard Meshtastic default key `{ 0x01 }`).
-* 🔄 **Bidirectional App Sync**: In NavaTastic V5, settings configured in the official Meshtastic App (role, channels, fixed location, telemetry, LoRa preset, or PIN) **automatically synchronize to `/resilience.bin`** and persist cleanly across reboots!
+* 🔄 **Bidirectional App Sync**: In NavaTastic V5, settings configured in the official Meshtastic App (role, channels, fixed location, telemetry, LoRa preset, or PIN) **automatically synchronize to the node's internal backup** and persist cleanly across reboots!
 
 ### 🔐 6️⃣ Step 6 (highly recommended): make the node yours — your admin keys
 

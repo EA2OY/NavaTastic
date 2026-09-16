@@ -9,6 +9,7 @@
 #include "SPILock.h"
 #include <ErriezCRC32.h>
 #include "power.h"
+#include <power/PowerHAL.h> // powerHAL_isPowerLevelSafe(): puerta de potencia antes de escribir flash
 #include "sleep.h"
 #include "modules/TraceRouteModule.h"
 #include "modules/PositionModule.h"
@@ -278,10 +279,14 @@ void NavaCLIModule::loadResiliencePrefs() {
         pos.time = getValidTime(RTCQualityFromNet);
         nodeDB->setLocalPosition(pos);
     }
-    if (prefs.beacon_interval_secs > 0) {
-        config.device.node_info_broadcast_secs = prefs.beacon_interval_secs;
-        config.position.position_broadcast_secs = prefs.beacon_interval_secs;
-    }
+    // D-10 (15/09/2026, CORREGIDO tras auditoria): la version anterior de este arreglo decia que
+    // loadResiliencePrefs() "nunca leia" beacon_interval_secs. ERA FALSO: lo leia aqui, y aplicaba
+    // ese valor a node_info_broadcast_secs Y a position_broadcast_secs. En un nodo normal los
+    // valores especificos (pos_configured/nodeinfo_configured, mas abajo) ganan despues, pero en un
+    // fichero con ambos flags a 0 ese valor viejo seguia mandando y ya NO habia ningun comando capaz
+    // de cambiarlo (set_beacon era el unico escritor). Se elimina la lectura para que el campo quede
+    // inerte de verdad, que es lo que el arreglo decia. El campo sigue en la estructura para no
+    // tocar el layout ni forzar migracion.
     // NAVARICO NAV9 (28/08): el OFF (0) tambien se restaura si el usuario lo fijo
     // (flag configured) — sobrevive a soft resets y a catastrofes con fichero sano.
     if (prefs.pos_configured) {
@@ -340,8 +345,12 @@ void NavaCLIModule::installSurvivalBaseline()
     prefs.version = NAVS_RESILIENCE_VERSION;
 #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
     prefs.chemistry = 2; // SODIUM
-    prefs.vbat_cutoff = 2600;
-    prefs.vwake_level = 1;
+    // Auditoria 15/09/2026 (F2): MISMA invariante que el comando /nava set_chem. El corte (2600)
+    // NO puede superar el umbral de despertar (nivel 1 = 2060): el LPCOMP detecta flanco de SUBIDA
+    // y la bateria ya esta por encima al armarse, asi que el nodo NO despertaria nunca. Y 2600 esta
+    // al borde del vaciado en una celda de sodio (su curva OCV baja hasta 2500).
+    prefs.vbat_cutoff = 3000;
+    prefs.vwake_level = 5; // 3300 mV
 #else
     prefs.chemistry = 0; // LIPO
     prefs.vbat_cutoff = 3500;
@@ -433,7 +442,9 @@ void NavaCLIModule::ensureNavadminChannel()
     // Si el Slot 1 tiene un canal previo configurado del usuario (que NO es Navadmin)
     if (ch1.has_settings && ch1.role != meshtastic_Channel_Role_DISABLED && ch1.settings.name[0] != '\0') {
         int freeSlot = -1;
-        for (int i = 2; i < MAX_NUM_CHANNELS; i++) {
+        // El cast evita el aviso -Wsign-compare: MAX_NUM_CHANNELS sale de member_size() (sin signo),
+        // y el indice debe ser con signo porque getByIndex() toma int. El valor real es 8.
+        for (int i = 2; i < (int)MAX_NUM_CHANNELS; i++) {
             const meshtastic_Channel &cand = channels.getByIndex(i);
             if (!cand.has_settings || cand.role == meshtastic_Channel_Role_DISABLED) {
                 freeSlot = i;
@@ -514,7 +525,7 @@ void NavaCLIModule::adoptExistingOperationalConfig()
     }
 
     // 2. Canales secundarios (Slots 2..7): absorber canales preexistentes si no estaban guardados en resilience.bin
-    for (uint8_t i = 2; i < MAX_NUM_CHANNELS; i++) {
+    for (uint8_t i = 2; i < (int)MAX_NUM_CHANNELS; i++) {
         uint8_t idx = i - 2;
         const meshtastic_Channel &ch = channels.getByIndex(i);
         ResilientChannel &rc = prefs.customChannels[idx];
@@ -640,6 +651,12 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
     ResiliencePrefs tmp;
     memset(&tmp, 0, sizeof(tmp));
     bool exists = false;
+    // Auditoria 15/09/2026 (F1): marca de "este fichero necesitaba saneado/migracion". NO se puede
+    // usar `tmp.version != NAVS_RESILIENCE_VERSION` para detectarlo, porque el bloque de saneado
+    // SOBRESCRIBE la version a la actual en sus dos ramas: la condicion seria siempre falsa y la
+    // guarda de abajo tiraria el saneado (dejando el fichero viejo intacto -> Clean Slate -> reset
+    // de fabrica en el arranque siguiente).
+    bool sanitized = false;
     // Auditoria 26/08: blindado con spiLock (colision SPI con la radio LoRa, mismo patron NAV7)
     concurrency::LockGuard g(spiLock);
     if (FSCom.exists("/resilience.bin")) {
@@ -651,6 +668,7 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
                 if (tmp.magic == 0x52455349) {
                     exists = true;
                     if (fileSize != sizeof(tmp) || tmp.version != NAVS_RESILIENCE_VERSION) {
+                        sanitized = true;
                         tmp.autoFavCount = 0;
                         memset(tmp.autoFavIds, 0, sizeof(tmp.autoFavIds));
                         tmp.sleepMsgs = 1;
@@ -685,7 +703,7 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
                         } else {
                             // NAV9: fichero corrupto/ajeno -> BP + despliegue pendiente
                             tmp.deploy_done = 0;
-                            tmp.rebroadcast_mode = 1;
+                            tmp.rebroadcast_mode = 2; // LOCAL_ONLY (H17d 15/09/2026: ponia 1=ALL_SKIP_DECODING, que retransmite MAS de lo que dicen los 16 perfiles)
                             tmp.pos_configured = 1;
                             tmp.nodeinfo_configured = 1;
                             tmp.telem_configured = 1;
@@ -709,8 +727,8 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
         tmp.role = 0xFF;
         #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
             tmp.chemistry = 2; // SODIUM
-            tmp.vbat_cutoff = 2600;
-            tmp.vwake_level = 1;
+            tmp.vbat_cutoff = 3000; // F2: corte < umbral de despertar (nivel 5 = 3300)
+            tmp.vwake_level = 5;
         #else
             tmp.chemistry = 0; // LIPO
             tmp.vbat_cutoff = 3500;
@@ -742,19 +760,66 @@ void NavaCLIModule::navaSetWasInSleep(bool on)
         tmp.ignoredCount = 0;
         memset(tmp.ignoredNodes, 0, sizeof(tmp.ignoredNodes));
         // NAV9: BP de primera instalacion (despliegue completo pendiente en el primer tick)
-        tmp.rebroadcast_mode = 1;
+        tmp.rebroadcast_mode = 2; // LOCAL_ONLY (H17d 15/09/2026: ponia 1=ALL_SKIP_DECODING, que retransmite MAS de lo que dicen los 16 perfiles)
         tmp.pos_configured = 1;
         tmp.nodeinfo_configured = 1;
         tmp.telem_configured = 1;
         tmp.deploy_done = 0;
         tmp.version = NAVS_RESILIENCE_VERSION;
     }
+    // GUARDA 1 (15/09/2026): si el valor YA es el correcto, no reescribir. Sin esto el pre-check
+    // reescribia el fichero ENTERO en cada arranque con bateria baja (varias veces al dia en
+    // invierno). Solo vale si el fichero NO necesita nada mas: si falta o si traia
+    // migracion/saneado pendiente hay que escribir aunque wasInSleep no cambie (si no, se tirarian
+    // el saneado y la migracion NAV8, que es el unico rescate que les queda).
+    bool coherenceNeeded = (!exists || sanitized);
+    if (!coherenceNeeded && tmp.wasInSleep == (on ? 1 : 0)) {
+        return;
+    }
+    // GUARDA 2 (15/09/2026): no escribir con la alimentacion en un nivel inseguro. Esto se ejecuta
+    // JUSTO cuando la bateria esta por debajo del corte, o sea en el peor momento posible para una
+    // escritura: un brownout a mitad dejaba el fichero truncado -> Clean Slate -> reset de fabrica.
+    // NodeDB usa esta misma comprobacion en TODOS sus guardados; aqui faltaba.
+    if (!powerHAL_isPowerLevelSafe()) {
+        LOG_WARN("navaSetWasInSleep: nivel de potencia inseguro, no se escribe /resilience.bin");
+        return;
+    }
     tmp.wasInSleep = on ? 1 : 0;
-    FSCom.remove("/resilience.bin");
-    File f = FSCom.open("/resilience.bin", FILE_O_WRITE);
+    // El crc32 cubre wasInSleep, asi que hay que recalcularlo antes de escribir: sin esto,
+    // loadResiliencePrefs() rechaza el fichero y hace Clean Slate. Migracion y saneado de arriba
+    // ya han pasado, asi que este es el ultimo cambio al struct.
+    tmp.crc32 = crc32Buffer(&tmp, offsetof(ResiliencePrefs, crc32));
+    // Escritura atomica (tmp + rename), igual que saveResiliencePrefs(). NO se puede llamar a
+    // saveResiliencePrefs() desde aqui: volveria a tomar spiLock, que NO es recursivo
+    // (concurrency::Lock usa xSemaphoreCreateBinary), y el nodo se colgaria.
+    // Auditoria 15/09/2026 (F5): borrar el temporal ANTES de abrirlo. En nRF52 FILE_O_WRITE NO
+    // trunca (abre con LFS_O_RDWR|LFS_O_CREAT y hace seek al FINAL), asi que un .tmp huerfano -de un
+    // corte entre close y rename, o de un rename fallido que se conserva a proposito- haria que el
+    // contenido nuevo se AÑADIESE al viejo: written == sizeof(tmp) seguiria siendo TRUE, el rename
+    // sobrescribiria y /resilience.bin quedaria al DOBLE de tamaño -> loadResiliencePrefs lo rechaza
+    // (exige fileSize <= sizeof) -> Clean Slate -> reset a linea base. La leccion ya estaba en el
+    // proyecto: "escribir siempre desde cero (FILE_O_WRITE no trunca)".
+    if (FSCom.exists("/resilience.tmp")) {
+        FSCom.remove("/resilience.tmp");
+    }
+    File f = FSCom.open("/resilience.tmp", FILE_O_WRITE);
     if (f) {
-        f.write((uint8_t *)&tmp, sizeof(tmp));
+        size_t written = f.write((uint8_t *)&tmp, sizeof(tmp));
         f.close();
+        if (written == sizeof(tmp)) {
+            // Auditoria 15/09/2026 (F4): NO borrar el bueno antes de saber si el renombrado
+            // funciona. lfs_rename SOBRESCRIBE y es atomico, asi que no hace falta borrar nada:
+            // basta con comprobar el retorno.
+            if (!FSCom.rename("/resilience.tmp", "/resilience.bin")) {
+                // El temporal se conserva: es la unica copia con los datos nuevos.
+                LOG_ERROR("navaSetWasInSleep: no se pudo sustituir /resilience.bin; "
+                          "los datos nuevos quedan en /resilience.tmp");
+            }
+        } else {
+            // Escritura corta: borrar el temporal y CONSERVAR el fichero bueno anterior.
+            LOG_WARN("navaSetWasInSleep: escritura incompleta, se conserva el fichero anterior");
+            FSCom.remove("/resilience.tmp");
+        }
     }
 }
 
@@ -822,6 +887,36 @@ void NavaCLIModule::logEvent(const char *fmt, ...)
 
 bool NavaCLIModule::handleLowBatteryEvent()
 {
+#ifdef ARCH_ESP32
+    // ============================================================================
+    // DISENO DELIBERADO DEL FORK - NO ES UN FALLO. NO REPORTAR COMO BUG.
+    // ----------------------------------------------------------------------------
+    // Los ESP32 (Heltec V3/V4) NO tienen sistema dormir-despertar valido: no existe
+    // LPCOMP que los despierte, a diferencia del nRF52. Por decision expresa del
+    // operador (15/09/2026), en ESP32 el fork NO intercepta la bateria baja y deja
+    // actuar al flujo OFICIAL de Meshtastic tal cual:
+    //     PowerFSM stateLowBattSDS -> doDeepSleep(sds_secs) CON temporizador
+    //     sds_secs = IF_ROUTER(ONE_DAY, UINT32_MAX), recortado a INT32_MAX ms por
+    //     secondsToMsClamped(). OJO al dato: son 24 h SOLO si el rol es ROUTER o
+    //     ROUTER_LATE; en cualquier otro rol (los perfiles Heltec R1IG son CLIENT)
+    //     son ~24,86 DIAS. Sigue despertando solo, pero puede tardar semanas.
+    // asi que la placa se duerme y SE DESPIERTA SOLA para reintentar.
+    //
+    // Devolver false = "no me encargo, que siga el flujo normal"; el llamante en
+    // Power.cpp hace `if (handleLowBatteryEvent()) {} else { powerFSM.trigger(...) }`.
+    //
+    // POR QUE NO HAY QUE "ARREGLARLO":
+    //   - El camino del fork acaba en doDeepSleep(portMAX_DELAY): SIN despertador.
+    //     Interceptar en ESP32 = nodo dormido en la montana hasta ir a por el.
+    //   - NO proponer "dormir con temporizador" en ESP32: se propuso una vez y es lo
+    //     contrario de la politica. El diagnostico no es "le falta despertador", es
+    //     "no debe usar NUESTRO despertador".
+    //   - Power::shutdown() SI usa portMAX_DELAY en ESP32 y es CORRECTO: es el apagado
+    //     A PETICION (boton/App), no el automatico por bateria.
+    // Politica: docs/REGLAS_Y_VERDADES.md 3.1 y 3.6. Detalle: docs/AUDITORIA_RESILIENCIA_20260915.md H1.
+    // ============================================================================
+    return false;
+#endif
     if (sleepPending) {
         return true;
     }
@@ -850,17 +945,252 @@ void NavaCLIModule::saveResiliencePrefs() {
     prefs.crc32 = crc32Buffer(&prefs, offsetof(ResiliencePrefs, crc32));
 
     concurrency::LockGuard g(spiLock);
+    // Auditoria 15/09/2026 (F5): borrar el temporal antes de abrirlo (en nRF52 FILE_O_WRITE no
+    // trunca: un .tmp huerfano se añadiria al contenido nuevo y /resilience.bin quedaria al doble
+    // de tamaño -> rechazado al arrancar -> Clean Slate).
+    if (FSCom.exists("/resilience.tmp")) {
+        FSCom.remove("/resilience.tmp");
+    }
     File f = FSCom.open("/resilience.tmp", FILE_O_WRITE);
     if (f) {
         size_t written = f.write((const uint8_t*)&prefs, sizeof(prefs));
         f.close();
         if (written == sizeof(prefs)) {
-            FSCom.remove("/resilience.bin");
-            FSCom.rename("/resilience.tmp", "/resilience.bin");
+            // Auditoria 15/09/2026 (F4): lfs_rename sobrescribe y es atomico; no hace falta borrar
+            // el bueno antes (hacerlo abria una ventana en la que no existe ni el original ni el
+            // sustituto). Solo se comprueba el resultado.
+            if (!FSCom.rename("/resilience.tmp", "/resilience.bin")) {
+                LOG_ERROR("saveResiliencePrefs: no se pudo sustituir /resilience.bin; "
+                          "los datos nuevos quedan en /resilience.tmp");
+            }
         } else {
             FSCom.remove("/resilience.tmp");
         }
     }
+}
+
+// ============================================================================================
+// D-7 (15/09/2026): PERSISTENCIA DE LA ORDEN DIFERIDA (/pending.bin)
+// --------------------------------------------------------------------------------------------
+// La orden diferida vivia SOLO en RAM. Si en la ventana de gracia llegaba otro comando, o el nodo
+// se reiniciaba, o se iba la luz, la orden se perdia EN SILENCIO. Lo grave: en set_lora/set_freq
+// el reinicio ES lo que aplica el cambio, asi que el nodo quedaba en la frecuencia vieja con la
+// config nueva en disco y cambiaba de canal solo, semanas despues, sin que nadie lo tocara.
+// Y al reves: un wipe o un keys_clear perdidos hacian creer al operador algo que no ocurrio.
+//
+// Se guarda en FICHERO PROPIO, no en ResiliencePrefs: asi NO se toca el layout del struct, no hay
+// que subir NAVS_RESILIENCE_VERSION ni forzar migracion en los nodos desplegados.
+// Escritura con el mismo patron seguro que /resilience.bin: temporal + renombrado atomico.
+// ============================================================================================
+#define NAV_PENDING_MAGIC 0x50454E44u // "PEND"
+// v2 (15/09/2026): la v1 se escribia pero NO se borraba en los casos que reinician, lo que producia
+// un bucle de reinicio infinito. Con la version subida, cualquier /pending.bin v1 que haya quedado
+// escrito en un nodo se considera no valido al arrancar (loadPendingAction lo descarta y lo borra
+// sin ejecutar nada), asi que el arreglo SE PUEDE APLICAR POR RE-FLASHEO: no hace falta ir a borrar
+// el fichero a mano ni hacer un erase completo en los nodos afectados.
+// v3 (15/09/2026): se aprovecha el byte reservado del struct como CONTADOR DE REINTENTOS, para que
+// una orden que no consigue ejecutarse no deje el nodo en ciclo permanente. Con la version subida,
+// cualquier /pending.bin v1 o v2 que hubiera quedado escrito se descarta al arrancar sin ejecutar
+// nada, asi que los arreglos se pueden aplicar por re-flasheo.
+#define NAV_PENDING_VERSION 3
+// Arranques que se re-arma una orden sin conseguir ejecutarla antes de descartarla. 4 da margen a un
+// corte de luz puntual sin dejar el nodo atrapado en un ciclo.
+#define NAV_PENDING_MAX_RETRIES 4
+
+struct NavaPendingAction {
+    uint32_t magic;
+    uint16_t version;
+    uint8_t action; // NavaDeferredAction
+    uint8_t retries; // nº de arranques que han re-armado esta orden SIN llegar a ejecutarla
+    uint32_t param; // parametro de la orden (p.ej. segundos de tormenta)
+    uint32_t crc32; // cubre todo lo anterior
+};
+
+void NavaCLIModule::savePendingAction(NavaDeferredAction act)
+{
+    // Solo se llama con acciones reales (persistir NONE no tiene sentido y no tiene llamantes).
+    NavaPendingAction pa;
+    memset(&pa, 0, sizeof(pa));
+    pa.magic = NAV_PENDING_MAGIC;
+    pa.version = NAV_PENDING_VERSION;
+    pa.action = (uint8_t)act;
+    pa.param = 0;   // sin parametro: STORM, la unica que lo llevaba, es temporal y no se persiste
+    pa.retries = 0; // se incrementa en cada arranque que re-arma la orden (ver loadPendingAction)
+    pa.crc32 = crc32Buffer(&pa, offsetof(NavaPendingAction, crc32));
+
+    concurrency::LockGuard g(spiLock);
+    // En nRF52 FILE_O_WRITE no trunca: hay que borrar antes o el contenido se acumula.
+    if (FSCom.exists("/pending.tmp")) FSCom.remove("/pending.tmp");
+    File f = FSCom.open("/pending.tmp", FILE_O_WRITE);
+    if (f) {
+        size_t written = f.write((const uint8_t *)&pa, sizeof(pa));
+        f.close();
+        if (written == sizeof(pa)) {
+            if (!FSCom.rename("/pending.tmp", "/pending.bin")) {
+                LOG_ERROR("NavaCLI: no se pudo guardar la orden diferida en /pending.bin");
+            } else {
+                LOG_INFO("NavaCLI: orden diferida %d persistida (sobrevive a reinicio/corte)", (int)act);
+            }
+        } else {
+            FSCom.remove("/pending.tmp");
+            LOG_ERROR("NavaCLI: escritura incompleta de la orden diferida");
+        }
+    }
+}
+
+/// Borra el fichero de la orden persistida. DEVUELVE si el fichero ha quedado realmente borrado.
+/// Auditoria 15/09/2026 (3ª ronda): antes era `void` y se ignoraba el resultado de remove(). Si el
+/// borrado no llega a commitear en flash antes del reinicio (que es a +25 ms), el fichero SOBREVIVE,
+/// loadPendingAction() lo re-arma al arrancar y el nodo vuelve a reiniciar: BUCLE de nuevo. Por eso
+/// la comprobacion se hace con exists() despues del remove, no con el valor que devuelve remove().
+bool NavaCLIModule::clearPendingAction()
+{
+    {
+        concurrency::LockGuard g(spiLock);
+        if (FSCom.exists("/pending.bin")) FSCom.remove("/pending.bin");
+        if (FSCom.exists("/pending.tmp")) FSCom.remove("/pending.tmp");
+        // Esperar a que el borrado sea visible: sin esto no se puede afirmar que se ha consumido.
+        if (FSCom.exists("/pending.bin")) {
+            LOG_ERROR("NavaCLI: no se pudo borrar /pending.bin (¿fallo de escritura en flash?)");
+            return false;
+        }
+    }
+    return true;
+}
+
+void NavaCLIModule::loadPendingAction()
+{
+    NavaPendingAction pa;
+    memset(&pa, 0, sizeof(pa));
+    bool valid = false;
+
+    {
+        concurrency::LockGuard g(spiLock);
+        if (FSCom.exists("/pending.bin")) {
+            File f = FSCom.open("/pending.bin", FILE_O_READ);
+            if (f) {
+                if (f.size() == sizeof(pa)) {
+                    f.read((uint8_t *)&pa, sizeof(pa));
+                    valid = true;
+                }
+                f.close();
+            }
+        }
+    }
+
+    // Solo se persisten (y por tanto solo se aceptan de disco) las acciones DURADERAS. STORM y MUTE
+    // son estados TEMPORALES: una tormenta ya pasada no debe reproducirse al arrancar. Se excluyen
+    // en los dos extremos (al guardar y al leer), por si un fichero viejo las trae.
+    // Auditoria 15/09/2026: PANIC_JUMP tambien se quito de la lista. Se aceptaba de disco y tenia su
+    // case en el ejecutor, pero NINGUN sitio del codigo asigna nunca deferredAction = PANIC_JUMP (el
+    // panico usa su camino directo), asi que era una puerta inutil: aceptar de disco algo que el
+    // firmware no puede escribir solo amplia la superficie sin aportar nada.
+    // El cast es necesario: pa.action es uint8_t y compararlo con el enum no compila en C++.
+    uint8_t act = pa.action;
+    bool accionDurable = act == (uint8_t)NAVA_DEFERRED_LORA_CHANGE ||
+                         act == (uint8_t)NAVA_DEFERRED_TXOFF || act == (uint8_t)NAVA_DEFERRED_REBOOT ||
+                         act == (uint8_t)NAVA_DEFERRED_FACTORY_RESET || act == (uint8_t)NAVA_DEFERRED_FULL_RESET ||
+                         act == (uint8_t)NAVA_DEFERRED_WIPE || act == (uint8_t)NAVA_DEFERRED_KEYS_CLEAR;
+    bool usable = valid && pa.magic == NAV_PENDING_MAGIC && pa.version == NAV_PENDING_VERSION && accionDurable &&
+                  pa.crc32 == crc32Buffer(&pa, offsetof(NavaPendingAction, crc32));
+
+    if (!usable) {
+        // Fichero ausente, ilegible o de otra version: se descarta sin ruido. Un fichero corrupto
+        // NO debe provocar nada: esto es una comodidad, no una obligacion.
+        if (valid) {
+            LOG_WARN("NavaCLI: /pending.bin no valido, descartado");
+            clearPendingAction();
+        }
+        return;
+    }
+
+    // Re-armar: la orden se ejecutara cuando la cola este vacia, igual que si acabara de llegar.
+    // (No hay que restaurar parametro ninguno: STORM, la unica que lo llevaba, es temporal y no se
+    // persiste; por eso accionDurable ya la ha descartado antes de llegar aqui.)
+    // Auditoria 15/09/2026 (3ª ronda, fallo C): CONTADOR DE REINTENTOS. La orden sobrevive a cada
+    // reinicio hasta que se ejecuta, y no habia limite. Si la ejecucion provoca un cuelgue o un
+    // watchdog (por ejemplo en nRF52 al preparar la radio o al formatear), el nodo entraba en ciclo
+    // PERMANENTE que ademas sobrevive al re-flasheo (/pending.bin vive en el sistema de ficheros).
+    // En montana eso es una expedicion. Tras NAV_PENDING_MAX_RETRIES arranques sin conseguir
+    // ejecutarla, se descarta y se avisa: mejor perder la orden que perder el nodo.
+    if (pa.retries >= NAV_PENDING_MAX_RETRIES) {
+        LOG_ERROR("NavaCLI: orden diferida descartada tras %u intentos fallidos (accion %u). "
+                  "Se borra para no dejar el nodo en ciclo.",
+                  (unsigned)pa.retries, (unsigned)pa.action);
+        clearPendingAction();
+        return;
+    }
+    pa.retries++;
+    pa.crc32 = crc32Buffer(&pa, offsetof(NavaPendingAction, crc32));
+    // Reescribir el fichero con el contador incrementado. Si falla, se sigue adelante: el peor caso
+    // es que no se cuente este intento, no que se pierda la orden.
+    {
+        concurrency::LockGuard g(spiLock);
+        if (FSCom.exists("/pending.tmp")) FSCom.remove("/pending.tmp");
+        File f = FSCom.open("/pending.tmp", FILE_O_WRITE);
+        if (f) {
+            size_t w = f.write((const uint8_t *)&pa, sizeof(pa));
+            f.close();
+            if (w == sizeof(pa) && !FSCom.rename("/pending.tmp", "/pending.bin")) {
+                LOG_WARN("NavaCLI: no se pudo actualizar el contador de reintentos de /pending.bin");
+            }
+        }
+    }
+    deferredAction = (NavaDeferredAction)pa.action;
+    preRebootArmed = false;
+    LOG_WARN("NavaCLI: ORDEN DIFERIDA RECUPERADA del disco (%d, intento %u): se ejecutara ahora. "
+             "Sobrevivio a un reinicio o a un corte de alimentacion.",
+             (int)deferredAction, (unsigned)pa.retries);
+    // Auditoria 15/09/2026 (FALLO 3): ademas del log, hay que AVISAR POR RADIO. Sin esto, tras un
+    // corte de luz el nodo re-armaba la orden y reiniciaba poco despues SIN UN SOLO mensaje que lo
+    // explicara, asi que el operador no podia distinguir "se aplico tu orden vieja" de "algo va mal".
+    // Se responde por el mismo canal por el que se gestiona la CLI.
+    // (Correccion de la 3ª auditoria: una version anterior de este comentario decia que "si la cola
+    //  aun no esta lista, el enqueue se descarta". FALSO: enqueueResponse nunca descarta por ese
+    //  motivo, solo trunca si la cola llega a su tope. El aviso sale.)
+    // Se incluye el NOMBRE de la accion: es el dato que el operador necesita para decidir.
+    {
+        uint8_t targetChan = prefs.cliChannelSlot;
+        if (targetChan < 1 || targetChan > 7) targetChan = 1;
+        const char *nombreAccion = "desconocida";
+        switch ((NavaDeferredAction)pa.action) {
+            case NAVA_DEFERRED_REBOOT: nombreAccion = "REINICIO"; break;
+            case NAVA_DEFERRED_FACTORY_RESET: nombreAccion = "FACTORY_RESET"; break;
+            case NAVA_DEFERRED_FULL_RESET: nombreAccion = "FULL_RESET"; break;
+            case NAVA_DEFERRED_WIPE: nombreAccion = "WIPE (borrado total)"; break;
+            case NAVA_DEFERRED_TXOFF: nombreAccion = "TXOFF"; break;
+            case NAVA_DEFERRED_KEYS_CLEAR: nombreAccion = "KEYS_CLEAR"; break;
+            case NAVA_DEFERRED_LORA_CHANGE: nombreAccion = "CAMBIO LoRa"; break;
+            default: break;
+        }
+        char buf[140];
+        snprintf(buf, sizeof(buf), "ORDEN DIFERIDA RECUPERADA: %s (intento %u). Se ejecuta ahora.",
+                 nombreAccion, (unsigned)pa.retries);
+        enqueueResponse(NODENUM_BROADCAST, targetChan, buf, true, false, 0);
+    }
+}
+
+/// Consume la orden persistida y arma el reinicio, EN ESE ORDEN y siempre juntos.
+/// Auditoria 15/09/2026 (FALLO 2): el borrado incondicional al EMPEZAR a ejecutar hacia que un
+/// corte de luz en la ventana PERDIERA la orden sin haberla ejecutado (fichero borrado + estado
+/// solo en RAM). Con el par "consumir + reiniciar" aqui:
+///   - Si se corta la luz ANTES de consumir -> el fichero sobrevive y la orden se reintenta al
+///     arrancar, que es lo que se quiere.
+///   - Si se consume y no llega a reiniciar -> la accion ya se aplico; el reinicio se reintenta en
+///     el siguiente arranque espontaneo.
+/// Tenerlo en UN SOLO sitio evita el fallo original: que uno de los casos que reinician se dejara
+/// el borrado sin hacer (y entonces el fichero sobrevivia al reinicio -> BUCLE infinito).
+void NavaCLIModule::consumePendingAndReboot()
+{
+    // Auditoria 15/09/2026 (3ª ronda): si el borrado NO se confirma, NO se arma el reinicio. Es la
+    // unica forma de cerrar el bucle de verdad: reiniciar con el fichero aun presente lo re-armaria
+    // al arrancar. Se deja la accion sin ejecutar y se avisa; el operador puede reintentar el mando.
+    if (!clearPendingAction()) {
+        LOG_ERROR("NavaCLI: orden diferida NO consumida; no se reinicia para no entrar en bucle. "
+                  "La accion queda pendiente y se reintentara en el siguiente arranque.");
+        return;
+    }
+    rebootAtMsec = millis() + 25;
 }
 
 // Helper: motivo de reset de Nordic nRF52 decodificado a texto corto
@@ -960,6 +1290,18 @@ bool NavaCLIModule::navaKeyIsValid(const uint8_t *key)
     return true;
 }
 
+bool NavaCLIModule::navaKeyIsAdminInConfig(const uint8_t *pubKey)
+{
+    if (!pubKey) return false;
+    const meshtastic_Config_SecurityConfig &sec = config.security;
+    for (pb_size_t i = 0; i < sec.admin_key_count && i < 3; i++) {
+        if (sec.admin_key[i].size == 32 && memcmp(sec.admin_key[i].bytes, pubKey, 32) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 uint32_t NavaCLIModule::getAutoFavId(size_t index) const
 {
     if (index < 16) return prefs.autoFavIds[index];
@@ -996,6 +1338,25 @@ void NavaCLIModule::applyPersistedAdminKeys()
 {
     meshtastic_Config_SecurityConfig &sec = config.security;
     bool changed = false;
+
+    // REGLA (15/09/2026): si la CONFIGURACION ya tiene alguna clave de dueno valida, manda ella y
+    // el respaldo NO toca nada. Antes el respaldo pisaba en cada arranque y resucitaba las claves
+    // borradas desde la App. El respaldo entra SOLO para rescatar (config sin claves: reset de
+    // fabrica, flasheo, catastrofe). keys_clear vacia el respaldo pero NO la config, asi que tras
+    // keys_clear la config sigue mandando y el nodo no reinyecta nada.
+    {
+        bool hasOwnerKeyInConfig = false;
+        for (pb_size_t i = 0; i < sec.admin_key_count && i < 3; i++) {
+            if (sec.admin_key[i].size == 32 && navaKeyIsValid(sec.admin_key[i].bytes) &&
+                !navaKeyIsProjectKey(sec.admin_key[i].bytes)) {
+                hasOwnerKeyInConfig = true;
+                break;
+            }
+        }
+        if (hasOwnerKeyInConfig) {
+            return;
+        }
+    }
 
     if (navaKeyIsValid(prefs.keySlot0Own)) {
         if (sec.admin_key[0].size != 32 || memcmp(sec.admin_key[0].bytes, prefs.keySlot0Own, 32) != 0) {
@@ -1130,7 +1491,7 @@ void NavaCLIModule::syncAdminKeysFromConfig()
 void NavaCLIModule::applyPersistedChannels()
 {
     bool changed = false;
-    for (uint8_t i = 2; i < MAX_NUM_CHANNELS; i++) {
+    for (uint8_t i = 2; i < (int)MAX_NUM_CHANNELS; i++) {
         const ResilientChannel &rc = prefs.customChannels[i - 2];
         if (rc.is_active) {
             meshtastic_Channel &current = channels.getByIndex(i);
@@ -1764,8 +2125,8 @@ void NavaCLIModule::navaFullResetKeepKeys()
     prefs.version = NAVS_RESILIENCE_VERSION;
     #if defined(USERPREFS_BATTERY_CHEMISTRY_SODIUM)
         prefs.chemistry = 2;
-        prefs.vbat_cutoff = 2600;
-        prefs.vwake_level = 1;
+        prefs.vbat_cutoff = 3000; // F2: corte < umbral de despertar (nivel 5 = 3300)
+        prefs.vwake_level = 5;
     #else
         prefs.chemistry = 0;
         prefs.vbat_cutoff = 3500;
@@ -1800,7 +2161,7 @@ void NavaCLIModule::navaFullResetKeepKeys()
     memset(prefs.ignoredNodes, 0, sizeof(prefs.ignoredNodes));
     // NAV9: full_reset es una catastrofe CONTROLADA -> BP de nuevo; el nodo ya estaba
     // desplegado (deploy_done=1) asi que no se re-despliega config en el siguiente boot.
-    prefs.rebroadcast_mode = 1;
+    prefs.rebroadcast_mode = 2; // LOCAL_ONLY (H17d 15/09/2026: ponia 1=ALL_SKIP_DECODING, que retransmite MAS de lo que dicen los 16 perfiles)
     prefs.pos_configured = 1;
     prefs.nodeinfo_configured = 1;
     prefs.telem_configured = 1;
@@ -2253,15 +2614,8 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
             // Auditoria 26/08: el DM llegó cifrado y se descifró (mp.pki_encrypted) -> prueba de
             // posesión de la clave privada. Si la clave pública del emisor coincide con admin_key[],
             // acreditarlo ahora (bitfield + favorito) y proseguir; si no, rechazar.
-            bool senderKeyIsAdmin = false;
-            for (int ki = 0; ki < 3; ki++) {
-                if (config.security.admin_key[ki].size == 32 &&
-                    memcmp(config.security.admin_key[ki].bytes, senderNode->user.public_key.bytes, 32) == 0) {
-                    senderKeyIsAdmin = true;
-                    break;
-                }
-            }
-            if (!senderKeyIsAdmin) {
+            // D-11: la comprobacion se movio a navaKeyIsAdminInConfig() para reutilizarla.
+            if (!navaKeyIsAdminInConfig(senderNode->user.public_key.bytes)) {
                 if (unauthorizedReplied.insert(mp.from).second) {
                     LOG_WARN("Rechazado: nodo 0x%08x no es admin verificado", mp.from);
                     enqueueResponse(mp.from, 0, "NO AUTORIZADO COMO ADMINISTRADOR", true, false, hops);
@@ -2274,6 +2628,34 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
                 lite->is_favorite = true;
                 LOG_WARN("Acreditado como admin por DM PKI descifrado: 0x%08x", mp.from);
             }
+        } else if (!navaKeyIsAdminInConfig(senderNode->user.public_key.bytes)) {
+            // D-11 (15/09/2026): el bit YA estaba puesto. Antes eso bastaba para autorizar TODO sin
+            // volver a mirar la config: el pestillo. Ahora se revalida igual, y si la clave ya no
+            // figura en admin_key[] se le RETIRA el permiso. Es el caso de un tecnico al que se le
+            // quito la clave EN LA APP (o por AdminMessage), que es la UNICA via que revoca de verdad.
+            // CORRECCION TRAS AUDITORIA (15/09/2026): /nava keys_clear NO revoca. Borra las copias
+            // de /resilience.bin (keySlot0Own/1/2) pero NO toca config.security.admin_key[], asi que
+            // en el arranque siguiente applyPersistedAdminKeys() REABSORBE la clave desde la config
+            // y todo queda como estaba. Una version anterior de este comentario citaba keys_clear
+            // como via de revocacion, y era FALSO.
+            LOG_WARN("Rechazado y permiso RETIRADO: 0x%08x tenia marca de admin pero su clave ya no "
+                     "esta en admin_key[]", mp.from);
+            // Auditoria 15/09/2026 (FALLO 3): el rechazo NO puede ser mudo. Un administrador revocado
+            // (o con la clave rotada en este nodo) tiene que poder distinguir "me han retirado el
+            // permiso" de "el enlace esta caido": en montana, el silencio cuesta una hora de
+            // diagnostico. Aqui SI se puede responder, porque el camino DM contesta DIRIGIDO al
+            // emisor y no genera trafico de difusion. Se protege con unauthorizedReplied para no
+            // repetir el aviso al mismo nodo. En difusion se deja mudo A PROPOSITO (ver mas abajo).
+            if (unauthorizedReplied.insert(mp.from).second) {
+                enqueueResponse(mp.from, 0, "NO AUTORIZADO (CLAVE RETIRADA)", true, false, hops);
+            }
+            // Se escribe sobre el nodo de la NodeDB con comprobacion de nulo: nada de encadenar la
+            // llamada directamente o un nulo seria un fallo de segmento.
+            meshtastic_NodeInfoLite *liteRet = nodeDB->getMeshNode(mp.from);
+            if (liteRet) {
+                liteRet->bitfield &= ~NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+            }
+            return ProcessMessage::STOP;
         }
         // NAVARICO: Blindar al administrador verificado como favorito en NodeDB (en RAM)
         if (senderNode && !senderNode->is_favorite) {
@@ -2283,10 +2665,37 @@ ProcessMessage NavaCLIModule::handleReceived(const meshtastic_MeshPacket &mp)
             }
         }
     } else {
-        // Canal de difusión: solo responden los admins verificados
+        // Canal de difusión
         const meshtastic_NodeInfoLite *senderNode = nodeDB->getMeshNode(mp.from);
         if (!senderNode || !nodeDB->isAdminNode(*senderNode)) {
             LOG_WARN("Rechazado: Comando /nava en canal sin firma PKI desde 0x%08x", mp.from);
+            return ProcessMessage::STOP;
+        }
+        // D-11 (15/09/2026): REVALIDAR la clave en CADA comando. Hasta ahora el bit
+        // IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN era un PESTILLO: se ponia la primera vez que el nodo
+        // se acreditaba y no se borraba en ningun sitio del firmware. Consecuencia: quitar una
+        // clave de config.security.admin_key[] (quitandola EN LA APP) NO retiraba la
+        // autoridad, y un nodo con esa marca vieja podia seguir mandando comandos de difusion, o
+        // dirigidos por ID como wipe/factory_reset.
+        // Ahora, si el bit esta puesto pero la clave publica del emisor YA NO figura en la config,
+        // se le RETIRA el permiso (se borra el bit) y se le rechaza.
+        // No rompe a ningun administrador legitimo: su clave sigue en la config, asi que sigue
+        // pasando. No hay que migrar nada.
+        if (!navaKeyIsAdminInConfig(senderNode->user.public_key.bytes)) {
+            // Auditoria 15/09/2026: este rechazo SI es mudo, A PROPOSITO, y es coherente con el resto
+            // del camino de difusion (mas arriba, "Rechazado: Comando /nava en canal sin firma PKI"
+            // tambien es mudo). Responder aqui seria mandar una difusion por cada intento de un nodo
+            // revocado: una tormenta de radio, y la lista de comandos permitidos en difusion es solo
+            // de lectura precisamente para evitar eso. El operador que quiera saber por que no le
+            // funciona tiene el camino DM, que SI contesta "NO AUTORIZADO (CLAVE RETIRADA)".
+            LOG_WARN("Rechazado y permiso RETIRADO (difusion, mudo a proposito): 0x%08x tenia marca "
+                     "de admin pero su clave ya no esta en admin_key[]", mp.from);
+            // Se escribe sobre el nodo de la NodeDB con comprobacion de nulo: nada de encadenar la
+            // llamada directamente o un nulo seria un fallo de segmento.
+            meshtastic_NodeInfoLite *liteRet = nodeDB->getMeshNode(mp.from);
+            if (liteRet) {
+                liteRet->bitfield &= ~NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+            }
             return ProcessMessage::STOP;
         }
         // NAVARICO: Blindar al administrador verificado como favorito en NodeDB (en RAM)
@@ -2380,6 +2789,22 @@ void NavaCLIModule::enqueueResponse(NodeNum toNode, uint8_t channel, const std::
     }
 }
 
+// NOTA DE MANTENIMIENTO sobre la CADENA de comandos de abajo (D-10, 15/09/2026):
+//   - Aqui estaba el comando set_beacon, ELIMINADO: escribia el MISMO ajuste que
+//     set_nodeinfo_tx y set_pos_tx por un camino aparte. Se conservan los dos especificos.
+//     El campo prefs.beacon_interval_secs sigue en la estructura (sin tocar el layout, para no
+//     forzar migracion) pero ya nadie lo escribe ni lo lee: su lectura en loadResiliencePrefs()
+//     tambien se elimino. OJO: los nodos que SI usaron set_beacon antes del 15/09/2026 tienen un
+//     valor distinto de cero guardado ahi; a partir de ahora simplemente se ignora.
+//   - LEYENDA URBANA CORREGIDA (15/09/2026, 3ª auditoria): en una revision anterior se anoto aqui
+//     que "un comentario entre la llave de cierre y el else if deja el else if HUERFANO y no
+//     compila". ES FALSO. En C++ los comentarios se eliminan en el preprocesado, asi que un
+//     comentario entre `}` y `else if` es perfectamente legal, y este mismo fichero lo hace en
+//     decenas de sitios. El fallo REAL que se estaba persiguiendo era otro: el `else if` habia
+//     perdido el bloque `if` al que encadenaba (se borro `set_beacon` entero), y un `else if` sin
+//     ningun `if` delante SI es error de sintaxis. Se deja escrito para que nadie mas "arregle"
+//     comentarios por un motivo inexistente y, sobre todo, para que quien busque un fallo de
+//     compilacion mire la causa de verdad: que falte el `if` de la cadena.
 void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t replyChannel, NodeNum replyDest, float rxSnr, uint8_t hops)
 {
     bool wasQuoted = (!cmd.empty() && (cmd.front() == '\'' || cmd.front() == '"'));
@@ -2550,7 +2975,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             enqueueResponse(replyDest, replyChannel, usageAndState(topic), true, false, hops);
         } else {
             enqueueResponse(replyDest, replyChannel,
-                "CMDS:\n[Q] ping / status / env / channel / peers / bat / power\n[Q] rxlog / afc / reset_reason / noise / stats / log\n[E] ch_ls / ch_set / ch_del / ch_url / set_cli_chan / navadmin_mute / ch_reset\n[E] ch_mqtt / set_ok_to_mqtt / set_pos / set_pos_tx / set_nodeinfo_tx / set_telem_tx / pos_clear\n[E] set_preset / set_lora / set_freq / panic / panic_ok\n[E] set_beacon / mute / set_pin / test_tx / set_chem / set_vbat / set_vwake / storm / txoff / txon / ble\n[E] msg / bell / pos / nodeinfo / sendtel / fav / ign / db_purge / db_clear\n[E] set_name / set_role / set_rebroadcast / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg / reboot / factory_reset / full_reset / wipe / admin_ls / keys_ls / keys_clear\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true, false, hops);
+                "CMDS:\n[Q] ping / status / env / channel / peers / bat / power\n[Q] rxlog / afc / reset_reason / noise / stats / log\n[E] ch_ls / ch_set / ch_del / ch_url / set_cli_chan / navadmin_mute / ch_reset\n[E] ch_mqtt / set_ok_to_mqtt / set_pos / set_pos_tx / set_nodeinfo_tx / set_telem_tx / pos_clear\n[E] set_preset / set_lora / set_freq / panic / panic_ok\n[E] mute / set_pin / test_tx / set_chem / set_vbat / set_vwake / storm / txoff / txon / ble\n[E] msg / bell / pos / nodeinfo / sendtel / fav / ign / db_purge / db_clear\n[E] set_name / set_role / set_rebroadcast / set_mqtt / set_tz / set_hops / set_txpower\n[E] sleepmsg / reboot / factory_reset / full_reset / wipe / admin_ls / keys_ls / keys_clear\n\nAYUDA: /nava help <comando>\nDIR: ![ID] / @[r/c/a] / @name:[pref]", true, false, hops);
         }
     }
     else if (cmd == "ping") {
@@ -2724,7 +3149,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
     }
     else if (cmd == "ch_ls") {
         std::string out = "CANALES (0-7):\n";
-        for (uint8_t i = 0; i < MAX_NUM_CHANNELS; i++) {
+        for (uint8_t i = 0; i < (int)MAX_NUM_CHANNELS; i++) {
             const meshtastic_Channel &ch = channels.getByIndex(i);
             char buf[64];
             const char *roleStr = (ch.role == meshtastic_Channel_Role_PRIMARY) ? "PRI" :
@@ -2949,7 +3374,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         }
     }
     else if (cmd == "ch_reset") {
-        for (uint8_t i = 2; i < MAX_NUM_CHANNELS; i++) {
+        for (uint8_t i = 2; i < (int)MAX_NUM_CHANNELS; i++) {
             meshtastic_Channel ch = meshtastic_Channel_init_zero;
             ch.index = i;
             ch.role = meshtastic_Channel_Role_DISABLED;
@@ -3282,6 +3707,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         snprintf(respBuf, sizeof(respBuf), "OK: PRESET %s APLICADO (Reinicio diferido)", arg.c_str());
         enqueueResponse(replyDest, replyChannel, respBuf, true, false, hops);
 
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_LORA_CHANGE);
         deferredAction = NAVA_DEFERRED_LORA_CHANGE;
         preRebootArmed = false;
     }
@@ -3329,6 +3756,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         snprintf(respBuf, sizeof(respBuf), "OK: CAPA LORA ACTUALIZADA (BW:%u SF:%u CR:%u Freq:%.4f Slot:%u). Reinicio diferido", bw, sf, cr, freq, slot);
         enqueueResponse(replyDest, replyChannel, respBuf, true, false, hops);
 
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_LORA_CHANGE);
         deferredAction = NAVA_DEFERRED_LORA_CHANGE;
         preRebootArmed = false;
     }
@@ -3360,6 +3789,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         snprintf(respBuf, sizeof(respBuf), "OK: FRECUENCIA APLICADA (%.4f MHz Slot %u). Reinicio diferido", freq, slot);
         enqueueResponse(replyDest, replyChannel, respBuf, true, false, hops);
 
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_LORA_CHANGE);
         deferredAction = NAVA_DEFERRED_LORA_CHANGE;
         preRebootArmed = false;
     }
@@ -3426,28 +3857,6 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         startPanic(pulse);
         char respBuf[120];
         snprintf(respBuf, sizeof(respBuf), "OK: PROTOCOLO DE PANICO INICIADO. EVACUACION EN %u MINUTOS...", (unsigned int)mins);
-        enqueueResponse(replyDest, replyChannel, respBuf, true, false, hops);
-    }
-    else if (cmd.rfind("set_beacon", 0) == 0) {
-        std::string arg = (cmd.length() > 10) ? cmd.substr(10) : "";
-        while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
-        if (arg.empty()) {
-            enqueueResponse(replyDest, replyChannel, usageAndState("set_beacon"), true, false, hops);
-            return;
-        }
-        uint32_t mins = strtoul(arg.c_str(), NULL, 10);
-        if (mins < 1 || mins > 1440) {
-            enqueueResponse(replyDest, replyChannel, "ERR: MINUTOS INVALIDOS (1-1440)", true, false, hops);
-            return;
-        }
-        config.device.node_info_broadcast_secs = mins * 60;
-        config.position.position_broadcast_secs = mins * 60;
-        prefs.beacon_interval_secs = mins * 60;
-        nodeDB->saveToDisk(SEGMENT_CONFIG);
-        saveResiliencePrefs();
-
-        char respBuf[80];
-        snprintf(respBuf, sizeof(respBuf), "OK: BALIZA CONFIGURADA CADA %lu MINUTOS", (unsigned long)mins);
         enqueueResponse(replyDest, replyChannel, respBuf, true, false, hops);
     }
     else if (cmd.rfind("mute", 0) == 0) {
@@ -3746,8 +4155,13 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             prefs.vwake_level = 3;
         } else if (arg == "sodium") {
             prefs.chemistry = 2;
-            prefs.vbat_cutoff = 2600;
-            prefs.vwake_level = 1;
+            // INVARIANTE: el despertar SIEMPRE por encima del corte, o el nodo no despierta nunca
+            // (el LPCOMP detecta flanco de SUBIDA y la bateria ya esta por encima al armarse).
+            // Nivel 5 = 3300 mV (tabla de set_vwake). Antes: corte 2600 / nivel 1 (2060 mV) -> nodo
+            // perdido. El corte de 2600 ademas esta al borde del vaciado en una celda de sodio
+            // (su curva OCV baja hasta 2500). Ambos valores son ajustables por NavaCLI.
+            prefs.vbat_cutoff = 3000;
+            prefs.vwake_level = 5;
         } else if (arg == "lifepo4") {
 #if defined(SEEED_SOLAR_NODE) || defined(SEEED_XIAO_NRF52840_KIT) || defined(HELTEC_T114)
             enqueueResponse(replyDest, replyChannel, "ERR: LIFEPO4 NO COMPATIBLE, UMBRAL LPCOMP FIJO", true, false, hops);
@@ -3781,6 +4195,21 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         uint16_t val = atoi(arg.c_str());
         if (val < 2400 || val > 3600) {
             enqueueResponse(replyDest, replyChannel, "ERR: RANGO INVALIDO (2400-3600 mV)", true, false, hops);
+            return;
+        }
+        // INVARIANTE (misma que en set_vwake): el despertar SIEMPRE por encima del corte. Sin esto
+        // se puede dejar el nodo sin poder despertar nunca (LPCOMP = flanco de SUBIDA).
+        // Se usa navaGetLpcompWakeMv() y NO una tabla propia: esa funcion ya resuelve las placas de
+        // umbral FIJO (Seed/Xiao = 3670, T114 = 4040), donde el nivel es ignorado. Con una tabla
+        // propia se rechazarian cortes legitimos en esas placas (auditoria 15/09/2026, F3) y
+        // ademas la tabla no coincidia con la real (2100/2500/3700/4500 vs 2060/2480/3710/4540).
+        uint16_t curWakeMv = navaGetLpcompWakeMv();
+        if (curWakeMv <= val) {
+            char err[130];
+            snprintf(err, sizeof(err),
+                     "ERR: VBAT_CUTOFF (%umV) DEBE SER MENOR QUE VWAKE (%umV, nivel %u). Sube el nivel con set_vwake",
+                     (unsigned int)val, (unsigned int)curWakeMv, (unsigned int)prefs.vwake_level);
+            enqueueResponse(replyDest, replyChannel, err, true, false, hops);
             return;
         }
         prefs.vbat_cutoff = val;
@@ -3859,6 +4288,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
     }
     else if (cmd == "txoff") {
         enqueueResponse(replyDest, replyChannel, "OK: TX APAGADO (tras vaciar cola. Persiste. ROLLBACK SOLO: nrf erase)", true, false, hops);
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_TXOFF);
         deferredAction = NAVA_DEFERRED_TXOFF;
         preRebootArmed = false;
     }
@@ -4106,9 +4537,14 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             return;
         }
         int p = atoi(arg.c_str());
+        // La potencia TX debe persistir TAMBIEN en el respaldo: applyPersistedLoraConfig()
+        // reinyecta prefs.lora_tx_power al arrancar, asi que sin esto el valor se revertia
+        // en el siguiente reinicio (la app y set_lora si lo guardan).
 #ifdef NAVARICO_RADIO_E22P
         if (p >= 0 && p <= 12) {
             config.lora.tx_power = p;
+            prefs.lora_tx_power = p;
+            saveResiliencePrefs();
             nodeDB->saveToDisk(SEGMENT_CONFIG);
             enqueueResponse(replyDest, replyChannel, "OK: POTENCIA TX E22P APLICADA", true, false, hops);
         } else {
@@ -4117,6 +4553,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
 #else
         if (p >= 0 && p <= 22) {
             config.lora.tx_power = p;
+            prefs.lora_tx_power = p;
+            saveResiliencePrefs();
             nodeDB->saveToDisk(SEGMENT_CONFIG);
             enqueueResponse(replyDest, replyChannel, "OK: POTENCIA TX SX1262 APLICADA", true, false, hops);
         } else {
@@ -4159,11 +4597,15 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
     }
     else if (cmd == "reboot") {
         enqueueResponse(replyDest, replyChannel, "OK: REINICIANDO (tras vaciar cola...)", true, false, hops);
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_REBOOT);
         deferredAction = NAVA_DEFERRED_REBOOT;
         preRebootArmed = false;
     }
     else if (cmd == "factory_reset") {
         enqueueResponse(replyDest, replyChannel, "OK: RESET DE FABRICA PROGRAMADO (tras vaciar cola...)", true, false, hops);
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_FACTORY_RESET);
         deferredAction = NAVA_DEFERRED_FACTORY_RESET;
         preRebootArmed = false;
     }
@@ -4177,6 +4619,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             return;
         }
         enqueueResponse(replyDest, replyChannel, "OK: RESET COMPLETO PROGRAMADO (PKI conservado, tras vaciar cola...)", true, false, hops);
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_FULL_RESET);
         deferredAction = NAVA_DEFERRED_FULL_RESET;
         preRebootArmed = false;
     }
@@ -4189,6 +4633,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             return;
         }
         enqueueResponse(replyDest, replyChannel, "OK: WIPE PROGRAMADO (par PKI nuevo al reiniciar, tras vaciar cola...)", true, false, hops);
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_WIPE);
         deferredAction = NAVA_DEFERRED_WIPE;
         preRebootArmed = false;
     }
@@ -4235,6 +4681,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
     }
     else if (cmd == "keys_clear") {
         enqueueResponse(replyDest, replyChannel, "OK: CLAVES PERSISTIDAS BORRADAS (tras vaciar cola...)", true, false, hops);
+        // D-7: persistir la orden antes de armarla (sobrevive a reinicio, a otro comando y a un corte)
+        savePendingAction(NAVA_DEFERRED_KEYS_CLEAR);
         deferredAction = NAVA_DEFERRED_KEYS_CLEAR;
         preRebootArmed = false;
     }
@@ -4245,6 +4693,14 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
 
 int32_t NavaCLIModule::runOnce()
 {
+    // D-7 (15/09/2026): recuperar UNA VEZ la orden diferida que quedo pendiente en disco. Se hace
+    // aqui, de forma perezosa, y no en el constructor, para que el sistema este ya inicializado
+    // (radio y cola de respuestas) cuando la orden se re-arme y se ejecute.
+    if (!pendingLoaded) {
+        pendingLoaded = true;
+        loadPendingAction();
+    }
+
     // V2: reconciliar el listado persistente de auto-favoritos con los routers directos
     reconcileAutoFavs();
 
@@ -4611,32 +5067,43 @@ int32_t NavaCLIModule::runOnce()
         NavaDeferredAction act = deferredAction;
         deferredAction = NAVA_DEFERRED_NONE;
         preRebootArmed = false;
+        // D-7 (CORREGIDO 15/09/2026 tras auditoria - FALLO CRITICO): el borrado va AQUI, ANTES del
+        // switch, y no despues. Los cinco casos que reinician (REBOOT, FACTORY_RESET, FULL_RESET,
+        // WIPE, LORA_CHANGE/PANIC_JUMP) hacen `rebootAtMsec = ...; return 1000;` y SALIAN ANTES del
+        // clearPendingAction() que estaba al final: el fichero sobrevivia al reinicio, loadPendingAction()
+        // lo re-armaba al arrancar, y el nodo volvia a reiniciar -> BUCLE INFINITO de ~10-40 s por
+        // ciclo, que ademas SOBREVIVE AL RE-FLASHEO porque /pending.bin vive en el sistema de
+        // ficheros y no en la imagen de aplicacion.
+        // Se consume JUSTO ANTES de reiniciar (en los casos que reinician) o al terminar de ejecutar
+        // (en los que no). NO al empezar: un corte de luz a mitad PERDERIA la orden sin ejecutarla
+        // (el fichero borrado y el estado solo en RAM), y el operador se quedaria creyendo que su
+        // wipe o su factory_reset ocurrieron. Auditoria 15/09/2026, FALLO 2.
         switch (act) {
             case NAVA_DEFERRED_REBOOT:
                 LOG_INFO("Ejecutando reinicio diferido...");
                 nodeDB->saveToDisk(SEGMENT_NODEDATABASE);
                 navaPrepareRadioForReboot(); // Fix I16bis (29/08)
-                rebootAtMsec = millis() + 25;
+                consumePendingAndReboot(); // consume la orden y arma el reinicio, siempre juntos
                 return 1000;
             case NAVA_DEFERRED_FACTORY_RESET:
                 LOG_INFO("Ejecutando factory reset diferido...");
                 nodeDB->factoryReset(true);
                 navaPrepareRadioForReboot(); // Fix I16bis (29/08)
-                rebootAtMsec = millis() + 25;
+                consumePendingAndReboot(); // consume la orden y arma el reinicio, siempre juntos
                 return 1000;
             case NAVA_DEFERRED_FULL_RESET:
                 LOG_INFO("Ejecutando full reset diferido (PKI conservado)...");
                 navaFullResetKeepKeys();
                 nodeDB->factoryReset(false);
                 navaPrepareRadioForReboot(); // Fix I16bis (29/08)
-                rebootAtMsec = millis() + 25;
+                consumePendingAndReboot(); // consume la orden y arma el reinicio, siempre juntos
                 return 1000;
             case NAVA_DEFERRED_WIPE:
                 LOG_INFO("Ejecutando wipe diferido (nuevo par PKI)...");
                 FSCom.remove("/resilience.bin");
                 nodeDB->factoryReset(true);
                 navaPrepareRadioForReboot(); // Fix I16bis (29/08)
-                rebootAtMsec = millis() + 25;
+                consumePendingAndReboot(); // consume la orden y arma el reinicio, siempre juntos
                 return 1000;
             case NAVA_DEFERRED_STORM:
                 LOG_INFO("Entrando en modo tormenta: %lu segundos", (unsigned long)stormSeconds);
@@ -4662,14 +5129,24 @@ int32_t NavaCLIModule::runOnce()
                 saveResiliencePrefs();
                 break;
             case NAVA_DEFERRED_LORA_CHANGE:
-            case NAVA_DEFERRED_PANIC_JUMP:
+                // Auditoria 15/09/2026: aqui estaba tambien `case NAVA_DEFERRED_PANIC_JUMP`, pero es
+                // INALCANZABLE: ningun sitio del codigo asigna nunca esa accion (el panico usa su
+                // camino directo, no el diferido). Se elimina el case; el enumerador se conserva en
+                // la cabecera para no renombrar un tipo en todo el arbol.
                 LOG_INFO("Aplicando cambio de parametros LoRa / reiniciando...");
                 navaPrepareRadioForReboot(); // Fix I16bis (29/08)
-                rebootAtMsec = millis() + 25;
+                consumePendingAndReboot(); // consume la orden y arma el reinicio, siempre juntos
                 return 1000;
             default:
+                // Auditoria 15/09/2026 (3ª ronda, fallo E): antes esto consumia la orden EN SILENCIO.
+                // Si algun dia se añade una accion diferida nueva y se olvida su case, el fichero se
+                // borraria sin ejecutarla y nadie se enteraria. Ahora se avisa.
+                LOG_WARN("NavaCLI: accion diferida %d SIN CASE en el ejecutor: se descarta sin "
+                         "ejecutar. Si es una accion nueva, falta su case.", (int)act);
                 break;
         }
+        // La accion se ejecuto y NO reinicia (TXOFF, KEYS_CLEAR): ahora si se consume.
+        clearPendingAction();
     }
 
     if (sleepPending && responseQueue.empty() && (int32_t)(millis() - sleepTime) >= 0) {
@@ -4767,8 +5244,6 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
         return "panic: Evacuacion coordinada de emergencia. SOLO DM PKI o canal privado (bloqueado en Navadmin). Uso: /nava panic <preset|sfnarrow> [minutos=10] [rollback_mins=0]";
     else if (topic == "panic_ok")
         return "panic_ok: Consolida el salto de evacuacion cancelando el rollback. SOLO DM PKI o canal privado. Uso: /nava panic_ok";
-    else if (topic == "set_beacon")
-        return "set_beacon: Ajusta cadencia de emision de NodeInfo/Posicion en minutos. Uso: /nava set_beacon [minutos]";
     else if (topic == "mute")
         return "mute: Silencia temporalmente el reenvio de paquetes ajenos (RAM, ventana de 60s antes de actuar). Uso: /nava mute [minutos|off]";
     else if (topic == "set_pin")
@@ -4786,7 +5261,7 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
     else if (topic == "set_chem")
         return "set_chem: Cambia la quimica y ajusta corte/OCV/LPCOMP. Uso: /nava set_chem [lipo|nimh|sodium|lifepo4]";
     else if (topic == "set_vbat")
-        return "set_vbat: Corte de apagado por bateria baja. Uso: /nava set_vbat [2400-3600] mV";
+        return "set_vbat: Corte de apagado por bateria baja. Uso: /nava set_vbat [2400-3600] mV. REQUIERE ser MENOR que el umbral de despertar (si no, el nodo no volveria a arrancar)";
     else if (topic == "set_vwake")
         return "set_vwake: Nivel LPCOMP de reencendido solar. 1=2.1V, 2=2.5V, 3=3.7V, 4=4.5V, 5=3.3V. Uso: /nava set_vwake [1-5]";
     else if (topic == "storm")
@@ -4886,10 +5361,6 @@ std::string NavaCLIModule::usageAndState(const std::string &topic)
         }
         return buf;
     }
-    if (topic == "set_beacon") {
-        snprintf(buf, sizeof(buf), "BALIZA ACT: %lu min. USO: set_beacon [minutos]", (unsigned long)(config.device.node_info_broadcast_secs / 60));
-        return buf;
-    }
     if (topic == "mute") {
         if (navaIsMuteActive()) {
             uint32_t remMin = (muteUntilMs - millis()) / 60000;
@@ -4912,9 +5383,9 @@ std::string NavaCLIModule::usageAndState(const std::string &topic)
     if (topic == "set_chem") {
         const char *qca = (prefs.chemistry == 1) ? "nimh" : (prefs.chemistry == 2) ? "sodium" : (prefs.chemistry == 3) ? "lifepo4" : "lipo";
 #if defined(SEEED_SOLAR_NODE) || defined(SEEED_XIAO_NRF52840_KIT) || defined(HELTEC_T114)
-        snprintf(buf, sizeof(buf), "QCA: %s (%dmV,w%d)\nOPC: lipo|nimh|sodium [lifepo4 NO DISP: LPCOMP fijo >3.65V]\nlipo:3500/3.71V nimh:3400/3.71V sodium:2600/3.71V\nAVISO: persiste. ROLLBACK SOLO: nrf erase. CUIDADO", qca, prefs.vbat_cutoff, prefs.vwake_level);
+        snprintf(buf, sizeof(buf), "QCA: %s (%dmV,w%d)\nOPC: lipo|nimh|sodium [lifepo4 NO DISP: LPCOMP fijo >3.65V]\nlipo:3500 nimh:3400 sodium:3000/3.30V (w5)\nAVISO: persiste. ROLLBACK SOLO: nrf erase. CUIDADO", qca, prefs.vbat_cutoff, prefs.vwake_level);
 #else
-        snprintf(buf, sizeof(buf), "QCA: %s (%dmV,w%d)\nOPC: lipo|nimh|sodium|lifepo4\nlipo:3500/3.71V nimh:3400/3.71V sodium:2600/3.71V lifepo4:2800/3.30V\nAVISO: persiste. ROLLBACK SOLO: nrf erase. CUIDADO", qca, prefs.vbat_cutoff, prefs.vwake_level);
+        snprintf(buf, sizeof(buf), "QCA: %s (%dmV,w%d)\nOPC: lipo|nimh|sodium|lifepo4\nlipo:3500/3.71V nimh:3400/3.71V sodium:3000/3.30V lifepo4:2800/3.30V\nAVISO: persiste. ROLLBACK SOLO: nrf erase. CUIDADO", qca, prefs.vbat_cutoff, prefs.vwake_level);
 #endif
         return buf;
     }

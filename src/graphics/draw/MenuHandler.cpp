@@ -4,6 +4,7 @@
 #include "Default.h"
 #include "GPS.h"
 #include "MenuHandler.h"
+#include "modules/NavaCLIModule.h" // navaCLIModule->syncDeviceRoleFromConfig() (NAVARICO 15/09/2026)
 #include "MeshRadio.h"
 #include "MeshService.h"
 #include "MessageStore.h"
@@ -245,6 +246,15 @@ void menuHandler::deviceRolePicker()
             config.device.role = meshtastic_Config_DeviceConfig_Role_TRACKER;
         }
         service->reloadConfig(SEGMENT_CONFIG);
+        // NAVARICO (15/09/2026): sincronizar el rol hacia /resilience.bin y con la identidad del
+        // nodo. SIN ESTA LLAMADA el cambio de rol desde la pantalla NO sobrevive al reinicio: la
+        // config se guardaba en /prefs y el nodo reiniciaba, pero al arrancar loadResiliencePrefs()
+        // REIMPONIA el rol viejo del respaldo, asi que el usuario veia que "no hacia nada".
+        // syncDeviceRoleFromConfig() hace las tres cosas que faltaban: persistir el rol, actualizar
+        // owner.role y recargar la identidad. Es el mismo patron que ya usaba AdminModule (la app).
+        if (navaCLIModule) {
+            navaCLIModule->syncDeviceRoleFromConfig();
+        }
         rebootAtMsec = (millis() + DEFAULT_REBOOT_SECONDS * 1000);
     };
     screen->showOverlayBanner(bannerOptions);
@@ -307,6 +317,11 @@ void menuHandler::FrequencySlotPicker()
 
         config.lora.channel_num = selected;
         service->reloadConfig(SEGMENT_CONFIG);
+        // NAVARICO (15/09/2026): sincronizar el slot de frecuencia hacia /resilience.bin. Sin esto,
+        // el slot elegido en la pantalla se revierte al reiniciar (la capa LoRa del respaldo manda).
+        if (navaCLIModule) {
+            navaCLIModule->syncLoraConfigFromConfig();
+        }
         rebootAtMsec = (millis() + DEFAULT_REBOOT_SECONDS * 1000);
     };
 
@@ -346,6 +361,12 @@ void menuHandler::radioPresetPicker()
             config.lora.channel_num = 0;        // Reset to default channel for the preset
             config.lora.override_frequency = 0; // Clear any custom frequency
             service->reloadConfig(SEGMENT_CONFIG);
+            // NAVARICO (15/09/2026): mismo caso que el rol. Sin sincronizar, el preset elegido en
+            // la pantalla NO sobrevive: al arrancar, loadResiliencePrefs() reimpone la capa LoRa
+            // guardada en /resilience.bin y el usuario ve que el cambio "no hizo nada".
+            if (navaCLIModule) {
+                navaCLIModule->syncLoraConfigFromConfig();
+            }
             rebootAtMsec = (millis() + DEFAULT_REBOOT_SECONDS * 1000);
         });
 
@@ -1885,6 +1906,12 @@ void menuHandler::GPSPositionBroadcastMenu()
         if (selected != 0) {
             saveUIConfig();
             service->reloadConfig(SEGMENT_CONFIG);
+            // NAVARICO (15/09/2026): sincronizar la cadencia de posicion hacia /resilience.bin. Sin
+            // esto el ajuste elegido en la pantalla se revierte al reiniciar, porque
+            // loadResiliencePrefs() reimpone el intervalo guardado en el respaldo.
+            if (navaCLIModule) {
+                navaCLIModule->syncPositionIntervalFromConfig();
+            }
             rebootAtMsec = (millis() + DEFAULT_REBOOT_SECONDS * 1000);
         }
     };
