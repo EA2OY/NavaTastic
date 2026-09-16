@@ -238,6 +238,8 @@ pref_flags = []
 # las del perfil General. Sin las variables el build aborta con instrucciones.
 nav_propia_raw = env.GetProjectOption("custom_meshtastic_propia_keys", "")
 nav_propia_on = str(nav_propia_raw).strip().lower() in ("1", "true", "yes", "on")
+# NAVARICO 16/09/2026: los recortes de espacios sobrantes solo se aplican al ESP32 Propia.
+nav_recortar_espacios = nav_propia_on and ("espressif32" in str(env.get("PIOPLATFORM", "")).lower())
 if nav_propia_on:
     def nav_propia_required(var):
         val = os.environ.get(var, "").strip()
@@ -248,8 +250,25 @@ if nav_propia_on:
             print("  O usa build_propia.ps1, que las pide de forma interactiva SIN guardarlas.")
             sys.exit(1)
         return val
-    userPrefs["USERPREFS_USE_ADMIN_KEY_0"] = nav_propia_required("NAVARICO_PROPIA_KEY_0")
-    userPrefs["USERPREFS_USE_ADMIN_KEY_1"] = nav_propia_required("NAVARICO_PROPIA_KEY_1")
+
+    # NAVARICO 16/09/2026: la clave se emite como array C COMPACTO en DECIMAL
+    # ('{18,72,196,...}' en vez de '{ 0x12, 0x48, 0xc4, ... }').
+    # MOTIVO: en las placas ESP32 (Heltec V3/V4) la linea de compilacion ronda el limite de
+    # Windows (32.767 caracteres); con las dos claves en hex con espacios se pasa del limite y
+    # el compilador muere con 'xtensa-esp32s3-elf-g++: error: CreateProcess: No such file or
+    # directory' (el driver no puede arrancar cc1plus). Asi se recortan ~80 caracteres por
+    # clave. Los BYTES SON LOS MISMOS: solo cambia como se escriben. Se comprueba que sean 32.
+    def nav_propia_key_array(var):
+        val = nav_propia_required(var)
+        nums = re.findall(r"0x([0-9a-fA-F]{1,2})", val)
+        if len(nums) != 32:
+            print("NAVARICO ERROR: " + var + " debe tener 32 bytes en hexadecimal"
+                  " (encontrados " + str(len(nums)) + ")")
+            sys.exit(1)
+        return "{" + ",".join(str(int(n, 16)) for n in nums) + "}"
+
+    userPrefs["USERPREFS_USE_ADMIN_KEY_0"] = nav_propia_key_array("NAVARICO_PROPIA_KEY_0")
+    userPrefs["USERPREFS_USE_ADMIN_KEY_1"] = nav_propia_key_array("NAVARICO_PROPIA_KEY_1")
     userPrefs["USERPREFS_FIXED_BLUETOOTH"] = nav_propia_required("NAVARICO_PROPIA_BT")
     print("NAVARICO: build Propia — claves y PIN inyectados desde variables de entorno (no se almacenan)")
 # Pre-process the userPrefs
@@ -264,7 +283,15 @@ for pref in userPrefs:
         pref_flags.append("-D" + pref + "=" + userPrefs[pref])
     # If the value is a string, we need to wrap it in quotes
     else:
-        pref_flags.append("-D" + pref + "=" + env.StringifyMacro(userPrefs[pref]) + "")
+        # NAVARICO 16/09/2026: en ESP32-PROPIA se recortan los espacios sobrantes al final
+        # (los perfiles traen USERPREFS_TZ_STRING con 41 espacios de relleno). Es el ultimo
+        # recorte que hace falta para que la linea de compilacion quepa: en ESP32 esta pegada
+        # al limite de Windows. Se hace SOLO ahi para no cambiar ni un byte del resto de
+        # binarios (los General y los nRF52 ya estan publicados y distribuidos).
+        valor = userPrefs[pref]
+        if nav_recortar_espacios and valor != valor.rstrip():
+            valor = valor.rstrip()
+        pref_flags.append("-D" + pref + "=" + env.StringifyMacro(valor) + "")
 
 # General options that are passed to the C and C++ compilers
 # Calculate unix epoch for current day (midnight)
@@ -290,6 +317,16 @@ flags = [
         "-DBUILD_EPOCH=" + str(build_epoch),
     ] + pref_flags
 
+# NAVARICO 16/09/2026: quitar duplicados EXACTOS de la lista final (p. ej.
+# -DRADIOLIB_EXCLUDE_BELL=1 llega dos veces). Mismo motivo que arriba: en ESP32 la linea de
+# compilacion ronda el limite de Windows (32.767) y el driver no puede arrancar cc1plus
+# ('error: CreateProcess: No such file or directory'). Quitar un flag repetido NO cambia nada.
+flags_sin_duplicados = []
+for f in flags:
+    if f not in flags_sin_duplicados:
+        flags_sin_duplicados.append(f)
+flags = flags_sin_duplicados
+
 print("Using flags:")
 for flag in flags:
     print(flag)
@@ -297,6 +334,27 @@ for flag in flags:
 projenv.Append(
     CCFLAGS=flags,
 )
+
+# NAVARICO 16/09/2026: deduplicar TODA la lista final de CCFLAGS (no solo los nuestros).
+# Al fusionarse los flags de la plataforma con los del env hay repetidos exactos
+# (-std=gnu++17, -Os, -DRADIOLIB_EXCLUDE_BELL=1...). Quitar un flag repetido NO cambia el
+# binario, y en ESP32 la linea de compilacion esta pegada al limite de Windows (32.767): el
+# driver no puede arrancar cc1plus y muere con 'error: CreateProcess: No such file or directory'.
+def nav_sin_duplicados(lista):
+    vistos = []
+    for x in lista:
+        if x not in vistos:
+            vistos.append(x)
+    return vistos
+
+projenv["CCFLAGS"] = nav_sin_duplicados(projenv["CCFLAGS"])
+# Los repetidos tambien pueden venir de la plantilla de compilacion del env (CXXFLAGS) o de
+# los envs de las librerias, no solo de projenv.
+for nav_clave in ("CCFLAGS", "CXXFLAGS", "CPPDEFINES"):
+    if nav_clave in env:
+        env[nav_clave] = nav_sin_duplicados(env[nav_clave])
+    if nav_clave in projenv:
+        projenv[nav_clave] = nav_sin_duplicados(projenv[nav_clave])
 
 # NAVARICO: mapeo de ruta de libdeps para paridad byte-a-byte.
 # El parser de build_flags de PlatformIO elimina los backslash, asi que el
