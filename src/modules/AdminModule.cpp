@@ -649,6 +649,12 @@ void AdminModule::handleSetOwner(const meshtastic_User &o)
         service->reloadOwner(!hasOpenEditTransaction);
         saveChanges(SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE);
     }
+
+    // NAVARICO V5.1: el nombre puesto por la App se respalda hacia /resilience.bin en modo
+    // natural (sin hardcodeo de /nava set_name). Sin esto, el cambio se perdia al reiniciar.
+    if (navaCLIModule) {
+        navaCLIModule->syncOwnerNameToResilience();
+    }
 }
 
 void AdminModule::handleSetConfig(const meshtastic_Config &c)
@@ -686,12 +692,23 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
             LOG_WARN(warning);
             sendWarning(warning);
         }
-        // If we're setting router role for the first time, install its intervals
+        // NAVARICO NAV9 (R4, 28/08): ya NO se instalan los "defaults del rol" al cambiar el
+        // rol en caliente (72h/LOCAL_ONLY/neighbor son ajustes de RESCATE de la instalacion
+        // de fabrica; en caliente el usuario manda y sus valores se sincronizan abajo).
         if (existingRole != c.payload_variant.device.role) {
-            nodeDB->installRoleDefaults(c.payload_variant.device.role);
-            changes |= SEGMENT_NODEDATABASE | SEGMENT_DEVICESTATE; // Some role defaults affect owner
+            changes |= SEGMENT_NODEDATABASE | SEGMENT_DEVICESTATE; // role change affects owner
         }
-        if (config.device.node_info_broadcast_secs < min_node_info_broadcast_secs) {
+        // NAVARICO (15/09/2026, H17b): el 0 = APAGADO se respeta. Antes esta linea subia cualquier
+        // valor por debajo de 1 hora a 1 hora, INCLUIDO el 0, asi que apagar el aviso NodeInfo desde
+        // la App era imposible: el nodo lo volvia a encender solo. Es la regla del proyecto de que el
+        // usuario manda (y el firmware solo tiene tope MAXIMO para este ajuste, no minimo).
+        // Se avisa por consola, porque apagar este aviso deja al nodo SIN ANUNCIARSE en la malla:
+        // los demas no sabran que existe hasta que alguien lo oiga por otro trafico.
+        if (config.device.node_info_broadcast_secs == 0) {
+            LOG_WARN("NodeInfo broadcast APAGADO (0) por peticion del usuario: el nodo no se anunciara "
+                     "en la malla. Para volver a activarlo, pon un valor >= %d segundos.",
+                     min_node_info_broadcast_secs);
+        } else if (config.device.node_info_broadcast_secs < min_node_info_broadcast_secs) {
             LOG_DEBUG("Tried to set node_info_broadcast_secs too low, setting to %d", min_node_info_broadcast_secs);
             config.device.node_info_broadcast_secs = min_node_info_broadcast_secs;
         }
@@ -719,10 +736,12 @@ void AdminModule::handleSetConfig(const meshtastic_Config &c)
         nodeDB->updateUser(nodeDB->getNodeNum(), owner);
         changes |= SEGMENT_DEVICESTATE | SEGMENT_NODEDATABASE;
 
-        // NAVARICO V5: Sincronización transparente de rol y nodeinfo broadcast hacia /resilience.bin
+        // NAVARICO V5/NAV9: Sincronización transparente de rol, nodeinfo broadcast y
+        // modo de retransmision hacia /resilience.bin (en caliente; el usuario manda)
         if (navaCLIModule) {
             navaCLIModule->syncDeviceRoleFromConfig();
             navaCLIModule->syncNodeInfoIntervalFromConfig();
+            navaCLIModule->syncRebroadcastModeFromConfig();
         }
         break;
     case meshtastic_Config_position_tag:

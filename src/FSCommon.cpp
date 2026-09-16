@@ -36,6 +36,12 @@ SPIClass SPI_HSPI(HSPI);
  * @param from The path of the source file.
  * @param to The path of the destination file.
  * @return true if the file was successfully copied, false otherwise.
+ *
+ * NAVARICO (15/09/2026, tras auditoria): renameFile() YA NO usa esta funcion (ahora usa el rename
+ * real de littlefs, que es atomico). Se conserva porque es API publica declarada en FSCommon.h.
+ * OJO: NO puede detectar un fallo diferido del volcado final, porque File::flush() y File::close()
+ * devuelven void en TODAS las plataformas (littlefs escribe el ultimo bloque al cerrar): por eso no
+ * sirve como base de una sustitucion atomica. La comprobacion de write() de abajo si es correcta.
  */
 bool copyFile(const char *from, const char *to)
 {
@@ -56,9 +62,37 @@ bool copyFile(const char *from, const char *to)
         return false;
     }
 
-    while (f1.available() > 0) {
+    // Bucle ACOTADO por el tamaño del origen (no por available()): si read() no devolviera un valor
+    // negativo al llegar al final, `while (f1.available() > 0)` podria no terminar nunca. Con el
+    // numero de bytes por delante, el limite es el propio fichero y no puede quedarse dando vueltas.
+    // Auditoria externa 15/09/2026, hallazgo 5 (aplicado aqui por el mismo motivo que en SafeFile).
+    uint32_t remaining = f1.size();
+    while (remaining > 0) {
         byte i = f1.read(cbuffer, 16);
-        f2.write(cbuffer, i);
+        if (i == 0) {
+            // Lectura corta inesperada: no se puede copiar el resto, se aborta sin borrar el origen.
+            LOG_ERROR("copyFile: lectura corta en %s", from);
+            f2.close();
+            f1.close();
+            return false;
+        }
+        if (i > remaining) {
+            i = (byte)remaining;
+        }
+        // NAVARICO (15/09/2026): comprobar la escritura. Antes se ignoraba, asi que una copia
+        // corta (destino sin hueco) terminaba el bucle, f2.flush()/close() tampoco se comprobaban,
+        // y copyFile() devolvia true -> quien la llamara borraba el ORIGEN y el llamante creia haber
+        // guardado. El resultado era un fichero TRUNCADO presentado como exito.
+        // OJO: copyFile() YA NO la usa nadie (renameFile usa el rename real de littlefs). Sigue
+        // siendo API publica, pero NO es base valida para una sustitucion atomica, porque el volcado
+        // final (flush/close, que devuelven void) no se puede comprobar desde aqui.
+        if (f2.write(cbuffer, i) != i) {
+            LOG_ERROR("copyFile: escritura incompleta en %s", to);
+            f2.close();
+            f1.close();
+            return false;
+        }
+        remaining -= i;
     }
 
     f2.flush();
@@ -79,23 +113,22 @@ bool copyFile(const char *from, const char *to)
 bool renameFile(const char *pathFrom, const char *pathTo)
 {
 #ifdef FSCom
-
-#ifdef ARCH_ESP32
-    // take SPI Lock
+    // NAVARICO (15/09/2026, auditoria): se usa el rename REAL de littlefs en TODAS las plataformas.
+    // Antes, fuera de ESP32 se hacia `copyFile() && FSCom.remove(origen)`, y eso traia tres fallos:
+    //   - Si la copia iba bien pero el remove del origen fallaba (lfs_remove puede dar NOSPC justo
+    //     despues de que la copia consuma el ultimo hueco), devolvia FALSE: un guardado CORRECTO se
+    //     reportaba como fallo y el llamante (NodeDB::saveToDisk) reaccionaba con FSCom.format(),
+    //     borrando /prefs, /resilience.bin y las claves admin.
+    //   - copyFile no puede comprobar el volcado final: File::flush()/close() devuelven void, asi
+    //     que un fallo diferido de littlefs (el ultimo bloque se escribe al cerrar) pasaba como exito.
+    //   - La copia necesita 2N de espacio (origen + destino) en una particion de ~28 KB, y borra el
+    //     original ANTES de copiar: un corte ahi deja el fichero perdido.
+    // lfs_rename SOBRESCRIBE el destino y es atomico (rama prevexists en lfs.c), asi que no hace
+    // falta ni copiar ni borrar. Es ademas lo que hace la otra rama del proyecto.
     spiLock->lock();
-    // rename was fixed for ESP32 IDF LittleFS in April
     bool result = FSCom.rename(pathFrom, pathTo);
     spiLock->unlock();
     return result;
-#else
-    // copyFile does its own locking.
-    if (copyFile(pathFrom, pathTo) && FSCom.remove(pathFrom)) {
-        return true;
-    } else {
-        return false;
-    }
-#endif
-
 #endif
 }
 

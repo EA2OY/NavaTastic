@@ -199,6 +199,16 @@ void NodeDB::checkAndRegisterRAMAutoFavorite(meshtastic_NodeInfoLite *info)
         return; // Auto-favoriteo desactivado por /nava fav auto off
     }
     if (info && info->has_user) {
+        // NAVARICO: Si el nodo está verificado como administrador, blindarlo como favorito de inmediato (cualquier rol)
+        if (isAdminNode(*info)) {
+            if (!info->is_favorite) {
+                LOG_INFO("Auto-Favorite: Marking verified admin 0x%08x as favorite", info->num);
+                info->is_favorite = true;
+                sortMeshDB();
+            }
+            return;
+        }
+
         if (info->has_hops_away && info->hops_away == 0) {
             if (IS_ONE_OF(info->user.role, 
                           meshtastic_Config_DeviceConfig_Role_ROUTER, 
@@ -208,7 +218,6 @@ void NodeDB::checkAndRegisterRAMAutoFavorite(meshtastic_NodeInfoLite *info)
                     LOG_INFO("Auto-Favorite: Marking direct router 0x%08x as favorite", info->num);
                     info->is_favorite = true;
                     sortMeshDB();
-                    saveNodeDatabaseToDisk();
                 }
                 auto &adr = router->activeDirectRouters;
                 if (std::find(adr.begin(), adr.end(), info->num) == adr.end()) {
@@ -562,6 +571,31 @@ void NodeDB::resetRadioConfig(bool is_fresh_install)
     initRegion();
 }
 
+// NAVARICO V5.1: contador de resets de fabrica. Fichero /fr.bin en la raiz del FS:
+// sobrevive a rmDir("/prefs") (igual que /resilience.bin) y el wipe NO lo borra
+// (rastro forense del propio wipe). uint32 saturado: nunca da la vuelta.
+static void navaCountFactoryReset()
+{
+    uint32_t count = 0;
+    spiLock->lock();
+    if (FSCom.exists("/fr.bin")) {
+        File f = FSCom.open("/fr.bin", FILE_O_READ);
+        if (f) {
+            if (f.size() == 4) f.read((uint8_t *)&count, 4);
+            f.close();
+        }
+    }
+    if (count < 0xFFFFFFFFu) count++;
+    FSCom.remove("/fr.bin"); // L7: escribir siempre desde cero (FILE_O_WRITE no trunca)
+    File f = FSCom.open("/fr.bin", FILE_O_WRITE);
+    if (f) {
+        f.write((const uint8_t *)&count, 4);
+        f.close();
+    }
+    spiLock->unlock();
+    LOG_INFO("NAVARICO: reset de fabrica registrado (#%lu en /fr.bin)", (unsigned long)count);
+}
+
 #ifdef FIX_NATIVE_CORE_RESET
 bool NodeDB::factoryReset(bool eraseBleBonds)
 {
@@ -584,6 +618,7 @@ bool NodeDB::factoryReset(bool eraseBleBonds)
     installDefaultChannels();
     // third, write everything to disk
     saveToDisk();
+    navaCountFactoryReset(); // NAVARICO V5.1: contador de resets (/fr.bin)
     if (eraseBleBonds) {
         LOG_INFO("Erase BLE bonds");
 #ifdef ARCH_ESP32
@@ -631,6 +666,7 @@ bool NodeDB::factoryReset(bool eraseBleBonds)
     installDefaultChannels();
     // third, write everything to disk
     saveToDisk();
+    navaCountFactoryReset(); // NAVARICO V5.1: contador de resets (/fr.bin)
     if (eraseBleBonds) {
         LOG_INFO("Erase BLE bonds");
 #ifdef ARCH_ESP32
@@ -648,6 +684,26 @@ bool NodeDB::factoryReset(bool eraseBleBonds)
     return true;
 }
 #endif
+
+// NAVARICO I20 (30/08): aplica los defaults del perfil sin borrar /prefs. En ESP32,
+// rmDir("/prefs") + la primera escritura LittleFS posterior cuelga el loopTask
+// (MessageStore::clearAllMessages) -> WDT reboot en bucle. Esta ruta sobrescribe los
+// ficheros con escrituras normales (mismo resultado en disco que factoryReset).
+// Definida fuera del #ifdef FIX_NATIVE_CORE_RESET: la referencia desde el deploy
+// (ARCH_ESP32) debe enlazar en CUALQUIER build ESP32, tenga o no la macro.
+void NodeDB::applyProfileDefaults(bool preserveKey)
+{
+    installDefaultNodeDatabase();
+    installDefaultDeviceState();
+    installDefaultConfig(preserveKey);
+    installDefaultModuleConfig();
+    installDefaultChannels();
+    if (transmitHistory) {
+        transmitHistory->clear();
+    }
+    saveToDisk();
+    navaCountFactoryReset(); // NAVARICO V5.1: contador de resets (deploy ESP32)
+}
 
 void NodeDB::installDefaultNodeDatabase()
 {
@@ -701,6 +757,16 @@ void NodeDB::installDefaultConfig(bool preserveKey = false)
     config.device.role = USERPREFS_CONFIG_DEVICE_ROLE;
 #else // NAVARICO: rol por defecto via perfil (R2=ROUTER, R1=CLIENT en el jsonc). Fallback solo si falta la macro.
     config.device.role = meshtastic_Config_DeviceConfig_Role_ROUTER; // Default to router. NAVARICO: R1 usa CLIENT desde el perfil
+#endif
+
+// NAVARICO NAV9 (28/08): modo de retransmision por defecto (rescate) DESDE EL PERFIL.
+// Antes esta macro era configuracion MUERTA (0 refs en src); el default real salia de
+// installRoleDefaults. Ahora el usuario manda en caliente (sync a /resilience.bin) y
+// este es el valor que se reinyecta tras catastrofe/primera instalacion.
+#ifdef USERPREFS_CONFIG_DEVICE_REBROADCAST_MODE
+    config.device.rebroadcast_mode = USERPREFS_CONFIG_DEVICE_REBROADCAST_MODE;
+#else
+    config.device.rebroadcast_mode = meshtastic_Config_DeviceConfig_RebroadcastMode_ALL;
 #endif
 
 #ifdef USERPREFS_CONFIG_LORA_REGION
@@ -1058,10 +1124,17 @@ void NodeDB::installDefaultModuleConfig()
 void NodeDB::installRoleDefaults(meshtastic_Config_DeviceConfig_Role role)
 {
     if (role == meshtastic_Config_DeviceConfig_Role_ROUTER) {
+        uint32_t userScreenOn = config.display.screen_on_secs;
         initConfigIntervals();
+        if (userScreenOn > 1) {
+            config.display.screen_on_secs = userScreenOn;
+        }
         initModuleConfigIntervals();
         moduleConfig.telemetry.device_update_interval = default_telemetry_broadcast_interval_secs;
-        config.device.rebroadcast_mode = meshtastic_Config_DeviceConfig_RebroadcastMode_LOCAL_ONLY;
+        // NAVARICO NAV9 (28/08): el modo de retransmision NO se fuerza aqui — es decision
+        // del usuario (App o /nava set_rebroadcast) y se sincroniza en /resilience.bin.
+        // El default de fabrica (rescate) lo pone la macro USERPREFS_CONFIG_DEVICE_REBROADCAST_MODE
+        // en installDefaultConfig (LOCAL_ONLY en los perfiles).
         owner.has_is_unmessagable = true;
         owner.is_unmessagable = false; // NAVARICO: los repetidores/routers permanecen mensajables para administracion
 
@@ -1069,11 +1142,6 @@ void NodeDB::installRoleDefaults(meshtastic_Config_DeviceConfig_Role role)
         config.device.node_info_broadcast_secs = 72 * 60 * 60;          // 72 hours
         config.position.position_broadcast_secs = 72 * 60 * 60;         // 72 hours
         config.position.position_broadcast_smart_enabled = false;       // Smart Position OFF
-
-        // Custom Neighbor Info defaults
-        moduleConfig.neighbor_info.enabled = true;
-        moduleConfig.neighbor_info.update_interval = 350950;
-        moduleConfig.neighbor_info.transmit_over_lora = true;
     } else if (role == meshtastic_Config_DeviceConfig_Role_ROUTER_LATE) {
         moduleConfig.telemetry.device_update_interval = ONE_DAY;
         owner.has_is_unmessagable = true;
@@ -1632,10 +1700,15 @@ bool NodeDB::saveProto(const char *filename, size_t protoSize, const pb_msgdesc_
     if (!okay || !writeSucceeded) {
         LOG_ERROR("Can't write prefs!");
     }
+    // NAVARICO (15/09/2026): devolver el resultado REAL. Antes se devolvia solo 'okay' (el encode),
+    // asi que un fallo de ESCRITURA se reportaba como exito: el aviso de arriba se registraba y se
+    // descartaba, y el reintento de saveToDisk() nunca llegaba a ejecutarse. Devolver la verdad es
+    // lo que activa ese reintento, que ya existia y estaba muerto.
+    return okay && writeSucceeded;
 #else
     LOG_ERROR("ERROR: Filesystem not implemented");
+    return false;
 #endif
-    return okay;
 }
 
 bool NodeDB::saveChannelsToDisk()
@@ -2108,9 +2181,8 @@ bool NodeDB::updateUser(uint32_t nodeId, meshtastic_User &p, uint8_t channelInde
             if (newKeyIsAdmin) {
                 LOG_WARN("Public Key mismatch, but NEW key matches an admin key. Accepting and re-favoriting node.");
                 info->is_favorite = true;
-                // H3 FIX (2026-08-12): la validacion contra admin_key[] es equivalente a la de AdminModule;
-                // acreditamos admin aqui para romper el circulo clave-stale -> PKI no descifra -> sin bitfield.
-                info->bitfield |= NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+                // Auditoria 26/08: el bit de admin NO se concede por NodeInfo (no firmado). Solo se
+                // acredita como admin tras un DM PKI descifrado (NavaCLIModule::handleReceived).
                 // Permitir que el flujo continúe y sobreescriba info->user (incluida la nueva clave)
             } else {
                 LOG_WARN("Public Key mismatch, dropping NodeInfo");
@@ -2127,7 +2199,8 @@ bool NodeDB::updateUser(uint32_t nodeId, meshtastic_User &p, uint8_t channelInde
             (config.security.admin_key[1].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[1].bytes, 32) == 0) ||
             (config.security.admin_key[2].size == 32 && memcmp(p.public_key.bytes, config.security.admin_key[2].bytes, 32) == 0);
         if (firstKeyIsAdmin) {
-            info->bitfield |= NODEINFO_BITFIELD_IS_CRYPTOGRAPHICALLY_VERIFIED_ADMIN_MASK;
+            // Auditoria 26/08: favorito si, bit de admin NO (ver rama (a) arriba: solo por DM PKI).
+            info->is_favorite = true;
         }
     }
 #endif

@@ -73,7 +73,12 @@ bool MotionSensor::saveMagnetometerCalibration(const char *filePath, float highe
 
     auto file = SafeFile(filePath, true);
     const size_t written = file.write(reinterpret_cast<const uint8_t *>(&record), sizeof(record));
-    return (written == sizeof(record)) && file.close();
+    // NAVARICO (15/09/2026, auditoria): close() SIEMPRE, aunque la escritura fuera corta. Con
+    // `(written == ...) && file.close()` el cortocircuito se saltaba el cierre: quedaba un .tmp
+    // huerfano y se filtraba el handle lfs_file_t para siempre (File de Adafruit no tiene
+    // destructor). Se evalua close() primero y luego el resultado.
+    const bool closed = file.close();
+    return (written == sizeof(record)) && closed;
 #else
     return false;
 #endif

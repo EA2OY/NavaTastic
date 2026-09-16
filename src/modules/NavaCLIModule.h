@@ -11,14 +11,17 @@
 // Bump manual en CADA release (visible en el commit). Se muestra en /nava status
 // y en el aviso [Boot]; permite saber por radio que version lleva un nodo.
 #ifndef NAVATASTIC_BUILD
-#define NAVATASTIC_BUILD "V5"
+#define NAVATASTIC_BUILD "V5.2" // bump manual por release: V3 (4.3.2) -> V4 (4.3.3) -> V5 (4.3.4+, publicacion 29/08) -> V5.1 (09/09) -> V5.2 (15/09)
 #endif
 
-// NAVARICO F21/F22/V5: marcador de formato del struct ResiliencePrefs. Bump V5 (0x4E415636,
-// "NAV6"): soporte para persistencia blindada de Capa Física LoRa (Preset/Custom),
-// Canal 0 Primario, Protocolo "Botón del Pánico" y ampliación a 32 auto-favoritos.
-// Ficheros previos ("NAV5" / "NAV4" / "NAV3" / "NAVS") migran con defaults seguros.
-#define NAVS_RESILIENCE_VERSION 0x4E415636
+// NAVARICO V5 (NAV8): formato atómico con validación CRC32 y protección spiLock.
+// NAV8 (27/08, auditoría funcional): intervalos de telemetría INDEPENDIENTES por tipo
+// (device/env/power/air/health) sustituyen al único telem_tx_secs (+16B).
+// Ficheros previos migran limpiamente con defaults seguros (Clean Slate por decisión del
+// operador: la corrupción del fichero causaba reinicios en campo; el usuario reconfigura
+// al actualizar — claves/canales/rol se re-absorben solos desde la config; el nombre
+// queda en modo app (V5.1: ya no se absorbe).
+#define NAVS_RESILIENCE_VERSION 0x4E415639
 
 struct NavaResponse {
     NodeNum dest;
@@ -52,9 +55,10 @@ struct NavaLogEntry {
     char msg[48];
 };
 
-// NAVARICO V5: Pulso binario ultracorto para Protocolo "Botón del Pánico" (exactamente 24 Bytes)
+// NAVARICO V5: Pulso binario ultracorto para Protocolo "Botón del Pánico" (exactamente 28 Bytes)
 struct __attribute__((packed)) NavaPanicPulse {
-    uint32_t magic;             // 0x50414E43 ("PANC")
+    char magic[4];              // "PANC" o "POK!" (independiente de endianness)
+    uint32_t session_id;        // Identificador único de sesión de pánico (Monotonic Session Anchor)
     uint8_t use_preset;         // 1=Preset estándar, 0=Custom
     uint8_t modem_preset;       // 0..13 enum meshtastic_Config_LoRaConfig_ModemPreset
     uint8_t sf;                 // Spreading Factor (5..12)
@@ -81,7 +85,10 @@ struct ResiliencePrefs {
     uint8_t autoFavCount;    // V2/V4/V5: número de ids válidos en autoFavIds (0-32)
     uint8_t sleepMsgs;       // V2: 1=mensajes sueño/vivo/listo ON (default), 0=OFF (/nava sleepmsg)
     uint8_t wasInSleep;      // V2: 1=dormido por bateria (se setea antes de cpuDeepSleep, se lee al boot para Listo/Vivo)
-    uint8_t reserved;        // V2: reservado
+    uint8_t reserved;        // V2: reservado. NAVARICO V5.1: origen del nombre persistido
+                             // (custom_long_name): 0=legacy/sin dato (protegido si hay nombre),
+                             // 1=fijado con /nava set_name (protegido), 2=respaldo de la app
+                             // (la app puede actualizarlo)
     uint32_t version;        // Marcador de formato NAVS_RESILIENCE_VERSION ("NAV6"); ficheros previos migran con defaults
     // NAVARICO F20 (V3): claves admin PUBLICAS del usuario persistidas para que sobrevivan
     // a los resets de fabrica. keySlot0Own = clave propia que el usuario puso en slot 0
@@ -104,7 +111,14 @@ struct ResiliencePrefs {
     // NAVARICO F22: Control de difusión periódica de flota y lista negra persistente
     uint32_t pos_tx_secs;                // Difusión de posición (0=OFF, >0 segundos, default: 259200 = 72h)
     uint32_t nodeinfo_tx_secs;           // Difusión de NodeInfo (0=OFF, >0 segundos, default: 259200 = 72h)
-    uint32_t telem_tx_secs;              // Difusión de Telemetría (0=OFF, >0 segundos, default: 900s)
+    // NAVARICO V5.2/NAV8: intervalos de telemetría INDEPENDIENTES por tipo (27/08, auditoría
+    // funcional O4). Default: 43200s = 12 h en los 5. set_telem_tx cambia los 5 a la vez;
+    // la App oficial puede fijar tiempos distintos por tipo (sync por campo).
+    uint32_t telem_device_secs;          // Telemetría de dispositivo/batería
+    uint32_t telem_env_secs;             // Telemetría de ambiente/clima
+    uint32_t telem_power_secs;           // Telemetría de energía (INA219)
+    uint32_t telem_air_secs;             // Telemetría de calidad de aire
+    uint32_t telem_health_secs;          // Telemetría de salud
     uint32_t ignoredNodes[8];            // Lista negra global de nodos ignorados (NodeNum)
     uint8_t ignoredCount;                // Número de nodos ignorados (0-8)
 
@@ -148,6 +162,20 @@ struct ResiliencePrefs {
 
     // Bloque E - Extensión de Auto-Favoritos (slots 16..31)
     uint32_t extraAutoFavIds[16];        // Slots 16-31 de auto-favoritos
+    // NAVARICO NAV9 (28/08): el usuario manda; los "ajustes de rescate" (Buenas Practicas:
+    // nodeinfo/pos 72h, telem 12h, LOCAL_ONLY) solo se reinyectan tras catastrofe (fichero
+    // ausente/erroneo) o primera instalacion (deploy_done=0). Campos SIEMPRE al final,
+    // antes del crc32 (el NAV8 los tenia libres: su crc32 caia sobre estos offsets).
+    uint8_t rebroadcast_mode;      // 0xFF=sin fijar (manda /prefs); enum real: 0=ALL,1=ALL_SKIP_DECODING,2=LOCAL_ONLY,3=KNOWN_ONLY,4=NONE,5=CORE_PORTNUMS_ONLY
+    uint8_t pos_configured;        // 1=usuario fijo pos_tx_secs (incluido 0=OFF)
+    uint8_t nodeinfo_configured;   // 1=usuario fijo nodeinfo_tx_secs (incluido 0=OFF)
+    uint8_t telem_configured;      // 1=usuario fijo los 5 intervalos de telemetria (incluido 0=OFF)
+    uint8_t deploy_done;           // 1=despliegue de Buenas Practicas ya ejecutado
+    // NAVARICO 29/08 (fixes banco): Bloque F - protocolo de panico ampliado
+    uint8_t panic_use_preset;      // 1=salto a preset estandar, 0=custom/sfnarrow (fix I15)
+    uint8_t panic_countdown_mins;  // minutos del aviso persistidos (rearme tras reboot, fix P4)
+    uint32_t panic_session_id;     // id de sesion persistido (re-anclaje tras reboot, fix P4)
+    uint32_t crc32;                // Verificación de integridad matemática CRC32 (NAV7)
 };
 
 enum NavaDeferredAction {
@@ -160,7 +188,10 @@ enum NavaDeferredAction {
     NAVA_DEFERRED_TXOFF,
     NAVA_DEFERRED_KEYS_CLEAR,
     NAVA_DEFERRED_LORA_CHANGE,
-    NAVA_DEFERRED_PANIC_JUMP
+    NAVA_DEFERRED_PANIC_JUMP, // RESERVADO, SIN USO: nadie asigna esta accion (el panico usa su
+                              // camino directo). Se conserva el enumerador para no renombrar el tipo
+                              // en todo el arbol ni cambiar valores ya persistidos en /pending.bin.
+    NAVA_DEFERRED_MUTE
 };
 
 class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
@@ -184,6 +215,7 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     static bool isNodeIgnored(NodeNum node);
     static bool navaIsPanicActive();
     static bool navaIsPanicTunnelMode();
+    static bool navaTunnelAllowsPacket(const meshtastic_MeshPacket *p); // Fix I19 (29/08)
 
     // V2: el monitor de bateria (Power.cpp) delega el sueño aqui para mandar el
     // mensaje [Sueño] antes de dormir. Devuelve true si tomo el control.
@@ -204,6 +236,11 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     void syncLoraConfigFromConfig();
     void syncChannel0FromConfig();
     void syncCustomChannelFromConfig(uint8_t slot);
+    void syncRebroadcastModeFromConfig();
+
+    // NAVARICO V5.1: respalda hacia /resilience.bin el nombre puesto por la App (modo
+    // natural: sin hardcodeo de set_name ni nombre legacy). Lo llama AdminModule::handleSetOwner.
+    void syncOwnerNameToResilience();
 
   protected:
     virtual ProcessMessage handleReceived(const meshtastic_MeshPacket &mp) override;
@@ -218,6 +255,21 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     NavaDeferredAction deferredAction = NAVA_DEFERRED_NONE;
     bool preRebootArmed = false;
     uint32_t deferredExecutionTime = 0;
+
+    // D-7 (15/09/2026): la orden diferida se PERSISTE en /pending.bin para que no se pierda en
+    // silencio. Antes vivia solo en RAM: si llegaba otro comando, o el nodo se reiniciaba, o se iba
+    // la luz, la orden desaparecia. Y en set_freq/set_lora EL REINICIO ES lo que aplica el cambio,
+    // asi que el nodo se quedaba en la frecuencia vieja con la config nueva en disco y cambiaba de
+    // canal solo, semanas despues, sin que nadie lo hubiera tocado.
+    bool pendingLoaded = false; // la restauracion desde disco se intenta una sola vez, ya inicializado todo
+    static void savePendingAction(NavaDeferredAction act);
+    // Devuelve si el fichero ha quedado REALMENTE borrado: si no, no se puede afirmar que la orden
+    // se haya consumido (ver consumePendingAndReboot).
+    static bool clearPendingAction();
+    void loadPendingAction();
+    // Consume la orden persistida y arma el reinicio, siempre juntos (evita que un caso se deje el
+    // borrado sin hacer -> el fichero sobrevive al reinicio -> bucle infinito).
+    void consumePendingAndReboot();
 
     // V2: sueño diferido tras enviar [Sueño]/[Vivo]/[Reserva] (mismo patron que storm/reboot)
     bool sleepPending = false;
@@ -234,6 +286,12 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     bool tracePending = false;
     NodeNum traceTarget = 0;
     uint32_t traceExecutionTime = 0;
+    // NAVARICO V5.1: reenvio del resultado del traceroute a quien pidió /nava trace
+    bool traceAwaiting = false;
+    NodeNum traceRequester = 0;
+    uint8_t traceRequesterChannel = 0;
+    uint8_t traceRequesterHops = 0;
+    uint32_t traceReplyDeadlineMs = 0;
     
     // Variables de caché en RAM para lectura inmediata de sensores I2C
     float latestTemp = 0.0f;
@@ -260,6 +318,8 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
 
     // NAVARICO F21: Modo Silencioso temporal en RAM
     uint32_t muteUntilMs = 0;
+    // Auditoria 26/08: mute diferido (ventana de gracia 60s antes de cortar retransmision)
+    uint32_t mutePendingMinutes = 0;
 
     // NAVARICO F21: Ráfaga de prueba RF periódica (test_tx)
     uint8_t testTxCountRemaining = 0;
@@ -276,6 +336,9 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     static bool navaKeyIsEmpty(const uint8_t *key);
     static bool navaKeyIsProjectKey(const uint8_t *key);
     static bool navaKeyIsValid(const uint8_t *key);
+    // D-11: la clave publica indicada esta en config.security.admin_key[]? Se usa para REVALIDAR
+    // en cada comando, de modo que quitar una clave retire la autoridad de verdad.
+    static bool navaKeyIsAdminInConfig(const uint8_t *pubKey);
 
     // NAVARICO F21: Restauración y respaldo de canales secundarios
     void applyPersistedChannels();
@@ -293,8 +356,20 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     // NAVARICO V5: Protocolo "Botón del Pánico"
     void startPanic(const NavaPanicPulse &pulse);
     void emitPanicPulse();
+    void emitPanicOkPulse();
     void cancelPanicRollback();
     void handlePanicPulse(const meshtastic_MeshPacket &mp);
+    uint32_t currentPanicSessionId = 0;
+    uint32_t nextPulseIntervalMs = 30000;
+    // NAVARICO 29/08 (fixes banco): re-anclaje tras reboot durante aviso (P4) y red de
+    // seguridad de radio post-salto (I16bis)
+    bool panicNeedReanchor = false;
+    bool panicRadioRestartPending = false;
+    uint32_t panicRadioRestartAt = 0;
+    // NAVARICO 29/08 (fix F5): recetario canónico LoRa para preset destino (panic/set_preset)
+    void canonicalizeLoraForPreset(meshtastic_Config_LoRaConfig_ModemPreset preset);
+    // NAVARICO 29/08 (fix I16bis): dormir la radio por la vía estándar antes de reinicios
+    void navaPrepareRadioForReboot();
 
     // NAVARICO F20 (fix banco 2a): full_reset debe resetear los semi-persistentes a
     // defaults de perfil CONSERVANDO las 3 claves admin persistidas (no borrar el fichero).

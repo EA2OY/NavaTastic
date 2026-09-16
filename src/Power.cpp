@@ -38,6 +38,8 @@
 // NAVARICO F18: contador de lecturas bajas unificado para TODAS las placas (8, ~160s).
 // La macro la inyecta el perfil (USERPREFS_LOW_BATTERY_READINGS_COUNT); el fallback
 // cubre envs sin perfil navarrico (p. ej. tests native).
+// NAVARICO: el contador (8) y el espaciado son INMUNIDAD AL RUIDO DE RF, no un antirrebote.
+// Que protegen, por que, y que NO debe cambiarse: docs/cerebro/04_energia_bateria.md.
 #ifndef USERPREFS_LOW_BATTERY_READINGS_COUNT
 #define USERPREFS_LOW_BATTERY_READINGS_COUNT 8
 #endif
@@ -1023,6 +1025,8 @@ void Power::readPowerStatus(bool force)
     // el contador: el nodo despertado con bateria baja debe OPERAR el ciclo completo
     // de USERPREFS_LOW_BATTERY_READINGS_COUNT lecturas (8, ~160s) antes de dormir,
     // como en Eclipse (el ADC puede dar lecturas puntuales erroneas en campo).
+    // NAVARICO: exigir TODAS las lecturas seguidas (no una mayoria) es lo que impide un apagado
+    // falso por ruido de RF; un apagado falso deja el nodo MUDO. Por que: docs/cerebro/04_energia_bateria.md.
 
     if (!force && batteryLevel && powerStatus2.getHasBattery() && !powerStatus2.getHasUSB()) {
         if (batteryLevel->getBattVoltage() < OCV[NUM_OCV_POINTS - 1]) {

@@ -4,15 +4,19 @@
 #
 # REPO UNIFICADO (14/08/2026): portado desde 4.3
 #   (HerramientasPropiasIA\generar_pdf.ps1, SOLO LECTURA alli).
-#   Entrada: docs\ (manuales .md) | Salida: docs\pdf\ (gitignored).
+#   Entrada: docs\ (manuales .md) | Salida: docs\pdf\.
+#   NAVARICO 15/09/2026: OJO - los PDFs de docs\pdf\ SI estan TRACKEADOS en git (NO son
+#   gitignored, como decia esta cabecera). Consecuencia: si editas un manual .md HAY QUE
+#   REGENERAR SU PDF Y COMMITEARLO, o el PDF queda desincronizado del manual que representa
+#   (paso el 15/09: Manual_uso_NavaTastic.pdf seguia del 12/09 con el .md del 15/09).
 #   Plantilla intacta: plantilla_navatastic.tex (copia 1:1 de 4.3).
 #   Norma 11/08: solo manuales de firmware y comandos -> NO generar PDFs de
 #   contexto: transfer_context, guia_integracion, GUIA_AGENTE_NAVTASTIC,
 #   INSTRUCCION_AUDITORIA_CLAUDE (el "tercer PDF que no sirve").
-#   La exclusion esta en $Excluir (override con -Excluir).
+#   La lista blanca esta en $Incluir (SOLO los manuales de usuario, criterio 28/08).
 #
 # USO:
-#   .\generar_pdf.ps1                     # convierte TODOS los .md de docs\ salvo $Excluir
+#   .\generar_pdf.ps1                     # genera SOLO los manuales de usuario ($Incluir)
 #   .\generar_pdf.ps1 -Archivo Manual_NavaTastic.md   # solo ese (relativo a docs\)
 #   .\generar_pdf.ps1 -Carpeta ".\docs"   # los .md de una subcarpeta
 #   .\generar_pdf.ps1 -Salida ".\docs\pdf" -Carpeta ".\docs"
@@ -26,7 +30,9 @@ param(
     [string]$Carpeta = "$PSScriptRoot\..\docs",
     [string]$Salida = "$PSScriptRoot\..\docs\pdf",
     [string]$Plantilla = "$PSScriptRoot\plantilla_navatastic.tex",
-    [string[]]$Excluir = @("transfer_context.md", "guia_integracion_navarrico.md", "GUIA_AGENTE_NAVTASTIC.md", "INSTRUCCION_AUDITORIA_CLAUDE.md", "Compilar_NavaTastic.md", "Guia_para_agente_sobre_NavaTastic.md", "BITACORA_TECNICA.md", "PLAN_DE_TRABAJO.md", "PORTING_NUEVO_FORK.md", "README_V4.md", "fixv4bugsinv5.md", "DIFERENCIAS_VS_UPSTREAM.md")
+    # NAVARICO 28/08 (criterio operador): lista blanca - SOLO los manuales de usuario.
+# Los PDFs de desarrollo (APERTURA, informes, planes, matriz, FAQ...) no se generan.
+[string[]]$Incluir = @("Manual_NavaTastic.md", "Manual_uso_NavaTastic.md")
 )
 
 $ErrorActionPreference = "Continue"
@@ -63,13 +69,15 @@ if ($Archivo) {
     }
     $archivos = @($Archivo)
 } elseif ($Carpeta) {
-    $archivos = Get-ChildItem -Path $Carpeta -Filter "*.md" | Where-Object { $_.Name -notin $Excluir } | ForEach-Object { $_.FullName }
+    # NAVARICO 28/08 (criterio operador): SOLO se generan los manuales de usuario
+    # (lista blanca). Los PDFs de desarrollo/informes NO se generan ni se trackean.
+    $archivos = Get-ChildItem -Path $Carpeta -Filter "*.md" | Where-Object { $_.Name -in $Incluir } | ForEach-Object { $_.FullName }
 } else {
-    $archivos = Get-ChildItem -Path $PSScriptRoot -Filter "*.md" | ForEach-Object { $_.FullName }
+    $archivos = Get-ChildItem -Path $PSScriptRoot -Filter "*.md" | Where-Object { $_.Name -in $Incluir } | ForEach-Object { $_.FullName }
 }
 
-if ($Excluir) {
-    Write-Host "Excluidos (norma 11/08): $($Excluir -join ', ')" -ForegroundColor Yellow
+if ($Incluir) {
+    Write-Host "Manuales a generar (lista blanca 28/08): $($Incluir -join ', ')" -ForegroundColor Yellow
 }
 
 if ($archivos.Count -eq 0) {
