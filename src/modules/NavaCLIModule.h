@@ -1,6 +1,7 @@
 #pragma once
 #include "concurrency/OSThread.h"
 #include "SinglePortModule.h"
+#include "../mesh/generated/meshtastic/apponly.pb.h" // V5.3: meshtastic_ChannelSet (enlace de canales)
 #include <map>
 #include <queue>
 #include <set>
@@ -11,7 +12,8 @@
 // Bump manual en CADA release (visible en el commit). Se muestra en /nava status
 // y en el aviso [Boot]; permite saber por radio que version lleva un nodo.
 #ifndef NAVATASTIC_BUILD
-#define NAVATASTIC_BUILD "V5.2" // bump manual por release: V3 (4.3.2) -> V4 (4.3.3) -> V5 (4.3.4+, publicacion 29/08) -> V5.1 (09/09) -> V5.2 (15/09)
+#define NAVATASTIC_BUILD "V5.3" // bump manual por release: V3 (4.3.2) -> V4 (4.3.3) -> V5 (4.3.4+,
+                                // publicacion 29/08) -> V5.1 (09/09) -> V5.2 (15/09) -> V5.3 (23/09)
 #endif
 
 // NAVARICO V5 (NAV8): formato atómico con validación CRC32 y protección spiLock.
@@ -99,7 +101,7 @@ struct ResiliencePrefs {
     uint8_t keySlot0Own[32];
     // NAVARICO F21: parámetros semi-permanentes de canales y gestión de infraestructura
     uint8_t cliChannelSlot;              // Slot asignado a NavaCLI (1-7, default: 1)
-    uint8_t navadminMuted;               // 0=Navadmin (Canal 1) activo, 1=silenciado
+    uint8_t navadminMuted;               // 0=atiende comandos del Canal 1; 1=no los atiende (salvo consola en canal 1)
     ResilientChannel customChannels[6];  // Slots 2..7 respaldados
     uint8_t ok_to_mqtt;                  // 0=default, 1=ON, 2=OFF
     uint32_t fixed_pin;                  // PIN BT fijo (>0 si personalizado)
@@ -133,7 +135,7 @@ struct ResiliencePrefs {
     uint8_t lora_coding_rate;            // CR 4..8
     uint32_t lora_channel_num;           // Slot de frecuencia (1..N)
     float lora_override_frequency;       // Frecuencia explícita (863.0000f - 873.3000f MHz)
-    uint8_t lora_tx_power;               // Potencia de transmisión (1..22 dBm)
+    int8_t lora_tx_power;                // Potencia de transmisión en dBm (-5..-1 y 1..tope; 0 = por defecto de la región)
     uint8_t lora_configured;             // 1=parámetros LoRa configurados/activos
 
     // Bloque B - Capa Lógica Canal 0 Primario Persistente
@@ -210,12 +212,22 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
 
     // NAVARICO F21/F22/V5: chequeos estáticos para enrutamiento y diagnóstico en RAM
     static bool navaIsMuteActive();
+    // V5.3: silencio del canal publico EFECTIVO (navadmin_mute activo y consola fuera del canal 1)
+    static bool navaNavadminMutedEffective();
+    // V5.3: true si NO hay que contestar a este paquete (llega por el canal 1 publico, es de un
+    // tercero y el silencio del canal publico esta efectivo). Lo usan el reparto de respuestas y los
+    // acuses del enrutador. Nunca afecta al reenvio del canal.
+    static bool navaSilenciarRespuestasCh1(const meshtastic_MeshPacket *p);
     static void recordRoutedPacket();
     static void logRamEvent(const char *msg);
     static bool isNodeIgnored(NodeNum node);
     static bool navaIsPanicActive();
     static bool navaIsPanicTunnelMode();
     static bool navaTunnelAllowsPacket(const meshtastic_MeshPacket *p); // Fix I19 (29/08)
+    // V5.3: con el mute activo se dejan pasar los privados dirigidos a este nodo (que es la vuelta por
+    // radio para cancelarlo); el resto del trafico ajeno se sigue descartando. Las alertas NO se pueden
+    // distinguir aqui: la prioridad no viaja en los paquetes recibidos.
+    static bool navaMuteAllowsPacket(const meshtastic_MeshPacket *p);
 
     // V2: el monitor de bateria (Power.cpp) delega el sueño aqui para mandar el
     // mensaje [Sueño] antes de dormir. Devuelve true si tomo el control.
@@ -258,7 +270,8 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
 
     // D-7 (15/09/2026): la orden diferida se PERSISTE en /pending.bin para que no se pierda en
     // silencio. Antes vivia solo en RAM: si llegaba otro comando, o el nodo se reiniciaba, o se iba
-    // la luz, la orden desaparecia. Y en set_freq/set_lora EL REINICIO ES lo que aplica el cambio,
+    // la luz, la orden desaparecia. Y en los comandos de radio (entonces set_freq/set_lora, hoy
+    // set_preset y set_url) EL REINICIO ES lo que aplica el cambio,
     // asi que el nodo se quedaba en la frecuencia vieja con la config nueva en disco y cambiaba de
     // canal solo, semanas despues, sin que nadie lo hubiera tocado.
     bool pendingLoaded = false; // la restauracion desde disco se intenta una sola vez, ya inicializado todo
@@ -401,6 +414,9 @@ class NavaCLIModule : public SinglePortModule, public concurrency::OSThread
     std::string usageAndState(const std::string &topic);
     std::string base64Encode(const uint8_t *data, size_t len);
     static bool base64Decode(const std::string &in, uint8_t *out, size_t &outLen, size_t maxLen);
+    // V5.3: generadores del enlace de canales (el de un canal y el espejo completo del nodo)
+    std::string channelSetToUrl(const meshtastic_ChannelSet &cs);
+    std::string generateFullChannelUrl();
     std::string generateChannelUrl(uint8_t channelIndex);
     std::string buildEnergyLine(); // V2: ADC mV + INA (V, ±mA, cargando/descargando) si disponible
     void logEvent(const char *fmt, ...);

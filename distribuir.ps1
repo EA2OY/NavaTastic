@@ -46,19 +46,29 @@ if (-not $NombreVersion) {
 }
 if (-not $VersionProyecto) {
     $man = Join-Path $root "docs\Manual_uso_NavaTastic.md"
-    $m = Select-String -Path $man -Pattern '^\|\s*\*\*(4\.\d+\.\d+)\s'
-    if (-not $m) { throw "No se pudo leer la version de proyecto del changelog en $man" }
-    # La ultima fila del changelog es la version mas reciente
-    $VersionProyecto = ($m | Select-Object -Last 1).Matches[0].Groups[1].Value
+    # El numero interno, si existe, va en LA MISMA FILA del changelog que el nombre publico actual.
+    # No vale coger el ultimo numero que aparezca: las filas antiguas conservan el suyo (y si no se
+    # mira esto, la V5.3 saldria etiquetada con el 4.3.9 de la V5.2). Desde la V5.3 la fila ya no
+    # lleva numero: hay UNA SOLA VERSION (el nombre publico).
+    $fila = Select-String -Path $man -Pattern '^\|\s*\*\*[^|*]+\*\*' -Encoding UTF8 |
+        Where-Object { $_.Line -match [regex]::Escape($NombreVersion) } | Select-Object -First 1
+    if ($fila) {
+        $num = [regex]::Match($fila.Line, '^\|\s*\*\*(\d+\.\d+\.\d+)')
+        if ($num.Success) { $VersionProyecto = $num.Groups[1].Value }
+    }
 }
-$selloVersion = "$NombreVersion $VersionProyecto"   # p. ej. "V5.2 4.3.9"
+$selloVersion = if ($VersionProyecto) { "$NombreVersion $VersionProyecto" } else { $NombreVersion }
 Write-Host "Version publica : $NombreVersion"
-Write-Host "Version proyecto: $VersionProyecto"
+if ($VersionProyecto) {
+    Write-Host "Version proyecto: $VersionProyecto"
+} else {
+    Write-Host "Version proyecto: (no se usa: desde la V5.3 hay una sola version)"
+}
 Write-Host "Sello en nombres: $selloVersion"
 
 if (-not $Destino) {
     $fecha = (Get-Date).ToString("ddMMyy")
-    $Destino = "C:\Users\Jesus\Desktop\NavaTastic $NombreVersion $VersionProyecto $fecha"
+    $Destino = "C:\Users\Jesus\Desktop\NavaTastic $selloVersion $fecha"
 }
 Write-Host "Destino         : $Destino"
 Write-Host ""
@@ -189,7 +199,8 @@ foreach ($h in $heltec) {
         if ($par.SoloApp) { $cand = $cand | Where-Object { $_.Name -notlike "*.factory.bin" } }
         $src = $cand | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if (-not $src) { $faltan += "$($h.Env) ($($par.Patron))"; continue }
-        $nombre = "$($h.Chip).NavTastic.2.7.26.$NombreVersion.$VersionProyecto.$($h.Sufijo).$($par.Etiqueta).bin"
+        $mid = $selloVersion -replace ' ', '.'   # "V5.2 4.3.9" -> "V5.2.4.3.9"; "V5.3" -> "V5.3"
+        $nombre = "$($h.Chip).NavTastic.2.7.26.$mid.$($h.Sufijo).$($par.Etiqueta).bin"
         $dest = Join-Path $dir $nombre
         Copy-Item -LiteralPath $src.FullName -Destination $dest -Force
         $md5 = (Get-FileHash -LiteralPath $dest -Algorithm MD5).Hash

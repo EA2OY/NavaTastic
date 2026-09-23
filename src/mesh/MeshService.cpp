@@ -8,6 +8,7 @@
 #include "BluetoothCommon.h" // needed for updateBatteryLevel, FIXME, eventually when we pull mesh out into a lib we shouldn't be whacking bluetooth from here
 #include "MeshService.h"
 #include "MessageStore.h"
+#include "modules/NavaCLIModule.h"
 #include "NodeDB.h"
 #include "PowerFSM.h"
 #include "RTC.h"
@@ -101,8 +102,14 @@ int MeshService::handleFromRadio(const meshtastic_MeshPacket *mp)
             if (hopsUsed > (int32_t)(config.lora.hop_limit + 2)) {
                 LOG_DEBUG("Skip send NodeInfo: %d hops away is too far away", hopsUsed);
             } else {
-                LOG_INFO("Heard new node on ch. %d, send NodeInfo and ask for response", mp->channel);
-                nodeInfoModule->sendOurNodeInfo(mp->from, true, mp->channel);
+                // V5.3: con el silencio del canal publico efectivo NO se manda nuestro NodeInfo a un
+                // desconocido que aparezca por el canal 1: lo identificaria (nombre, clave y modelo).
+                if (NavaCLIModule::navaSilenciarRespuestasCh1(mp)) {
+                    LOG_DEBUG("Skip send NodeInfo: canal publico silenciado");
+                } else {
+                    LOG_INFO("Heard new node on ch. %d, send NodeInfo and ask for response", mp->channel);
+                    nodeInfoModule->sendOurNodeInfo(mp->from, true, mp->channel);
+                }
             }
         } else {
             LOG_DEBUG("Skip sending NodeInfo > 25%% ch. util");

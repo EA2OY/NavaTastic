@@ -400,6 +400,12 @@ int32_t PositionModule::runOnce()
         doDeepSleep(nightyNightMs, false, false);
     }
 
+    // V5.3: con 0 (/nava set_pos_tx off) NO sale posicion por radio: ni la periodica ni la
+    // "inteligente" por movimiento (que ademas viene activada por defecto). El 0 es una orden
+    // explicita del usuario y no se sustituye por el valor de fabrica. Los envios pedidos a mano
+    // (/nava pos, posicion fija, respuesta a una peticion) no pasan por aqui.
+    bool posPeriodicaOff = (config.position.position_broadcast_secs == 0);
+
     meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(nodeDB->getNodeNum());
     if (node == nullptr)
         return RUNONCE_INTERVAL;
@@ -417,7 +423,7 @@ int32_t PositionModule::runOnce()
 
     bool waitingForFreshPosition = (lastGpsSend == 0) && !config.position.fixed_position && !nodeDB->hasLocalPositionSinceBoot();
 
-    if (lastGpsSend == 0 || msSinceLastSend >= intervalMs) {
+    if (!posPeriodicaOff && (lastGpsSend == 0 || msSinceLastSend >= intervalMs)) {
         if (waitingForFreshPosition) {
 #ifdef GPS_DEBUG
             LOG_DEBUG("Skip initial position send; no fresh position since boot");
@@ -435,7 +441,7 @@ int32_t PositionModule::runOnce()
                 sendLostAndFoundText();
             }
         }
-    } else if (config.position.position_broadcast_smart_enabled) {
+    } else if (!posPeriodicaOff && config.position.position_broadcast_smart_enabled) {
         const meshtastic_NodeInfoLite *node2 = service->refreshLocalMeshNode(); // should guarantee there is now a position
 
         if (nodeDB->hasValidPosition(node2)) {
@@ -534,6 +540,11 @@ struct SmartPosition PositionModule::getDistanceTraveledSinceLastSend(meshtastic
 
 void PositionModule::handleNewPosition()
 {
+    // V5.3: con la posicion apagada (0) tampoco se emite por movimiento: es la misma orden del usuario
+    // de no mandar posicion por radio. Volver a encenderla (poniendo un intervalo) la reactiva.
+    if (config.position.position_broadcast_secs == 0)
+        return;
+
     meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(nodeDB->getNodeNum());
     const meshtastic_NodeInfoLite *node2 = service->refreshLocalMeshNode(); // should guarantee there is now a position
     // We limit our GPS broadcasts to a max rate

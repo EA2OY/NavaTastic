@@ -1,6 +1,7 @@
 #include "NextHopRouter.h"
 #include "MeshTypes.h"
 #include "meshUtils.h"
+#include "modules/NavaCLIModule.h"
 #if !MESHTASTIC_EXCLUDE_TRACEROUTE
 #include "modules/TraceRouteModule.h"
 #endif
@@ -69,7 +70,9 @@ bool NextHopRouter::shouldFilterReceived(const meshtastic_MeshPacket *p)
             if (isRepeated) {
                 if (!findInTxQueue(p->from, p->id)) {
                     reprocessPacket(p);
-                    if (!perhapsRebroadcast(p) && isToUs(p) && p->want_ack) {
+                    // V5.3: si el silencio del canal publico esta efectivo, no se repite el acuse por el
+                    // canal 1 (delata presencia); el reenvio (perhapsRebroadcast) no se toca.
+                    if (!perhapsRebroadcast(p) && isToUs(p) && p->want_ack && !NavaCLIModule::navaSilenciarRespuestasCh1(p)) {
                         sendAckNak(meshtastic_Routing_Error_NONE, getFrom(p), p->id, p->channel, 0);
                     }
                 }

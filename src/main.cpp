@@ -560,6 +560,13 @@ void setup()
             // [Vivo]/[Listo] no usen cache de una unica medida.
             power->readPowerStatus(true);
             int mv = powerStatus->getBatteryVoltageMv();
+            // V5.3: si el lector dice que NO hay bateria y no hay USB, es una bateria AGOTADA (por
+            // debajo del umbral de "no hay bateria" = corte - 500 mV), no una placa sin bateria. Antes
+            // este caso se saltaba entero: el nodo arrancaba sin proteccion, anunciaba [Listo] como si
+            // estuviera cargando y seguia transmitiendo hasta el corte de tension.
+            if (!powerStatus->getHasBattery() && !powerStatus->getHasUSB() && power->isBatteryExhausted(true)) {
+                return true;
+            }
             return powerStatus->getHasBattery() && !powerStatus->getHasUSB() && mv > 0 && mv < lowGateMv;
         };
         // V2.2: asentamiento tras el reset (inrush del MCU) antes de la primera medida
