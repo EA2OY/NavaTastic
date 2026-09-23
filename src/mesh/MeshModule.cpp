@@ -4,6 +4,7 @@
 #include "NodeDB.h"
 #include "configuration.h"
 #include "modules/RoutingModule.h"
+#include "modules/NavaCLIModule.h"
 #include <algorithm>
 #include <assert.h>
 
@@ -101,6 +102,13 @@ void MeshModule::callModules(meshtastic_MeshPacket &mp, RxSource src)
     auto ourNodeNum = nodeDB->getNodeNum();
     bool toUs = isBroadcast(mp.to) || isToUs(&mp);
 
+    // V5.3: con el silencio del canal publico activo y efectivo, el nodo NO contesta a las peticiones
+    // que le llegan por el canal 1 (privacidad: que un tercero con la clave publica no pueda
+    // localizarlo ni identificarlo). No afecta al reenvio de ese canal, ni a los privados, ni al canal
+    // privado de flota. Solo se aplica a lo que llega POR LA RADIO: las peticiones de nuestro propio
+    // telefono (RX_SRC_USER) y lo generado en el nodo (RX_SRC_LOCAL) siguen igual.
+    bool muteRespuestasCh1 = isDecoded && (src == RX_SRC_RADIO) && NavaCLIModule::navaSilenciarRespuestasCh1(&mp);
+
     for (auto i = modules->begin(); i != modules->end(); ++i) {
         auto &pi = **i;
 
@@ -136,7 +144,7 @@ void MeshModule::callModules(meshtastic_MeshPacket &mp, RxSource src)
                 // no one should have already replied!
                 assert(!currentReply);
 
-                if (isDecoded && mp.decoded.want_response) {
+                if (isDecoded && mp.decoded.want_response && !muteRespuestasCh1) {
                     printPacket("packet on wrong channel, returning error", &mp);
                     currentReply = pi.allocErrorResponse(meshtastic_Routing_Error_NOT_AUTHORIZED, &mp);
                 } else
@@ -154,7 +162,8 @@ void MeshModule::callModules(meshtastic_MeshPacket &mp, RxSource src)
                 // because currently when the phone sends things, it sends things using the local node ID as the from address.  A
                 // better solution (FIXME) would be to let phones have their own distinct addresses and we 'route' to them like
                 // any other node.
-                if (isDecoded && mp.decoded.want_response && toUs && (!isFromUs(&mp) || isToUs(&mp)) && !currentReply) {
+                if (isDecoded && mp.decoded.want_response && toUs && (!isFromUs(&mp) || isToUs(&mp)) && !currentReply &&
+                    !muteRespuestasCh1) {
                     pi.sendResponse(mp);
                     ignoreRequest = ignoreRequest || pi.ignoreRequest; // If at least one module asks it, we may ignore a request
                     LOG_INFO("Asked module '%s' to send a response", pi.name);
@@ -179,7 +188,7 @@ void MeshModule::callModules(meshtastic_MeshPacket &mp, RxSource src)
         pi.currentRequest = NULL;
     }
 
-    if (isDecoded && mp.decoded.want_response && toUs) {
+    if (isDecoded && mp.decoded.want_response && toUs && !muteRespuestasCh1) {
         if (currentReply) {
             printPacket("Send response", currentReply);
             service->sendToMesh(currentReply);

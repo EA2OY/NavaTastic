@@ -45,13 +45,16 @@ if (-not $Tag) { $Tag = "v" + ($NombreVersion -replace '^[Vv]', '') }   # "v5.2"
 
 # ---------- 2. Notas desde el CHANGELOG (ES + EN, como en la release V5.1) ----------
 $man = Join-Path $root "docs\Manual_uso_NavaTastic.md"
-$filas = Select-String -Path $man -Pattern '^\|\s*\*\*(4\.\d+\.\d+)\s' -Encoding UTF8
-if (-not $filas) { throw "No se encontro el changelog en $man" }
-# El changelog lleva el bloque ES y luego el EN: se coge la version MAS ALTA y, de ella,
-# la primera fila (ES) y la ultima (EN). Asi no hay numeros escritos a mano aqui.
-$maxVer = ($filas | ForEach-Object { [version]$_.Matches[0].Groups[1].Value } | Sort-Object -Descending | Select-Object -First 1)
-$delVersion = @($filas | Where-Object { [version]$_.Matches[0].Groups[1].Value -eq $maxVer })
-$VersionProyecto = $maxVer.ToString()
+# Las filas del changelog llevan SIEMPRE el nombre de la version: las antiguas como
+# "**4.3.9 — \"NavaTastic Eclipse V5.2\"** (fecha)" y, desde la V5.3, como "**V5.3** (fecha)".
+# Se buscan POR NOMBRE; el numero interno es opcional (desde la V5.3 ya no se usa).
+$filas = Select-String -Path $man -Pattern '^\|\s*\*\*[^|*]+\*\*' -Encoding UTF8 |
+    Where-Object { $_.Line -match [regex]::Escape($NombreVersion) }
+if (-not $filas) { throw "No se encontro en el changelog ($man) ninguna fila de la version $NombreVersion" }
+# El changelog lleva el bloque ES y luego el EN: la primera fila es el ES y la ultima el EN.
+$delVersion = @($filas)
+$num = [regex]::Match($delVersion[0].Line, '^\|\s*\*\*(\d+\.\d+\.\d+)')
+$VersionProyecto = if ($num.Success) { $num.Groups[1].Value } else { "" }
 
 function Get-CeldaTexto($fila) {
     $c = $fila.Line -split '\|'
@@ -80,7 +83,8 @@ $bloqueEN
 > Los ``.uf2`` se copian a la unidad que aparece al pulsar dos veces RESET; los ``.zip`` se instalan desde la App oficial de Meshtastic. La química de la batería (LiPo o NiMH) se elige al desplegar, no en el binario.
 "@
 
-Write-Host "Release      : $Tag  ($NombreVersion / v$VersionProyecto)"
+$txtProyecto = if ($VersionProyecto) { "$NombreVersion / v$VersionProyecto" } else { $NombreVersion }
+Write-Host "Release      : $Tag  ($txtProyecto)"
 Write-Host "Origen       : $Origen"
 Write-Host ""
 

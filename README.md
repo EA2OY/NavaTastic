@@ -6,17 +6,15 @@
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
 [![Auditoría V5](https://img.shields.io/badge/Auditor%C3%ADa%20V5-Realizada%20en%20banco-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
-[![Última versión: V5.2](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.2%20(v4.3.9)-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases)
+[![Última versión: V5.3](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3)
 
 </div>
 
-> ℹ️ **Versiones disponibles — elige la que prefieras**: la más reciente es **NavaTastic Eclipse
-> V5.2 (v4.3.9)**, con las últimas mejoras (corrección sobre el fichero de resiliencia, el apagado
-> de avisos ya se respeta, los ajustes que cambias en la pantalla del nodo se recuerdan, y las claves
-> de administrador se pueden retirar de verdad). También siguen publicadas la
-> **[NavaTastic V4 (v4.3.3)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)**
-> —la más auditada— y versiones anteriores. Todas están en la página de
-> **[Releases](https://github.com/EA2OY/NavaTastic/releases)**; revisa las notas de cada una antes de elegir.  
+> ℹ️ **Última versión disponible: NavaTastic Eclipse V5.3** — se recomienda actualizar. Trae el
+> **enlace de canales** para mudar toda la red de una vez, el ajuste fino de la potencia de
+> transmisión, el apagado real de posición, presencia y telemetría, y la batería agotada que duerme
+> en vez de apagarse de golpe. Descárgala en la página de
+> **[Releases](https://github.com/EA2OY/NavaTastic/releases)**.
 
 ---
 
@@ -266,18 +264,14 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 <div align="center">
 
 [![Audit V5](https://img.shields.io/badge/Audit%20V5-Bench%20verified-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
-[![Latest version: V5.2](https://img.shields.io/badge/Latest%20version-V5.2%20(v4.3.9)-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases)
+[![Latest version: V5.3](https://img.shields.io/badge/Latest%20version-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3)
 
 </div>
 
-> ℹ️ **Available versions — pick the one you prefer**: the most recent is **NavaTastic Eclipse
-> V5.2 (v4.3.9)**, with the latest improvements (fix to the resilience file, disabling
-> notices is actually respected, settings you change on the node's own screen are remembered, and
-> admin keys can truly be revoked). The
-> **[NavaTastic V4 (v4.3.3)](https://github.com/EA2OY/NavaTastic/releases/tag/v4.3.3)**
-> — the most audited one — and older versions are also still published. All of them are on the
-> **[Releases](https://github.com/EA2OY/NavaTastic/releases)** page; check each one's notes before
-> choosing.
+> ℹ️ **Latest available version: NavaTastic Eclipse V5.3** — updating is recommended. It brings the
+> **channel link** to move the whole network at once, fine transmit-power control, really switching
+> off position/presence/telemetry, and an exhausted battery that sleeps instead of cutting out.
+> Download it from the **[Releases](https://github.com/EA2OY/NavaTastic/releases)** page.
 
 ---
 

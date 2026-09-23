@@ -754,7 +754,7 @@ bool Power::setup()
 {
 #ifdef HAS_SGM41562
     // Initialize the charger early so AnalogBatteryLevel can read charging
-    // state from it. The charger does not provide battery voltage / percent â€”
+    // state from it. The charger does not provide battery voltage / percent -
     // those still come from the platform ADC via analogInit() below.
     initSGM41562(SGM41562_WIRE);
 #endif
@@ -893,6 +893,18 @@ void Power::shutdown()
 #endif
 }
 
+/// V5.3: ver Power.h. Se pide la tension CRUDA a proposito: cuando el lector dice "no hay bateria",
+/// el estado deja la tension a -1 (mas abajo, en readPowerStatus), asi que no sirve para decidir.
+bool Power::isBatteryExhausted(bool force)
+{
+    if (!batteryLevel)
+        return false;
+    int mv = batteryLevel->getBattVoltage(force);
+    // Sin USB, sin bateria detectada y con tension medida: es una bateria agotada, no una placa sin
+    // bateria (una placa sin bateria y sin USB no esta encendida).
+    return mv > 0 && !batteryLevel->isBatteryConnect() && !batteryLevel->isVbusIn();
+}
+
 /// Reads power status to powerStatus singleton.
 //
 // TODO(girts): move this and other axp stuff to power.h/power.cpp.
@@ -925,6 +937,12 @@ void Power::readPowerStatus(bool force)
                                                    ((OCV[0] * NUM_CELLS) - (OCV[NUM_OCV_POINTS - 1] * NUM_CELLS))),
                                              0, 100);
             }
+        } else if (isBatteryExhausted(force)) {
+            // V5.3: bateria AGOTADA (sin USB, sin bateria detectada y con tension medida). Se informa
+            // la tension REAL: antes se quedaba a -1 y los avisos de bateria critica salian con un
+            // valor falso (la linea de energia imprime ese numero tal cual). El porcentaje sigue sin
+            // darse (no se puede estimar con el pack por debajo de la tabla).
+            batteryVoltageMv = batteryLevel->getBattVoltage(force);
         }
     }
 
@@ -1028,8 +1046,15 @@ void Power::readPowerStatus(bool force)
     // NAVARICO: exigir TODAS las lecturas seguidas (no una mayoria) es lo que impide un apagado
     // falso por ruido de RF; un apagado falso deja el nodo MUDO. Por que: docs/cerebro/04_energia_bateria.md.
 
-    if (!force && batteryLevel && powerStatus2.getHasBattery() && !powerStatus2.getHasUSB()) {
-        if (batteryLevel->getBattVoltage() < OCV[NUM_OCV_POINTS - 1]) {
+    // V5.3: por debajo del umbral de "no hay bateria" (corte - 500 mV) el lector dice que NO hay
+    // bateria y este contador —igual que el pre-chequeo de arranque— se saltaba el caso entero: cuanto
+    // mas descargada estaba la bateria, MENOS proteccion tenia el nodo (seguia transmitiendo hasta el
+    // corte de tension en vez de dormirse a esperar al sol). Sin USB, eso es una bateria AGOTADA, no una
+    // placa sin bateria: cuenta como lectura baja igual que las demas.
+    if (!force && batteryLevel && !powerStatus2.getHasUSB() &&
+        (powerStatus2.getHasBattery() || isBatteryExhausted(false))) {
+        bool agotada = !powerStatus2.getHasBattery();
+        if (agotada || batteryLevel->getBattVoltage() < OCV[NUM_OCV_POINTS - 1]) {
             low_voltage_counter++;
             // NAVARICO F18: umbral unico desde el perfil (8 lecturas ~160s) para las 6 placas
             LOG_DEBUG("Low voltage counter: %d/%d", low_voltage_counter, USERPREFS_LOW_BATTERY_READINGS_COUNT);

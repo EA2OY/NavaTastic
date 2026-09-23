@@ -1196,16 +1196,17 @@ void NodeDB::installRoleDefaults(meshtastic_Config_DeviceConfig_Role role)
 
 void NodeDB::initModuleConfigIntervals()
 {
-    // Zero out telemetry intervals so that they coalesce to defaults in Default.h
+    // V5.3: los cuatro intervalos se ponen EXPLICITOS con el valor de fabrica (12h). Antes se dejaban a
+    // cero porque "el cero se convertia luego en el defecto", pero ahora el 0 significa APAGADO.
 #ifdef USERPREFS_CONFIG_DEVICE_TELEM_UPDATE_INTERVAL
     moduleConfig.telemetry.device_update_interval = USERPREFS_CONFIG_DEVICE_TELEM_UPDATE_INTERVAL;
 #else
     moduleConfig.telemetry.device_update_interval = MAX_INTERVAL;
 #endif
-    moduleConfig.telemetry.environment_update_interval = 0;
-    moduleConfig.telemetry.air_quality_interval = 0;
-    moduleConfig.telemetry.power_update_interval = 0;
-    moduleConfig.telemetry.health_update_interval = 0;
+    moduleConfig.telemetry.environment_update_interval = default_telemetry_broadcast_interval_secs;
+    moduleConfig.telemetry.air_quality_interval = default_telemetry_broadcast_interval_secs;
+    moduleConfig.telemetry.power_update_interval = default_telemetry_broadcast_interval_secs;
+    moduleConfig.telemetry.health_update_interval = default_telemetry_broadcast_interval_secs;
     moduleConfig.neighbor_info.update_interval = 0;
     moduleConfig.paxcounter.paxcounter_update_interval = 0;
 }
@@ -1637,14 +1638,18 @@ void NodeDB::loadFromDisk()
     if (moduleConfig.version < 23) {
         LOG_DEBUG("ModuleConfig version %d is stale, upgrading to new default intervals", moduleConfig.version);
         moduleConfig.version = DEVICESTATE_CUR_VER;
+        // V5.3: el 900 de antes se traduce al defecto explicito; con el 0 nuevo seria APAGADO. Los dos
+        // ultimos (vecinos y paxcounter) no usan el 0 como apagado, asi que se quedan como estaban.
         if (moduleConfig.telemetry.device_update_interval == 900)
-            moduleConfig.telemetry.device_update_interval = 0;
+            moduleConfig.telemetry.device_update_interval = default_telemetry_broadcast_interval_secs;
         if (moduleConfig.telemetry.environment_update_interval == 900)
-            moduleConfig.telemetry.environment_update_interval = 0;
+            moduleConfig.telemetry.environment_update_interval = default_telemetry_broadcast_interval_secs;
         if (moduleConfig.telemetry.air_quality_interval == 900)
-            moduleConfig.telemetry.air_quality_interval = 0;
+            moduleConfig.telemetry.air_quality_interval = default_telemetry_broadcast_interval_secs;
         if (moduleConfig.telemetry.power_update_interval == 900)
-            moduleConfig.telemetry.power_update_interval = 0;
+            moduleConfig.telemetry.power_update_interval = default_telemetry_broadcast_interval_secs;
+        if (moduleConfig.telemetry.health_update_interval == 900)
+            moduleConfig.telemetry.health_update_interval = default_telemetry_broadcast_interval_secs;
         if (moduleConfig.neighbor_info.update_interval == 900)
             moduleConfig.neighbor_info.update_interval = 0;
         if (moduleConfig.paxcounter.paxcounter_update_interval == 900)

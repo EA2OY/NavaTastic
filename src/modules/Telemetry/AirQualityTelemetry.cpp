@@ -136,10 +136,13 @@ int32_t AirQualityTelemetryModule::runOnce()
             }
         }
 
+        // V5.3: 0 = telemetria apagada a proposito (/nava set_telem_tx off): no se emite por radio.
+        // El envio al telefono de mas abajo sigue igual (no gasta aire).
         if (((lastTelemetry == 0) ||
              !Throttle::isWithinTimespanMs(lastTelemetry, Default::getConfiguredOrDefaultMsScaled(
                                                               moduleConfig.telemetry.air_quality_interval,
                                                               default_telemetry_broadcast_interval_secs, numOnlineNodes))) &&
+            moduleConfig.telemetry.air_quality_interval != 0 &&
             airTime->isTxAllowedChannelUtil(config.device.role != meshtastic_Config_DeviceConfig_Role_SENSOR) &&
             airTime->isTxAllowedAirUtil()) {
             sendTelemetry();

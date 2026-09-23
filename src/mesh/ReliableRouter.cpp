@@ -6,6 +6,7 @@
 #include "memGet.h"
 #include "mesh-pb-constants.h"
 #include "modules/NodeInfoModule.h"
+#include "modules/NavaCLIModule.h"
 #include "modules/RoutingModule.h"
 
 // ReliableRouter::ReliableRouter() {}
@@ -92,7 +93,10 @@ bool ReliableRouter::shouldFilterReceived(const meshtastic_MeshPacket *p)
 void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtastic_Routing *c)
 {
     if (isToUs(p)) { // ignore ack/nak/want_ack packets that are not address to us (we only handle 0 hop reliability)
-        if (!MeshModule::currentReply) {
+        // V5.3: con el silencio del canal publico efectivo no se confirma presencia por el canal 1: el
+        // acuse de recibo tambien revela que el nodo esta ahi (y con su senal se le mide la distancia).
+        // Solo se saltan los acuses; el reenvio de mas abajo no se toca.
+        if (!MeshModule::currentReply && !NavaCLIModule::navaSilenciarRespuestasCh1(p)) {
             if (p->want_ack) {
                 if (p->which_payload_variant == meshtastic_MeshPacket_decoded_tag) {
                     /* A response may be set to want_ack for retransmissions, but we don't need to ACK a response if it received
@@ -131,8 +135,10 @@ void ReliableRouter::sniffReceived(const meshtastic_MeshPacket *p, const meshtas
         } else {
             LOG_DEBUG("Another module replied to this message, no need for 2nd ack");
         }
+        // V5.3: tampoco se manda el NodeInfo por el canal publico silenciado cuando alguien dice que no
+        // puede descifrarnos (es forjable y delataria nombre, clave y modelo).
         if (p->which_payload_variant == meshtastic_MeshPacket_decoded_tag && c &&
-            c->error_reason == meshtastic_Routing_Error_PKI_UNKNOWN_PUBKEY) {
+            c->error_reason == meshtastic_Routing_Error_PKI_UNKNOWN_PUBKEY && !NavaCLIModule::navaSilenciarRespuestasCh1(p)) {
             if (owner.public_key.size == 32) {
                 LOG_INFO("PKI decrypt failure, send a NodeInfo");
                 nodeInfoModule->sendOurNodeInfo(p->from, false, p->channel, true);

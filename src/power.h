@@ -98,6 +98,14 @@ class Power : public concurrency::OSThread
     void updateOcvCurve(uint16_t cutoff);
     void setChemistryProfile(uint8_t chem);
 
+    /// V5.3: "bateria AGOTADA" = el lector dice que NO hay bateria, no hay USB y aun asi se mide
+    /// tension. Es el caso de un pack por debajo del umbral de "no hay bateria" (corte - 500 mV).
+    /// Existe porque el monitor y el pre-chequeo de arranque exigen "hay bateria" para dormir: sin
+    /// esto, cuanto mas descargada estaba la bateria, menos proteccion tenia el nodo (se quedaba
+    /// transmitiendo hasta el corte de tension en vez de dormirse a esperar al sol).
+    /// NO cambia lo que se informa al telefono (eso sigue siendo "sin bateria").
+    bool isBatteryExhausted(bool force = false);
+
 #ifdef ARCH_ESP32
     int beforeLightSleep(void *unused);
     int afterLightSleep(esp_sleep_wakeup_cause_t cause);
