@@ -3562,14 +3562,17 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             // del mensaje directo), el prefijo "!IDXXXXXXXX ". Se usa el tope PEOR de los dos.
             const size_t prefijoOrden = sizeof("/nava set_url ") - 1;
             const size_t prefijoDirigido = 10; // "!12345678 "
-            size_t topeTexto =
-                sizeof(((meshtastic_MeshPacket *)nullptr)->decoded.payload.bytes) - prefijoOrden - prefijoDirigido;
+            // El tope real no es el tamano del payload (236), sino lo que cabe en UN mensaje de texto:
+            // enqueueResponse corta en 190 caracteres, asi que por encima de eso el enlace se partiria
+            // en dos y al aplicarlo con set_url no habria reensamblado (llegaria solo la primera mitad).
+            const size_t topeMensaje = 190;
+            size_t topeTexto = topeMensaje - prefijoOrden - prefijoDirigido;
             if (espejo.length() > topeTexto) {
                 char aviso[170];
                 snprintf(aviso, sizeof(aviso),
-                         " [AVISO: %u CARACTERES. SI VA DIRIGIDO CON !ID EL TOPE ES %u: APLICALO POR USB O CON MENOS CANALES]",
+                         "AVISO: EL ESPEJO OCUPA %u CARACTERES Y SI VA DIRIGIDO EL TOPE ES %u. APLICALO POR USB O CON MENOS CANALES",
                          (unsigned)espejo.length(), (unsigned)topeTexto);
-                espejo += aviso;
+                enqueueResponse(fromNode, 0, aviso, true, false, hops);
             }
             enqueueResponse(fromNode, 0, espejo, true, false, hops);
             return;
@@ -3613,6 +3616,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         }
         while (!arg.empty() && arg.front() == ' ') arg.erase(0, 1);
         if (arg.empty()) {
+            logEvent("SET_URL RECH: enlace sin contenido");
             enqueueResponse(replyDest, replyChannel, "ERR: FALTA EL CONTENIDO DEL ENLACE (LO QUE VA TRAS LA #)", true, false,
                             hops);
             return;
@@ -3620,6 +3624,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         static uint8_t urlBuf[MESHTASTIC_MESHTASTIC_APPONLY_PB_H_MAX_SIZE];
         size_t urlLen = 0;
         if (!base64Decode(arg, urlBuf, urlLen, sizeof(urlBuf)) || urlLen == 0) {
+            logEvent("SET_URL RECH: enlace ilegible base64");
             enqueueResponse(replyDest, replyChannel, "ERR: ENLACE ILEGIBLE (BASE64)", true, false, hops);
             return;
         }
@@ -3628,6 +3633,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         static meshtastic_ChannelSet cs;
         memset(&cs, 0, sizeof(cs));
         if (!pb_decode_from_bytes(urlBuf, urlLen, &meshtastic_ChannelSet_msg, &cs) || cs.settings_count == 0) {
+            logEvent("SET_URL RECH: enlace ilegible contenido");
             enqueueResponse(replyDest, replyChannel, "ERR: ENLACE ILEGIBLE (CONTENIDO)", true, false, hops);
             return;
         }
@@ -3639,47 +3645,45 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             return (cs.settings[i].name[0] != '\0' || cs.settings[i].psk.size > 0);
         };
 
-        // 1) Nombres reservados (los usa el firmware para funciones especiales) y canales PUBLICOS
-        // disfrazados de privados (nombre de preset, o "Custom", con la clave de fabrica)
+        // 1) Nombres reservados (los usa el firmware para funciones especiales). En los canales
+        // SECUNDARIOS no se veta nada mas: se aplican tal cual vengan, como hace el firmware oficial
+        // (con clave propia, con la publica, sin clave -heredan la del principal- o sin cifrar).
         for (uint8_t i = 0; i < (uint8_t)MAX_NUM_CHANNELS && i < cs.settings_count; i++) {
             if (!traeCanal(i) || i == 1) continue;
             const char *n = cs.settings[i].name;
             if (strcasecmp(n, Channels::adminChannel) == 0 || strcasecmp(n, Channels::gpioChannel) == 0 ||
                 strcasecmp(n, Channels::serialChannel) == 0 || strcasecmp(n, Channels::mqttChannel) == 0) {
+                LOG_WARN("set_url RECHAZADA: nombre reservado (%s)", n);
+                logEvent("SET_URL RECH: nombre reservado %s", n);
                 char errBuf[140];
-                snprintf(errBuf, sizeof(errBuf), "ERR: NOMBRE RESERVADO (%s): admin/gpio/serial/mqtt son del firmware", n);
+                snprintf(errBuf, sizeof(errBuf), "ERR: URL NO ACEPTADA (VALORES NO ADMITIDOS O FALTAN CANALES)");
                 enqueueResponse(replyDest, replyChannel, errBuf, true, false, hops);
                 return;
             }
-            // V5.3: un hueco con el alias 0 queda SIN CIFRAR de verdad (no hereda la clave del
-            // principal), asi que deja la red abierta aunque los demas canales vayan cifrados.
-            if (navaClaveSinCifrar(cs.settings[i])) {
-                char errBuf[170];
-                snprintf(errBuf, sizeof(errBuf), "ERR: CANAL %d SIN CIFRAR (LA CLAVE VIENE APAGADA). NO SE APLICA", (int)i);
-                enqueueResponse(replyDest, replyChannel, errBuf, true, false, hops);
-                return;
-            }
-            // V5.3 (regla de nombres): un canal con nombre de preset (o "Custom", o sin nombre, que es
-            // cuando el firmware le pone el del preset) y la clave publica de fabrica no es una red
-            // privada: es el canal publico de Meshtastic, y no debe entrar en el espejo.
-            if (navaCanalEsPublico(cs.settings[i])) {
-                char errBuf[170];
-                snprintf(errBuf, sizeof(errBuf),
-                         "ERR: CANAL %d ('%s') ES EL CANAL PUBLICO DE MESHTASTIC (CLAVE DE FABRICA). NO SE APLICA", (int)i,
-                         cs.settings[i].name[0] != '\0' ? cs.settings[i].name : "sin nombre");
-                enqueueResponse(replyDest, replyChannel, errBuf, true, false, hops);
-                return;
-            }
+            // V5.3.1: el caso "sin cifrar" del canal principal lo cubre mas abajo navaClaveApagada, que ya lo
+            // incluye; aqui no hace falta repetirlo. En los secundarios se aplica tal cual y solo se anota en el log.
+            // V5.3.1: los secundarios se aplican tal cual (como el firmware oficial). El detalle de lo que
+            // queda abierto NO va en la respuesta (el operador ya sabe lo que envia): queda en el log.
+            if (i >= 2 && cs.settings[i].psk.size == 0)
+                LOG_WARN("set_url: el canal %d no trae clave propia; hereda la del principal", (int)i);
+            else if (i >= 2 && navaClaveSinCifrar(cs.settings[i]))
+                LOG_WARN("set_url: el canal %d va sin cifrar", (int)i);
+            else if (i >= 2 && navaCanalEsPublico(cs.settings[i]))
+                LOG_WARN("set_url: el canal %d es el canal publico de Meshtastic", (int)i);
         }
 
         // 2) Sin canal principal no hay nodo que valga, y un principal SIN CLAVE dejaria el canal 0
         // abierto (ademas, los secundarios que no traigan clave propia heredan esa clave vacia)
         if (!traeCanal(0)) {
-            enqueueResponse(replyDest, replyChannel, "ERR: EL ENLACE NO TRAE CANAL PRINCIPAL. NO SE APLICA", true, false, hops);
+            LOG_WARN("set_url RECHAZADA: el enlace no trae canal principal");
+            logEvent("SET_URL RECH: sin canal principal");
+            enqueueResponse(replyDest, replyChannel, "ERR: URL NO ACEPTADA (VALORES NO ADMITIDOS O FALTAN CANALES)", true, false, hops);
             return;
         }
         if (navaClaveApagada(cs.settings[0])) {
-            enqueueResponse(replyDest, replyChannel, "ERR: EL CANAL PRINCIPAL VIENE SIN CLAVE (RED ABIERTA). NO SE APLICA", true,
+            LOG_WARN("set_url RECHAZADA: el canal principal viene sin clave");
+            logEvent("SET_URL RECH: principal sin clave");
+            enqueueResponse(replyDest, replyChannel, "ERR: URL NO ACEPTADA (VALORES NO ADMITIDOS O FALTAN CANALES)", true,
                             false, hops);
             return;
         }
@@ -3693,9 +3697,10 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         uint8_t cliSlotAplicar = prefs.cliChannelSlot;
         if (cliSlotAplicar < 1 || cliSlotAplicar > 7) cliSlotAplicar = 1;
         if (cliSlotAplicar >= 2 && !traeCanal(cliSlotAplicar)) {
+            LOG_WARN("set_url RECHAZADA: el enlace dejaria al nodo sin canal de consola");
+            logEvent("SET_URL RECH: sin canal de consola");
             char errBuf[150];
-            snprintf(errBuf, sizeof(errBuf),
-                     "ERR: EL ENLACE DEJARIA AL NODO SIN CANAL DE CONSOLA (SLOT %d). NO SE APLICA", cliSlotAplicar);
+            snprintf(errBuf, sizeof(errBuf), "ERR: URL NO ACEPTADA (VALORES NO ADMITIDOS O FALTAN CANALES)");
             enqueueResponse(replyDest, replyChannel, errBuf, true, false, hops);
             return;
         }
@@ -3722,7 +3727,6 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             char nombreAntes[16];
             snprintf(nombreAntes, sizeof(nombreAntes), "%s", antes.settings.name);
             if (i == 1) {
-                if (habia && traeCanal(1)) puestos++;
                 if (traeCanal(1) && (strcmp(cs.settings[1].name, antes.settings.name) != 0 ||
                                      cs.settings[1].psk.size != antes.settings.psk.size ||
                                      (cs.settings[1].psk.size > 0 &&
@@ -3777,9 +3781,8 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
         std::string radioTxt = "RADIO: SIN DATOS EN EL ENLACE (SE MANTIENE LA ACTUAL)";
         if (cs.has_lora_config && cs.lora_config.region != meshtastic_Config_LoRaConfig_RegionCode_UNSET) {
             const meshtastic_Config_LoRaConfig &nl = cs.lora_config;
-            // Modulacion con los MISMOS rangos que validaba set_lora (retirado), frecuencia con el rango
-            // que validaba set_freq (retirado), y la potencia: el 0 es "por defecto de la region" (la
-            // MAXIMA), asi que no se acepta y se mantiene la del nodo, igual que hace set_txpower.
+            // Modulacion con los MISMOS rangos que validaba set_lora (retirado) y frecuencia con el
+            // rango que validaba set_freq (retirado). La potencia del enlace NO se usa (ver abajo).
             bool modulacionOk =
                 nl.use_preset ? ((uint8_t)nl.modem_preset <= (uint8_t)_meshtastic_Config_LoRaConfig_ModemPreset_MAX)
                               : (nl.spread_factor >= 5 && nl.spread_factor <= 12 && nl.coding_rate >= 4 &&
@@ -3789,10 +3792,10 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             // El "slot" de la radio (numero de canal dentro de la banda de la region) puede llegar a
             // ~200 segun la region: no es el indice del canal de la tabla.
             bool slotOk = (nl.channel_num <= 200);
-            // La potencia: el 0 NO vale (es "por defecto de la region", o sea la MAXIMA) y fuera de
-            // rango tampoco. En esos casos se mantiene la potencia que ya tiene el nodo.
-            bool pwrOk =
-                ((nl.tx_power >= -5 && nl.tx_power <= -1) || (nl.tx_power >= 1 && nl.tx_power <= NAVA_MAX_TX_POWER_DBM));
+            // V5.3.1: la POTENCIA no se toca NUNCA. No es un ajuste de red sino de ESTE nodo: su radio,
+            // su antena y su limite legal no tienen por que ser los del nodo que manda el enlace (puede
+            // ser una placa distinta). Se mantiene la que ya tiene y la respuesta lo dice. Para
+            // cambiarla esta /nava set_txpower, que es una orden explicita para ESTE nodo.
             if (!modulacionOk || !freqOk || !slotOk) {
                 radioTxt = "RADIO: DATOS INVALIDOS EN EL ENLACE (SE MANTIENE LA ACTUAL)";
             } else {
@@ -3800,8 +3803,7 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
                                config.lora.modem_preset != nl.modem_preset || config.lora.bandwidth != nl.bandwidth ||
                                config.lora.spread_factor != nl.spread_factor || config.lora.coding_rate != nl.coding_rate ||
                                config.lora.channel_num != nl.channel_num ||
-                               config.lora.override_frequency != nl.override_frequency ||
-                               (pwrOk && config.lora.tx_power != nl.tx_power));
+                               config.lora.override_frequency != nl.override_frequency);
                 if (radioCambia) {
                     config.lora.region = nl.region;
                     config.lora.use_preset = nl.use_preset;
@@ -3811,7 +3813,6 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
                     config.lora.coding_rate = nl.coding_rate;
                     config.lora.channel_num = nl.channel_num;
                     config.lora.override_frequency = nl.override_frequency;
-                    if (pwrOk) config.lora.tx_power = nl.tx_power;
                     nodeDB->saveToDisk(SEGMENT_CONFIG);
                     prefs.lora_configured = 1;
                     prefs.lora_use_preset = config.lora.use_preset ? 1 : 0;
@@ -3825,16 +3826,21 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
                     saveResiliencePrefs();
                 }
                 char rBuf[120];
-                if (config.lora.use_preset)
-                    snprintf(rBuf, sizeof(rBuf), "RADIO: REG%d PRESET %d, SLOT %d, %ddBm%s", (int)config.lora.region,
-                             (int)config.lora.modem_preset, (int)config.lora.channel_num, (int)config.lora.tx_power,
-                             pwrOk ? "" : " (POTENCIA DEL NODO)");
+                char pwrTxt[24];
+                if (config.lora.tx_power == 0)
+                    snprintf(pwrTxt, sizeof(pwrTxt), "SIN FIJAR");
                 else
-                    snprintf(rBuf, sizeof(rBuf), "RADIO: REG%d %.4fMHz BW%u SF%u CR%u SLOT%u %ddBm%s", (int)config.lora.region,
+                    snprintf(pwrTxt, sizeof(pwrTxt), "%ddBm", (int)config.lora.tx_power);
+                if (config.lora.use_preset)
+                    snprintf(rBuf, sizeof(rBuf), "RADIO: REG%d PRESET %d, SLOT %d, %s%s", (int)config.lora.region,
+                             (int)config.lora.modem_preset, (int)config.lora.channel_num, pwrTxt,
+                             " (POTENCIA DEL NODO)");
+                else
+                    snprintf(rBuf, sizeof(rBuf), "RADIO: REG%d %.4fMHz BW%u SF%u CR%u SLOT%u %s%s", (int)config.lora.region,
                              config.lora.override_frequency, (unsigned)config.lora.bandwidth,
                              (unsigned)config.lora.spread_factor, (unsigned)config.lora.coding_rate,
-                             (unsigned)config.lora.channel_num, (int)config.lora.tx_power,
-                             pwrOk ? "" : " (POTENCIA DEL NODO)");
+                             (unsigned)config.lora.channel_num, pwrTxt,
+                             " (POTENCIA DEL NODO)");
                 radioTxt = rBuf;
             }
         }
@@ -3866,7 +3872,16 @@ void NavaCLIModule::executeCommand(NodeNum fromNode, std::string cmd, uint8_t re
             resp += ". AVISO: SOLO TRAE 1 CANAL: SE APLICA COMO PRINCIPAL (para el juego completo usa ch_url all)";
         }
         resp += ". " + radioTxt;
-        resp += radioCambia ? ". REINICIO DIFERIDO PARA APLICAR LA RADIO" : ". SIN REINICIO (la radio no cambia)";
+        // V5.3.1: solo se dice SIN REINICIO si de verdad no hay nada pendiente. Si una orden anterior
+        // (set_txpower, set_preset) dejo el reinicio armado, el nodo reinicia igual y hay que decirlo.
+        // Solo las acciones que reinician de verdad (MUTE, STORM o TXOFF no reinician).
+        bool accionReinicia = (deferredAction == NAVA_DEFERRED_REBOOT || deferredAction == NAVA_DEFERRED_FACTORY_RESET ||
+                               deferredAction == NAVA_DEFERRED_FULL_RESET || deferredAction == NAVA_DEFERRED_WIPE ||
+                               deferredAction == NAVA_DEFERRED_LORA_CHANGE);
+        bool reinicioPendiente = accionReinicia;
+        resp += radioCambia ? ". SE REINICIA PARA APLICAR LA RADIO"
+                            : (reinicioPendiente ? ". REINICIO PENDIENTE DE UNA ORDEN ANTERIOR"
+                                                 : ". SIN REINICIO");
         enqueueResponse(replyDest, replyChannel, resp, true, false, hops);
         logEvent("SET_URL: %d puestos, %d quitados", puestos, quitados);
 
@@ -5779,7 +5794,7 @@ std::string NavaCLIModule::helpForCommand(const std::string &topic)
                "toca). Sin efecto si tu consola es el canal 1. Uso: /nava navadmin_mute [on|off]";
     else if (topic == "set_url")
         return "set_url: Aplica los canales y la radio que vengan en una URL de meshtastic.org (reemplaza el juego "
-               "completo; el canal de rescate no se toca). Uso: /nava set_url <enlace>";
+               "completo; el canal de rescate no se toca y la potencia del nodo no se cambia). Uso: /nava set_url <enlace>";
     else if (topic == "ch_reset")
         return "ch_reset: Restaura configuracion de fabrica de canales (Navadmin Slot 1). Uso: /nava ch_reset";
     else if (topic == "ch_mqtt")
@@ -5924,7 +5939,7 @@ std::string NavaCLIModule::usageAndState(const std::string &topic)
     }
     if (topic == "set_url") {
         return "set_url: Aplica los canales y la radio de una URL de meshtastic.org. REEMPLAZA: lo que no venga se "
-               "quita (el rescate no se toca). Uso: /nava set_url <enlace>";
+               "quita (el rescate no se toca y la potencia del nodo no se cambia). Uso: /nava set_url <enlace>";
     }
     if (topic == "ch_mqtt") {
         return "USO: ch_mqtt <slot 0-7> [up|down|both|off]\nConfigura la compuerta MQTT para ese slot.";

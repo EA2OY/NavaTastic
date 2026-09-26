@@ -6,16 +6,21 @@
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
 [![Auditoría V5](https://img.shields.io/badge/Auditor%C3%ADa%20V5-Realizada%20en%20banco-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
-[![Última versión: V5.3](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3)
+[![Última versión: V5.3.1](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1)
 [![Flasher web](https://img.shields.io/badge/Flasher%20web-Grabar%20desde%20el%20navegador-0EA5E9?logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 </div>
 
-> ℹ️ **Última versión disponible: NavaTastic Eclipse V5.3** — se recomienda actualizar. Trae el
+> ℹ️ **Última versión disponible: NavaTastic Eclipse V5.3.1** — se recomienda actualizar. Trae el
 > **enlace de canales** para mudar toda la red de una vez, el ajuste fino de la potencia de
 > transmisión, el apagado real de posición, presencia y telemetría, y la batería agotada que duerme
 > en vez de apagarse de golpe. Descárgala en la página de
 > **[Releases](https://github.com/EA2OY/NavaTastic/releases)**.
+>
+> 🔧 **Novedad de la V5.3.1**: el **enlace de canales** (`/nava set_url`) ya es fiable. Acepta el canal
+> principal de un preset avisando de que lo lee cualquiera, **no toca la potencia del nodo**, aplica los
+> canales secundarios tal cual vienen y deja rastro de los rechazos. En la V5.3 quedó incompleto y no se
+> recomendaba usarlo.
 >
 > 💡 **Lo mas facil**: el **[flasher web](https://ea2oy.github.io/NavaTastic-Flasher/)** graba el firmware en el nodo
 > desde el navegador, sin instalar nada (nRF52840 y Heltec V3/V4).
@@ -272,15 +277,20 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 <div align="center">
 
 [![Audit V5](https://img.shields.io/badge/Audit%20V5-Bench%20verified-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
-[![Latest version: V5.3](https://img.shields.io/badge/Latest%20version-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3)
+[![Latest version: V5.3.1](https://img.shields.io/badge/Latest%20version-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1)
 [![Web flasher](https://img.shields.io/badge/Web%20flasher-Flash%20from%20the%20browser-0EA5E9?logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 </div>
 
-> ℹ️ **Latest available version: NavaTastic Eclipse V5.3** — updating is recommended. It brings the
+> ℹ️ **Latest available version: NavaTastic Eclipse V5.3.1** — updating is recommended. It brings the
 > **channel link** to move the whole network at once, fine transmit-power control, really switching
 > off position/presence/telemetry, and an exhausted battery that sleeps instead of cutting out.
 > Download it from the **[Releases](https://github.com/EA2OY/NavaTastic/releases)** page.
+>
+> 🔧 **What is new in V5.3.1**: the **channel link** (`/nava set_url`) is now reliable. It accepts a
+> preset main channel (warning that anyone can read it), **never touches the node transmit power**, applies
+> secondary channels exactly as they arrive and leaves a trace of rejections. In V5.3 it was left incomplete
+> and was not recommended for use.
 >
 > 💡 **Easiest way**: the **[web flasher](https://ea2oy.github.io/NavaTastic-Flasher/)** writes the firmware to your node
 > straight from the browser, nothing to install (nRF52840 and Heltec V3/V4).
