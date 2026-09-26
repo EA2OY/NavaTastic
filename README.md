@@ -6,7 +6,7 @@
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
 [![Auditoría V5](https://img.shields.io/badge/Auditor%C3%ADa%20V5-Realizada%20en%20banco-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
-[![Última versión: V5.3.1](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1)
+[![Última versión: V5.3.1](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.3.1-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1)
 
 </div>
 
@@ -34,10 +34,9 @@ Con un solo código fuente genera **24 firmwares listos para usar** (6 tipos de 
 
 [![Descargar Firmware](https://img.shields.io/badge/📥%20Descargar%20Firmware-Todos%20los%20Releases%20(V5%20·%20V4%20·%20anteriores)-blue?style=for-the-badge&logo=github)](https://github.com/EA2OY/NavaTastic/releases)
 
-</div>
-
----
 [![Flasher web](https://img.shields.io/badge/%F0%9F%8C%90%20Flasher%20web-Grabar%20desde%20el%20navegador-0EA5E9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
+
+</div>
 
 ## 🧠 ¿Qué le añade NavaTastic al firmware normal?
 
@@ -272,6 +271,7 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 <div align="center">
 
 [![Download Firmware](https://img.shields.io/badge/📥%20Download%20Firmware-All%20Releases%20(V5%20·%20V4%20·%20older)-blue?style=for-the-badge&logo=github)](https://github.com/EA2OY/NavaTastic/releases)
+
 [![Web flasher](https://img.shields.io/badge/%F0%9F%8C%90%20Web%20flasher-Flash%20from%20the%20browser-0EA5E9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 </div>
@@ -279,7 +279,7 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 <div align="center">
 
 [![Audit V5](https://img.shields.io/badge/Audit%20V5-Bench%20verified-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
-[![Latest version: V5.3.1](https://img.shields.io/badge/Latest%20version-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1)
+[![Latest version: V5.3.1](https://img.shields.io/badge/Latest%20version-V5.3.1-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1)
 
 </div>
 

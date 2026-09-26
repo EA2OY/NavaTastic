@@ -1,4 +1,4 @@
-﻿// Fuzzer implementation that sends MeshPackets to Router::enqueueReceivedMessage.
+// Fuzzer implementation that sends MeshPackets to Router::enqueueReceivedMessage.
 #include <condition_variable>
 #include <cstdlib>
 #include <mutex>
