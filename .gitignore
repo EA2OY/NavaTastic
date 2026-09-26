@@ -68,3 +68,5 @@ profiles/*Felix*.jsonc
 
 # NAVARICO: backups por marca de tiempo (norma 9/0.11) — pueden contener claves
 *.bak-*
+webconfig/firmware/
+

@@ -12,7 +12,9 @@ param(
     [string]$EnvName = ""
 )
 
-$pioExe = "C:\Users\Jesus\.platformio\penv\Scripts\pio.exe"
+# PlatformIO: el del usuario si esta; si no, el que haya en el PATH.
+$pioExe = Join-Path $env:USERPROFILE "\.platformio\penv\Scripts\pio.exe"
+if (-not (Test-Path $pioExe)) { $pioExe = "pio" }
 
 $propiaEnvs = @(
     "navarrico_promicro_e22p_r2ip", "navarrico_faketec_sx1262_r2ip",

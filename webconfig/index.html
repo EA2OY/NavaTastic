@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flasher NavaTastic — instala el firmware desde el navegador</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Flasher NavaTastic</h1>
+  <p class="sub">Instala o actualiza el firmware de tu nodo desde el navegador, sin instalar programas.</p>
+</header>
+
+<main>
+  <p class="aviso" id="avisoNavegador" hidden>
+    Tu navegador no puede grabar por cable. Usa <b>Chrome</b>, <b>Edge</b> o un <b>Firefox reciente</b> de
+    ordenador. En el móvil o la tablet no es lo recomendable (haría falta un Chrome muy nuevo y un cable
+    adaptador). Mientras tanto siempre puedes descargar el fichero y grabarlo a mano.
+  </p>
+
+  <section class="paso">
+    <h2><span>1</span> Elige tu placa</h2>
+    <label for="placa">Placa</label>
+    <select id="placa"></select>
+
+    <fieldset id="grupoRama">
+      <legend>Que tipo de nodo es</legend>
+      <label class="opcion"><input type="radio" name="rama" value="R2IG" checked>
+        <span><b>Repetidor de infraestructura</b> (Rama 2) &mdash; el que da cobertura en el monte</span></label>
+      <label class="opcion"><input type="radio" name="rama" value="R1IG">
+        <span><b>Nodo normal de cliente</b> (Rama 1) &mdash; el tuyo, el del coche, el de casa</span></label>
+    </fieldset>
+
+    <p class="detalle" id="detalleFichero">Elige una placa para ver que se va a instalar.</p>
+  </section>
+
+  <section class="paso">
+    <h2><span>2</span> Conecta el nodo por USB</h2>
+    <p id="ayudaConexion">Conecta la placa con un <b>cable de datos</b>: los cables de solo carga no valen.</p>
+  </section>
+
+  <section class="paso">
+    <h2><span>3</span> Graba el firmware</h2>
+    <button id="btnFlashear" disabled>Grabar</button>
+    <button id="btnDescargar" class="secundario">Descargar el fichero</button>
+    <div id="progreso" hidden>
+      <div class="barra"><div id="barraRelleno"></div></div>
+      <p id="progresoTexto"></p>
+    </div>
+    <p class="error" id="error" hidden></p>
+  </section>
+
+  <section class="paso">
+    <h2><span>4</span> Ya esta</h2>
+    <p id="resultado">Cuando termine te dire aqui que hacer. Normalmente nada: el nodo arranca solo.</p>
+  </section>
+
+  <details class="ayuda">
+    <summary>Si algo no funciona</summary>
+    <ul>
+      <li><b>No aparece el puerto:</b> cierra la aplicacion oficial de Meshtastic (o cualquier programa que este
+        usando el nodo) y vuelve a intentarlo. Solo un programa puede hablar con el puerto a la vez.</li>
+      <li><b>No me deja conectar:</b> prueba otro cable y otro puerto USB. Si es la primera vez en Windows puede
+        faltarle el controlador del chip de serie (CP210x o CH34x).</li>
+      <li><b>ESP32 (Heltec V3 y V4):</b> si no arranca o se queda en &laquo;waiting to download&raquo;, pulsa
+        <b>RESET</b>. Si sigue igual, manten pulsado <b>BOOT</b> mientras conectas el cable y repite.</li>
+      <li><b>nRF52 (Promicro, Faketec, Seed, T114, Xiao):</b> el flasher pone el nodo en modo grabacion y te da el
+        fichero; solo tienes que copiarlo a la unidad que aparece en el ordenador. Si esa unidad no desaparece sola
+        al terminar, <b>expulsala</b> desde el sistema: desenchufar el cable no siempre la saca del modo grabacion.</li>
+      <li><b>Se queda a medias:</b> repite la grabacion las veces que haga falta. No se estropea nada por repetir.</li>
+      <li><b>Mensajes raros al copiar el fichero</b> (&laquo;error de escritura&raquo;, &laquo;dispositivo expulsado&raquo;):
+        son normales, el nodo se esta reiniciando.</li>
+    </ul>
+  </details>
+</main>
+
+<footer>
+  <p>Firmware <a href="https://github.com/EA2OY/NavaTastic/releases" target="_blank" rel="noopener">NavaTastic</a> &middot;
+     <span id="versionFirmware"></span></p>
+</footer>
+
+<script src="app.js" type="module"></script>
+</body>
+</html>

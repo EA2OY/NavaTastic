@@ -7,6 +7,7 @@
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
 [![Auditoría V5](https://img.shields.io/badge/Auditor%C3%ADa%20V5-Realizada%20en%20banco-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
 [![Última versión: V5.3](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3)
+[![Flasher web](https://img.shields.io/badge/Flasher%20web-Grabar%20desde%20el%20navegador-0EA5E9?logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 </div>
 
@@ -15,6 +16,9 @@
 > transmisión, el apagado real de posición, presencia y telemetría, y la batería agotada que duerme
 > en vez de apagarse de golpe. Descárgala en la página de
 > **[Releases](https://github.com/EA2OY/NavaTastic/releases)**.
+>
+> 💡 **Lo mas facil**: el **[flasher web](https://ea2oy.github.io/NavaTastic-Flasher/)** graba el firmware en el nodo
+> desde el navegador, sin instalar nada (nRF52840 y Heltec V3/V4).
 
 ---
 
@@ -29,6 +33,7 @@ Con un solo código fuente genera **24 firmwares listos para usar** (6 tipos de 
 </div>
 
 ---
+[![Flasher web](https://img.shields.io/badge/%F0%9F%8C%90%20Flasher%20web-Grabar%20desde%20el%20navegador-0EA5E9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 ## 🧠 ¿Qué le añade NavaTastic al firmware normal?
 
@@ -111,6 +116,7 @@ repetidor por el canal privado, aunque el mando solo tenga cobertura con uno.
 * **Divisor de Batería**: Las placas DIY deben llevar un divisor resistivo **1 MΩ + 1 MΩ (factor 2.0)** para que la medición ADC y el comparador de corte solar **LPCOMP** funcionen con precisión.
 
 ### 2️⃣ Paso 2: Flashea el Firmware NavaTastic
+* **Lo más fácil, sin instalar nada**: el **[flasher web](https://ea2oy.github.io/NavaTastic-Flasher/)** graba el nodo desde el propio navegador (Chrome, Edge o Firefox recientes, en un ordenador).
 * **Vía Cable USB (.UF2)**: Conecta la placa al PC, haz **doble pulsación rápida en el botón RESET** para que aparezca la unidad de disco USB (`NICENANO` o similar) y arrastra el archivo `.uf2` correspondiente a tu placa.
 * **Vía Actualización OTA (.zip)**: Si ya estás conectado por Bluetooth, actualiza desde la App oficial de Meshtastic seleccionando el `.zip` OTA.
 * **Emparejamiento Bluetooth**: El PIN de conexión por defecto es **`654321`** (modo `FIXED_PIN`).
@@ -145,8 +151,9 @@ repetidor por el canal privado, aunque el mando solo tenga cobertura con uno.
 
 ### 🔧 ¿Prefieres hacerlo a mano? Compilar o flashear binarios
 
-- [Guía de compilación desde el código fuente](Compilar_NavaTastic.md)
-- [Guía de flasheo de binarios en placas Heltec V3/V4 (ESP32)](Guia_flasheo_binario_esp32.md)
+- [Guía de compilación desde el código fuente](docs/guias/Compilar_NavaTastic.md)
+- [Guía de flasheo de binarios en placas Heltec V3/V4 (ESP32)](docs/guias/Guia_flasheo_binario_esp32.md)
+- **[Flasher web](https://ea2oy.github.io/NavaTastic-Flasher/)**: graba el firmware desde el navegador, sin instalar programas (nRF52840 y Heltec V3/V4)
 
 ---
 
@@ -161,7 +168,7 @@ Regla rápida para no equivocarte:
   infraestructura); sufijo `R1IG` (o `r1ig`) = **Cliente convertible a Repetidor**.
 * **Elige el formato**: `.uf2` = por cable USB · `.zip` = actualización OTA por Bluetooth ·
   en Heltec V3/V4 los archivos son `.APP.bin` y `.FACTORY.bin` (ver [guía de
-  flasheo](Guia_flasheo_binario_esp32.md)).
+  flasheo](docs/guias/Guia_flasheo_binario_esp32.md)).
 * **Batería**: todos los firmwares funcionan con **LiPo**. Si usas batería **NiMH**, elige una
   placa **Faketec o Xiao Kit i2c** (compatibilidad declarada por el autor) y configura la
   química con `/nava set_chem`. El mismo archivo sirve para ambas químicas.
@@ -258,6 +265,7 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 <div align="center">
 
 [![Download Firmware](https://img.shields.io/badge/📥%20Download%20Firmware-All%20Releases%20(V5%20·%20V4%20·%20older)-blue?style=for-the-badge&logo=github)](https://github.com/EA2OY/NavaTastic/releases)
+[![Web flasher](https://img.shields.io/badge/%F0%9F%8C%90%20Web%20flasher-Flash%20from%20the%20browser-0EA5E9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 </div>
 
@@ -265,6 +273,7 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 
 [![Audit V5](https://img.shields.io/badge/Audit%20V5-Bench%20verified-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
 [![Latest version: V5.3](https://img.shields.io/badge/Latest%20version-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3)
+[![Web flasher](https://img.shields.io/badge/Web%20flasher-Flash%20from%20the%20browser-0EA5E9?logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 </div>
 
@@ -272,6 +281,9 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 > **channel link** to move the whole network at once, fine transmit-power control, really switching
 > off position/presence/telemetry, and an exhausted battery that sleeps instead of cutting out.
 > Download it from the **[Releases](https://github.com/EA2OY/NavaTastic/releases)** page.
+>
+> 💡 **Easiest way**: the **[web flasher](https://ea2oy.github.io/NavaTastic-Flasher/)** writes the firmware to your node
+> straight from the browser, nothing to install (nRF52840 and Heltec V3/V4).
 
 ---
 
@@ -352,6 +364,7 @@ the private channel, even if the controller only has coverage with one node.
 * **Battery Divider**: DIY boards require a **1 MΩ + 1 MΩ (2.0 factor)** voltage divider for accurate ADC voltage telemetry and LPCOMP solar wake-up comparator.
 
 ### 2️⃣ Step 2: Flash NavaTastic Firmware
+* **Easiest, nothing to install**: the **[web flasher](https://ea2oy.github.io/NavaTastic-Flasher/)** writes the firmware to your node straight from the browser (recent Chrome, Edge or Firefox, on a computer).
 * **Via USB (.UF2)**: Connect to PC, **double-tap the RESET button** to enter DFU bootloader mode, and drag & drop the appropriate `.uf2` file.
 * **Via OTA (.zip)**: If already connected over Bluetooth, use the Meshtastic App OTA update feature with the corresponding `.zip` file.
 * **Bluetooth Pairing**: Default connection PIN is **`654321`** (`FIXED_PIN` mode).
@@ -385,8 +398,9 @@ the private channel, even if the controller only has coverage with one node.
 
 ### 🔧 Prefer to do it yourself? Build or flash binaries
 
-- [Building guide from source](Compilar_NavaTastic.md)
-- [Flashing guide for Heltec V3/V4 (ESP32) binaries](Guia_flasheo_binario_esp32.md)
+- [Building guide from source](docs/guias/Compilar_NavaTastic.md)
+- [Flashing guide for Heltec V3/V4 (ESP32) binaries](docs/guias/Guia_flasheo_binario_esp32.md)
+- **[Web flasher](https://ea2oy.github.io/NavaTastic-Flasher/)**: write the firmware from the browser, nothing to install (nRF52840 and Heltec V3/V4)
 
 ---
 
@@ -403,7 +417,7 @@ Quick rule to get it right:
 * **Choose the role**: suffix `R2IG` (or `r2ig` on Heltec) = **Fixed Repeater** (infrastructure
   router); suffix `R1IG` (or `r1ig`) = **Client convertible to Repeater**.
 * **Choose the format**: `.uf2` = USB cable · `.zip` = OTA update over Bluetooth · on Heltec V3/V4
-  the files are `.APP.bin` and `.FACTORY.bin` (see the [flashing guide](Guia_flasheo_binario_esp32.md)).
+  the files are `.APP.bin` and `.FACTORY.bin` (see the [flashing guide](docs/guias/Guia_flasheo_binario_esp32.md)).
 * **Battery**: every firmware works with **LiPo**. If you use **NiMH** batteries, pick a
   **Faketec or Xiao Kit i2c** board (compatibility declared by the author) and set the chemistry
   with `/nava set_chem`. The same file serves both chemistries.
