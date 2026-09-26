@@ -1,4 +1,4 @@
-{
+﻿{
   // "USERPREFS_BUTTON_PIN": "36",
   // "USERPREFS_CHANNELS_TO_WRITE": "3",
   // "USERPREFS_CHANNEL_0_DOWNLINK_ENABLED": "false",
@@ -9,12 +9,12 @@
   // "USERPREFS_CHANNEL_1_DOWNLINK_ENABLED": "false",
   // "USERPREFS_CHANNEL_1_NAME": "NodeChat",
   // "USERPREFS_CHANNEL_1_PRECISION": "14",
-  // "USERPREFS_CHANNEL_1_PSK": "{ 0x4e, 0x22, 0x1d, 0x8b, 0xc3, 0x09, 0x1b, 0xe2, 0x11, 0x9c, 0x89, 0x12, 0xf2, 0x25, 0x19, 0x5d, 0x15, 0x3e, 0x30, 0x7b, 0x86, 0xb6, 0xec, 0xc4, 0x6a, 0xc3, 0x96, 0x5e, 0x9e, 0x10, 0x9d, 0xd5 }",
+  // "USERPREFS_CHANNEL_1_PSK": "{}",
   // "USERPREFS_CHANNEL_1_UPLINK_ENABLED": "false",
   // "USERPREFS_CHANNEL_2_DOWNLINK_ENABLED": "false",
   // "USERPREFS_CHANNEL_2_NAME": "YardSale",
   // "USERPREFS_CHANNEL_2_PRECISION": "14",
-  // "USERPREFS_CHANNEL_2_PSK": "{ 0x15, 0x6f, 0xfe, 0x46, 0xd4, 0x56, 0x63, 0x8a, 0x54, 0x43, 0x13, 0xf2, 0xef, 0x6c, 0x63, 0x89, 0xf0, 0x06, 0x30, 0x52, 0xce, 0x36, 0x5e, 0xb1, 0xe8, 0xbb, 0x86, 0xe6, 0x26, 0x5b, 0x1d, 0x58 }",
+  // "USERPREFS_CHANNEL_2_PSK": "{}",
   // "USERPREFS_CHANNEL_2_UPLINK_ENABLED": "false",
   // "USERPREFS_CONFIG_GPS_MODE": "meshtastic_Config_PositionConfig_GpsMode_ENABLED",
   // "USERPREFS_CONFIG_LORA_IGNORE_MQTT": "true",
@@ -24,7 +24,7 @@
   "USERPREFS_CHANNEL_0_PSK": "{ 0x01 }",
   "USERPREFS_CHANNELS_TO_WRITE": "2",
   "USERPREFS_CHANNEL_1_NAME": "Navadmin",
-  "USERPREFS_CHANNEL_1_PSK": "{ 0x01 }",
+  "USERPREFS_CHANNEL_1_PSK": "{}",
   "USERPREFS_CHANNEL_1_PRECISION": "0",
   "USERPREFS_CHANNEL_1_UPLINK_ENABLED": "false",
   "USERPREFS_CHANNEL_1_DOWNLINK_ENABLED": "false",
@@ -48,7 +48,7 @@
   // NAVARICO: E22P (SX1262 + PA) -> 8 dBm de ATAQUE al PA = ~27 dBm radiados. NO subir por
   // defecto: 12 es el tope (protege la entrada del PA, ~30 dBm) y es decision del usuario.
   "USERPREFS_LORACONFIG_TX_POWER": "8",
-  "USERPREFS_USE_ADMIN_KEY_0": "{ 0xc7, 0xdc, 0x0d, 0xe9, 0x6d, 0x13, 0xba, 0x86, 0x3f, 0x82, 0xd5, 0x4a, 0x33, 0xff, 0xa5, 0xca, 0xcc, 0x7c, 0x45, 0xec, 0x1b, 0xe4, 0x20, 0x1d, 0x67, 0xd6, 0x1f, 0xcc, 0x85, 0x51, 0x00, 0x55 }",
+  "USERPREFS_USE_ADMIN_KEY_0": "{}",
   // "USERPREFS_USE_ADMIN_KEY_2": "{}",
   // "USERPREFS_OEM_TEXT": "Caterham Car Club",
   // "USERPREFS_OEM_FONT_SIZE": "0",

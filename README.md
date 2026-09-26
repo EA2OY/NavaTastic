@@ -7,7 +7,6 @@
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Caf%C3%A9%20voluntario-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/ea2oy)
 [![Auditoría V5](https://img.shields.io/badge/Auditor%C3%ADa%20V5-Realizada%20en%20banco-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
 [![Última versión: V5.3.1](https://img.shields.io/badge/Última%20versi%C3%B3n-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1)
-[![Flasher web](https://img.shields.io/badge/Flasher%20web-Grabar%20desde%20el%20navegador-0EA5E9?logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 </div>
 
@@ -134,6 +133,9 @@ repetidor por el canal privado, aunque el mando solo tenga cobertura con uno.
   el primer arranque: materializa el canal `Navadmin` en el Slot 1, aplica las buenas prácticas
   (72h/72h/12h) y **respeta las claves del dueño** si el nodo ya tenía alguna.
 * **Qué hacer**: nada. Espera un minuto tras flashear y el nodo queda operativo y configurado.
+* **Importante: no se conserva lo mismo en los dos casos.**
+  * Si tu nodo **ya llevaba NavaTastic** (aunque después le hayas puesto encima el firmware oficial): **no se borra nada** — tus canales, tu modulación, tu rol, tus claves y tu nombre se quedan como estaban.
+  * Si el nodo **viene de fábrica con Meshtastic oficial** (nunca tuvo NavaTastic): se le instala la configuración estándar del proyecto (**SFNarrow + Navadmin** y la radio estándar). Se conservan tu **identidad de nodo** (el par de claves, para que tus mensajes privados sigan funcionando), tus **claves de administración** y tu **nombre**. Los canales y la modulación que trajera se sustituyen por el estándar.
 
 > 🚫 **NO uses "Restaurar copia de seguridad" de la App de Meshtastic.** El nodo se blinda solo con
 > su respaldo interno y esa función **se ha llevado nodos por delante** (ha obligado a subir a la
@@ -278,7 +280,6 @@ Firmware **NavaTastic** — an optimized and hardened [Meshtastic](https://mesht
 
 [![Audit V5](https://img.shields.io/badge/Audit%20V5-Bench%20verified-brightgreen?logo=checkmarx&logoColor=white)](docs/pdf/Informe_Auditoria_NavaTastic_V5.pdf)
 [![Latest version: V5.3.1](https://img.shields.io/badge/Latest%20version-V5.3-blue?logo=github&logoColor=white)](https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1)
-[![Web flasher](https://img.shields.io/badge/Web%20flasher-Flash%20from%20the%20browser-0EA5E9?logo=googlechrome&logoColor=white)](https://ea2oy.github.io/NavaTastic-Flasher/)
 
 </div>
 
@@ -387,6 +388,9 @@ the private channel, even if the controller only has coverage with one node.
   it materializes the `Navadmin` channel on Slot 1, applies the best practices (72h/72h/12h) and
   **respects the owner's keys** if the node already had any.
 * **What to do**: nothing. Wait a minute after flashing and the node is ready and configured.
+* **Important: the two cases are not the same.**
+  * If your node **already ran NavaTastic** (even if official firmware was flashed on top later): **nothing is erased** — your channels, modulation, role, keys and name stay as they were.
+  * If the node **comes from the factory with official Meshtastic** (it never ran NavaTastic): the project's standard configuration is installed (**SFNarrow + Navadmin** and the standard radio). Your **node identity** (the key pair, so your private messages keep working), your **admin keys** and your **name** are kept. The channels and modulation it had are replaced by the standard.
 
 > 🚫 **Do NOT use the Meshtastic App's "Restore backup".** The node protects itself with its internal
 > backup, and that feature **has taken nodes down** (forcing a trip up the mountain to repair them).

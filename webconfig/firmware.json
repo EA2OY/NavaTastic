@@ -1,184 +1,184 @@
 {
-  "version": "V5.3",
-  "release": "https://github.com/EA2OY/NavaTastic/releases/tag/v5.3",
-  "fecha": "2026-09-23",
+  "version": "V5.3.1",
+  "release": "https://github.com/EA2OY/NavaTastic/releases/tag/v5.3.1",
+  "fecha": "2026-09-26",
   "nrf52": {
     "Faketec": {
-      "R1IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Faketec.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "nombre": "Faketec.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "bytes": 780574
-      },
-      "R2IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Faketec.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "nombre": "Faketec.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "bytes": 780574
-      },
       "R1IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Faketec.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "nombre": "Faketec.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "bytes": 1559040
+        "nombre": "Faketec.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Faketec.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "bytes": 1560064
+      },
+      "R1IG_zip": {
+        "nombre": "Faketec.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Faketec.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "bytes": 781086
       },
       "R2IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Faketec.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "nombre": "Faketec.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "bytes": 1559040
+        "nombre": "Faketec.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Faketec.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "bytes": 1560064
+      },
+      "R2IG_zip": {
+        "nombre": "Faketec.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Faketec.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "bytes": 781085
       }
     },
     "XiaoKitI2c+E22P": {
-      "R1IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/XiaoKitI2c%2BE22P.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "nombre": "XiaoKitI2c+E22P.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "bytes": 739344
-      },
-      "R2IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/XiaoKitI2c%2BE22P.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "nombre": "XiaoKitI2c+E22P.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "bytes": 739311
-      },
       "R1IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/XiaoKitI2c%2BE22P.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "nombre": "XiaoKitI2c+E22P.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "bytes": 1476608
+        "nombre": "XiaoKitI2c+E22P.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/XiaoKitI2c%2BE22P.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "bytes": 1477632
+      },
+      "R1IG_zip": {
+        "nombre": "XiaoKitI2c+E22P.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/XiaoKitI2c%2BE22P.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "bytes": 739840
       },
       "R2IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/XiaoKitI2c%2BE22P.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "nombre": "XiaoKitI2c+E22P.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "bytes": 1476608
+        "nombre": "XiaoKitI2c+E22P.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/XiaoKitI2c%2BE22P.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "bytes": 1477632
+      },
+      "R2IG_zip": {
+        "nombre": "XiaoKitI2c+E22P.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/XiaoKitI2c%2BE22P.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "bytes": 739807
       }
     },
     "XiaoKitI2c": {
-      "R1IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/XiaoKitI2c.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "nombre": "XiaoKitI2c.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "bytes": 739300
-      },
-      "R2IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/XiaoKitI2c.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "nombre": "XiaoKitI2c.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "bytes": 739300
-      },
       "R1IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/XiaoKitI2c.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "nombre": "XiaoKitI2c.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "bytes": 1476608
+        "nombre": "XiaoKitI2c.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/XiaoKitI2c.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "bytes": 1477632
+      },
+      "R1IG_zip": {
+        "nombre": "XiaoKitI2c.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/XiaoKitI2c.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "bytes": 739796
       },
       "R2IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/XiaoKitI2c.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "nombre": "XiaoKitI2c.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "bytes": 1476608
+        "nombre": "XiaoKitI2c.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/XiaoKitI2c.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "bytes": 1477632
+      },
+      "R2IG_zip": {
+        "nombre": "XiaoKitI2c.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/XiaoKitI2c.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "bytes": 739795
       }
     },
     "Promicro NRF52+E22P": {
-      "R1IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Promicro.NRF52%2BE22P.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "nombre": "Promicro.NRF52+E22P.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "bytes": 780648
-      },
-      "R2IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Promicro.NRF52%2BE22P.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "nombre": "Promicro.NRF52+E22P.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "bytes": 780616
-      },
       "R1IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Promicro.NRF52%2BE22P.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "nombre": "Promicro.NRF52+E22P.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "bytes": 1559552
+        "nombre": "Promicro.NRF52+E22P.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Promicro.NRF52%2BE22P.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "bytes": 1560576
+      },
+      "R1IG_zip": {
+        "nombre": "Promicro.NRF52+E22P.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Promicro.NRF52%2BE22P.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "bytes": 781144
       },
       "R2IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Promicro.NRF52%2BE22P.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "nombre": "Promicro.NRF52+E22P.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "bytes": 1559552
+        "nombre": "Promicro.NRF52+E22P.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Promicro.NRF52%2BE22P.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "bytes": 1560064
+      },
+      "R2IG_zip": {
+        "nombre": "Promicro.NRF52+E22P.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Promicro.NRF52%2BE22P.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "bytes": 781110
       }
     },
     "Seed Solar Node P1": {
-      "R1IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "nombre": "Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "bytes": 739596
-      },
-      "R2IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "nombre": "Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "bytes": 739595
-      },
       "R1IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "nombre": "Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "bytes": 1477120
+        "nombre": "Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "bytes": 1478144
+      },
+      "R1IG_zip": {
+        "nombre": "Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "bytes": 740107
       },
       "R2IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "nombre": "Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "bytes": 1477120
+        "nombre": "Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "bytes": 1478144
+      },
+      "R2IG_zip": {
+        "nombre": "Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Seed.Solar.Node.P1.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "bytes": 740108
       }
     },
     "Heltec T114": {
-      "R1IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Heltec.T114.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "nombre": "Heltec.T114.NavTastic.2.7.26.V5.3.R1IG.zip",
-        "bytes": 746364
-      },
-      "R2IG_zip": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Heltec.T114.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "nombre": "Heltec.T114.NavTastic.2.7.26.V5.3.R2IG.zip",
-        "bytes": 746364
-      },
       "R1IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Heltec.T114.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "nombre": "Heltec.T114.NavTastic.2.7.26.V5.3.R1IG.uf2",
-        "bytes": 1490944
+        "nombre": "Heltec.T114.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Heltec.T114.NavTastic.2.7.26.V5.3.1.R1IG.uf2",
+        "bytes": 1491968
+      },
+      "R1IG_zip": {
+        "nombre": "Heltec.T114.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Heltec.T114.NavTastic.2.7.26.V5.3.1.R1IG.zip",
+        "bytes": 746860
       },
       "R2IG_uf2": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/Heltec.T114.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "nombre": "Heltec.T114.NavTastic.2.7.26.V5.3.R2IG.uf2",
-        "bytes": 1490944
+        "nombre": "Heltec.T114.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Heltec.T114.NavTastic.2.7.26.V5.3.1.R2IG.uf2",
+        "bytes": 1491968
+      },
+      "R2IG_zip": {
+        "nombre": "Heltec.T114.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/Heltec.T114.NavTastic.2.7.26.V5.3.1.R2IG.zip",
+        "bytes": 746860
       }
     }
   },
   "esp32": {
     "HeltecV4": {
       "R1IG_APP": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/HeltecV4.NavTastic.2.7.26.V5.3.R1IG.APP.bin",
-        "nombre": "HeltecV4.NavTastic.2.7.26.V5.3.R1IG.APP.bin",
-        "bytes": 2128464
-      },
-      "R2IG_FACTORY": {
-        "url": "firmware/HeltecV4.NavTastic.2.7.26.V5.3.R2IG.FACTORY.bin",
-        "nombre": "HeltecV4.NavTastic.2.7.26.V5.3.R2IG.FACTORY.bin",
-        "bytes": 2194000
-      },
-      "R2IG_APP": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/HeltecV4.NavTastic.2.7.26.V5.3.R2IG.APP.bin",
-        "nombre": "HeltecV4.NavTastic.2.7.26.V5.3.R2IG.APP.bin",
-        "bytes": 2128464
+        "nombre": "HeltecV4.NavTastic.2.7.26.V5.3.1.R1IG.APP.bin",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/HeltecV4.NavTastic.2.7.26.V5.3.1.R1IG.APP.bin",
+        "bytes": 2128848
       },
       "R1IG_FACTORY": {
-        "url": "firmware/HeltecV4.NavTastic.2.7.26.V5.3.R1IG.FACTORY.bin",
-        "nombre": "HeltecV4.NavTastic.2.7.26.V5.3.R1IG.FACTORY.bin",
-        "bytes": 2194000
+        "nombre": "HeltecV4.NavTastic.2.7.26.V5.3.1.R1IG.FACTORY.bin",
+        "url": "firmware/HeltecV4.NavTastic.2.7.26.V5.3.1.R1IG.FACTORY.bin",
+        "bytes": 2194384
+      },
+      "R2IG_APP": {
+        "nombre": "HeltecV4.NavTastic.2.7.26.V5.3.1.R2IG.APP.bin",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/HeltecV4.NavTastic.2.7.26.V5.3.1.R2IG.APP.bin",
+        "bytes": 2128848
+      },
+      "R2IG_FACTORY": {
+        "nombre": "HeltecV4.NavTastic.2.7.26.V5.3.1.R2IG.FACTORY.bin",
+        "url": "firmware/HeltecV4.NavTastic.2.7.26.V5.3.1.R2IG.FACTORY.bin",
+        "bytes": 2194384
       }
     },
     "HeltecV3": {
       "R1IG_APP": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/HeltecV3.NavTastic.2.7.26.V5.3.R1IG.APP.bin",
-        "nombre": "HeltecV3.NavTastic.2.7.26.V5.3.R1IG.APP.bin",
-        "bytes": 2119296
-      },
-      "R2IG_FACTORY": {
-        "url": "firmware/HeltecV3.NavTastic.2.7.26.V5.3.R2IG.FACTORY.bin",
-        "nombre": "HeltecV3.NavTastic.2.7.26.V5.3.R2IG.FACTORY.bin",
-        "bytes": 2184848
-      },
-      "R2IG_APP": {
-        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3/HeltecV3.NavTastic.2.7.26.V5.3.R2IG.APP.bin",
-        "nombre": "HeltecV3.NavTastic.2.7.26.V5.3.R2IG.APP.bin",
-        "bytes": 2119312
+        "nombre": "HeltecV3.NavTastic.2.7.26.V5.3.1.R1IG.APP.bin",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/HeltecV3.NavTastic.2.7.26.V5.3.1.R1IG.APP.bin",
+        "bytes": 2119680
       },
       "R1IG_FACTORY": {
-        "url": "firmware/HeltecV3.NavTastic.2.7.26.V5.3.R1IG.FACTORY.bin",
-        "nombre": "HeltecV3.NavTastic.2.7.26.V5.3.R1IG.FACTORY.bin",
-        "bytes": 2184832
+        "nombre": "HeltecV3.NavTastic.2.7.26.V5.3.1.R1IG.FACTORY.bin",
+        "url": "firmware/HeltecV3.NavTastic.2.7.26.V5.3.1.R1IG.FACTORY.bin",
+        "bytes": 2185216
+      },
+      "R2IG_APP": {
+        "nombre": "HeltecV3.NavTastic.2.7.26.V5.3.1.R2IG.APP.bin",
+        "url": "https://github.com/EA2OY/NavaTastic/releases/download/v5.3.1/HeltecV3.NavTastic.2.7.26.V5.3.1.R2IG.APP.bin",
+        "bytes": 2119696
+      },
+      "R2IG_FACTORY": {
+        "nombre": "HeltecV3.NavTastic.2.7.26.V5.3.1.R2IG.FACTORY.bin",
+        "url": "firmware/HeltecV3.NavTastic.2.7.26.V5.3.1.R2IG.FACTORY.bin",
+        "bytes": 2185232
       }
     }
   }
