@@ -139,7 +139,7 @@ repetidor por el canal privado, aunque el mando solo tenga cobertura con uno.
 > 🚫 **NO uses "Restaurar copia de seguridad" de la App de Meshtastic.** El nodo se blinda solo con
 > su respaldo interno y esa función **se ha llevado nodos por delante** (ha obligado a subir a la
 > montaña a repararlos). La restauración se deshace sola al reiniciar y puede dejar el nodo sin
-> responder. Detalle y alternativas: manual de uso, sección 6.
+> responder. Detalle y alternativas: manual de uso, sección 7.
 
 ### 5️⃣ Paso 5: Añade el Canal `Navadmin` en tu Móvil Administrador
 * Para gestionar el repetidor por radio desde tu móvil o mando de campo, crea en tu App de Meshtastic un canal secundario con estos parámetros:
@@ -395,7 +395,7 @@ the private channel, even if the controller only has coverage with one node.
 > 🚫 **Do NOT use the Meshtastic App's "Restore backup".** The node protects itself with its internal
 > backup, and that feature **has taken nodes down** (forcing a trip up the mountain to repair them).
 > The restore undoes itself on reboot and can leave the node unresponsive. Details and alternatives:
-> user manual, section 6.
+> user manual, section 7.
 
 ### 5️⃣ Step 5: Add the `Navadmin` Channel on Your Admin Device
 * Create a secondary channel on your mobile/controller app with:
